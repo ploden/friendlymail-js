@@ -1,31 +1,31 @@
+import { SocialNetwork } from './SocialNetwork';
 import { User } from './User';
-import { SocialGraph } from './SocialGraph';
 
 export class Account {
     private _user: User;
-    private _sessionToken: string;
+    private _sessionToken: string | null;
     private _lastActive: Date;
     private _isLoggedIn: boolean;
-    private _socialGraph: SocialGraph;
+    private _socialNetwork: SocialNetwork;
 
     constructor(user: User) {
         this._user = user;
-        this._sessionToken = '';
+        this._sessionToken = null;
         this._lastActive = new Date();
         this._isLoggedIn = false;
-        this._socialGraph = new SocialGraph(this);
+        this._socialNetwork = new SocialNetwork(this);
     }
 
     // Getters
     get user(): User { return this._user; }
-    get sessionToken(): string { return this._sessionToken; }
+    get sessionToken(): string | null { return this._sessionToken; }
     get lastActive(): Date { return new Date(this._lastActive); }
     get isLoggedIn(): boolean { return this._isLoggedIn; }
-    get socialGraph(): SocialGraph { return this._socialGraph; }
+    get socialNetwork(): SocialNetwork { return this._socialNetwork; }
 
-    // Get social graph (alias for socialGraph getter)
-    getSocialGraph(): SocialGraph {
-        return this._socialGraph;
+    // Get social network (alias for socialNetwork getter)
+    getSocialNetwork(): SocialNetwork {
+        return this._socialNetwork;
     }
 
     // Authentication methods
@@ -38,7 +38,7 @@ export class Account {
 
     logout(): void {
         this._isLoggedIn = false;
-        this._sessionToken = '';
+        this._sessionToken = null;
         this._lastActive = new Date();
     }
 

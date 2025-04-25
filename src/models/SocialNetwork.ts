@@ -1,6 +1,6 @@
 import { Account } from './Account';
 
-export class SocialGraph {
+export class SocialNetwork {
     private account: Account;
     private following: Set<Account>;
     private followers: Set<Account>;
@@ -12,14 +12,14 @@ export class SocialGraph {
     }
 
     /**
-     * Get the account associated with this social graph
+     * Get the account associated with this social network
      */
     getAccount(): Account {
         return this.account;
     }
 
     /**
-     * Set a new account for this social graph
+     * Set a new account for this social network
      */
     setAccount(account: Account): void {
         this.account = account;
@@ -34,7 +34,7 @@ export class SocialGraph {
             return;
         }
         this.following.add(account);
-        account.getSocialGraph().addFollower(this.account);
+        account.getSocialNetwork().addFollower(this.account);
     }
 
     /**
@@ -49,7 +49,7 @@ export class SocialGraph {
      */
     unfollow(account: Account): void {
         this.following.delete(account);
-        account.getSocialGraph().removeFollower(this.account);
+        account.getSocialNetwork().removeFollower(this.account);
     }
 
     /**

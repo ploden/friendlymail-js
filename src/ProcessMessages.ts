@@ -1,17 +1,17 @@
 import { EmailMessage } from '../EmailMessage';
 import { Account } from './models/Account';
 import { User } from './models/User';
-import { SocialGraph } from './models/SocialGraph';
+import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
 import * as path from 'path';
 
 export class ProcessMessages {
     private messages: EmailMessage[];
-    private socialGraphs: Map<string, SocialGraph>;
+    private socialNetworks: Map<string, SocialNetwork>;
 
     constructor(messages: EmailMessage[] = []) {
         this.messages = messages;
-        this.socialGraphs = new Map();
+        this.socialNetworks = new Map();
     }
 
     /**
@@ -47,31 +47,35 @@ export class ProcessMessages {
     /**
      * Create an account from a create account command message
      */
-    private createAccountFromMessage(message: EmailMessage): void {
-        // Extract username from message body after useradd command
+    createAccountFromMessage(message: EmailMessage): Account | null {
+        const fromEmail = message.from;
+        if (!fromEmail) {
+            console.warn('Cannot create account: missing from email');
+            return null;
+        }
+
         const usernameMatch = message.body.match(/\$\s*useradd\s*\n+\s*([^\n]+)/);
         if (!usernameMatch) {
-            console.warn('No username found in create account command message');
-            return;
+            console.warn('Cannot create account: missing username in message body');
+            return null;
         }
 
         const username = usernameMatch[1].trim();
-        const fromEmail = message.from;
-
-        // If account exists, update the username
-        const existingAccount = this.getAccount(fromEmail.toString());
-        if (existingAccount) {
-            existingAccount.user.updateProfile({ username });
-            return;
-        }
-
-        // Create a new user and account using the username from the useradd command
         const user = new User(username, fromEmail);
         const account = new Account(user);
-        const socialGraph = new SocialGraph(account);
 
-        // Store the social graph
-        this.socialGraphs.set(fromEmail.toString(), socialGraph);
+        // Check if account already exists
+        const existingAccount = this.getAccountByEmail(fromEmail.toString());
+        if (existingAccount) {
+            // Update the username
+            existingAccount.user.updateProfile({ username });
+            console.warn(`Account already exists for ${fromEmail}, updating username to ${username}`);
+            return existingAccount;
+        }
+
+        const socialNetwork = new SocialNetwork(account);
+        this.socialNetworks.set(fromEmail.toString(), socialNetwork);
+        return account;
     }
 
     /**
@@ -87,44 +91,44 @@ export class ProcessMessages {
         const followEmail = followMatch[1].trim();
 
         // Get the sender's account (must already exist)
-        const senderAccount = this.getAccount(message.from.toString());
+        const senderAccount = this.getAccountByEmail(message.from.toString());
         if (!senderAccount) {
             console.warn(`Cannot follow - sender account ${message.from.toString()} does not exist`);
             return;
         }
 
         // Get the account to follow (must already exist)
-        const followAccount = this.getAccount(followEmail);
+        const followAccount = this.getAccountByEmail(followEmail);
         if (!followAccount) {
             console.warn(`Cannot follow ${followEmail} - account does not exist`);
             return;
         }
 
-        // Add the follow relationship using the account's social graph
-        senderAccount.socialGraph.follow(followAccount);
+        // Add the follow relationship using the account's social network
+        senderAccount.socialNetwork.follow(followAccount);
     }
 
     /**
      * Add an account to the processor
      */
     addAccount(account: Account): void {
-        const socialGraph = new SocialGraph(account);
-        this.socialGraphs.set(account.user.email.toString(), socialGraph);
+        const socialNetwork = new SocialNetwork(account);
+        this.socialNetworks.set(account.user.email.toString(), socialNetwork);
     }
 
     /**
      * Get an account by email
      */
-    getAccount(email: string): Account | undefined {
-        const socialGraph = this.socialGraphs.get(email);
-        return socialGraph?.getAccount();
+    getAccountByEmail(email: string): Account | null {
+        const socialNetwork = this.socialNetworks.get(email);
+        return socialNetwork?.getAccount() || null;
     }
 
     /**
      * Get all accounts
      */
     getAllAccounts(): Account[] {
-        return Array.from(this.socialGraphs.values()).map(graph => graph.getAccount());
+        return Array.from(this.socialNetworks.values()).map(network => network.getAccount());
     }
 
     /**
@@ -269,16 +273,16 @@ export class ProcessMessages {
     }
 
     /**
-     * Get social graph for a specific email
+     * Get social network for a specific email
      */
-    getSocialGraph(email: string): SocialGraph | undefined {
-        return this.socialGraphs.get(email);
+    getSocialNetwork(email: string): SocialNetwork | undefined {
+        return this.socialNetworks.get(email);
     }
 
     /**
-     * Get all social graphs
+     * Get all social networks
      */
-    getAllSocialGraphs(): SocialGraph[] {
-        return Array.from(this.socialGraphs.values());
+    getAllSocialNetworks(): SocialNetwork[] {
+        return Array.from(this.socialNetworks.values());
     }
 } 
