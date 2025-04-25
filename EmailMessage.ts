@@ -1,8 +1,10 @@
+import { EmailAddress } from './src/models/EmailAddress';
+
 export class EmailMessage {
-    private _from: string;
-    private _to: string[];
-    private _cc: string[];
-    private _bcc: string[];
+    private _from: EmailAddress;
+    private _to: EmailAddress[];
+    private _cc: EmailAddress[];
+    private _bcc: EmailAddress[];
     private _subject: string;
     private _body: string;
     private _attachments: string[];
@@ -10,13 +12,13 @@ export class EmailMessage {
     private _priority: 'high' | 'normal' | 'low';
 
     constructor(
-        from: string,
-        to: string[],
+        from: EmailAddress,
+        to: EmailAddress[],
         subject: string,
         body: string,
         options: {
-            cc?: string[];
-            bcc?: string[];
+            cc?: EmailAddress[];
+            bcc?: EmailAddress[];
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
@@ -43,10 +45,10 @@ export class EmailMessage {
             const lines = content.split('\n');
 
             // Initialize variables
-            let from = '';
-            let to: string[] = [];
-            let cc: string[] = [];
-            let bcc: string[] = [];
+            let from: EmailAddress | null = null;
+            let to: EmailAddress[] = [];
+            let cc: EmailAddress[] = [];
+            let bcc: EmailAddress[] = [];
             let subject = '';
             let body = '';
             let isHtml = false;
@@ -79,16 +81,28 @@ export class EmailMessage {
                     if (currentHeader) {
                         switch (currentHeader.toLowerCase()) {
                             case 'from':
-                                from = currentValue;
+                                from = EmailAddress.fromDisplayString(currentValue);
                                 break;
                             case 'to':
-                                to = currentValue.split(',').map(email => email.trim());
+                                to = currentValue.split(',').map(email => {
+                                    const addr = EmailAddress.fromDisplayString(email.trim());
+                                    if (!addr) throw new Error(`Invalid email address in To: ${email}`);
+                                    return addr;
+                                });
                                 break;
                             case 'cc':
-                                cc = currentValue.split(',').map(email => email.trim());
+                                cc = currentValue.split(',').map(email => {
+                                    const addr = EmailAddress.fromDisplayString(email.trim());
+                                    if (!addr) throw new Error(`Invalid email address in Cc: ${email}`);
+                                    return addr;
+                                });
                                 break;
                             case 'bcc':
-                                bcc = currentValue.split(',').map(email => email.trim());
+                                bcc = currentValue.split(',').map(email => {
+                                    const addr = EmailAddress.fromDisplayString(email.trim());
+                                    if (!addr) throw new Error(`Invalid email address in Bcc: ${email}`);
+                                    return addr;
+                                });
                                 break;
                             case 'subject':
                                 subject = currentValue;
@@ -127,16 +141,28 @@ export class EmailMessage {
             if (currentHeader) {
                 switch (currentHeader.toLowerCase()) {
                     case 'from':
-                        from = currentValue;
+                        from = EmailAddress.fromDisplayString(currentValue);
                         break;
                     case 'to':
-                        to = currentValue.split(',').map(email => email.trim());
+                        to = currentValue.split(',').map(email => {
+                            const addr = EmailAddress.fromDisplayString(email.trim());
+                            if (!addr) throw new Error(`Invalid email address in To: ${email}`);
+                            return addr;
+                        });
                         break;
                     case 'cc':
-                        cc = currentValue.split(',').map(email => email.trim());
+                        cc = currentValue.split(',').map(email => {
+                            const addr = EmailAddress.fromDisplayString(email.trim());
+                            if (!addr) throw new Error(`Invalid email address in Cc: ${email}`);
+                            return addr;
+                        });
                         break;
                     case 'bcc':
-                        bcc = currentValue.split(',').map(email => email.trim());
+                        bcc = currentValue.split(',').map(email => {
+                            const addr = EmailAddress.fromDisplayString(email.trim());
+                            if (!addr) throw new Error(`Invalid email address in Bcc: ${email}`);
+                            return addr;
+                        });
                         break;
                     case 'subject':
                         subject = currentValue;
@@ -160,11 +186,21 @@ export class EmailMessage {
             body = body.trim();
 
             // Debug log before validation
-            console.log('Parsed email fields:', { from, to, subject, body });
+            console.log('Parsed email fields:', { 
+                from: from?.toString(), 
+                to: to.map(addr => addr.toString()), 
+                subject, 
+                body 
+            });
 
             // Validate required fields
             if (!from || to.length === 0 || !subject || !body) {
-                console.error('Missing required fields:', { from, to, subject, body });
+                console.error('Missing required fields:', { 
+                    from: from?.toString(), 
+                    to: to.map(addr => addr.toString()), 
+                    subject, 
+                    body 
+                });
                 throw new Error('Missing required email fields in file');
             }
 
@@ -176,24 +212,25 @@ export class EmailMessage {
                 priority
             });
         } catch (error) {
-            throw new Error(`Failed to create EmailMessage from file: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to create EmailMessage from file: ${errorMessage}`);
         }
     }
 
     // Getters
-    get from(): string {
+    get from(): EmailAddress {
         return this._from;
     }
 
-    get to(): string[] {
+    get to(): EmailAddress[] {
         return [...this._to];
     }
 
-    get cc(): string[] {
+    get cc(): EmailAddress[] {
         return [...this._cc];
     }
 
-    get bcc(): string[] {
+    get bcc(): EmailAddress[] {
         return [...this._bcc];
     }
 
@@ -218,19 +255,19 @@ export class EmailMessage {
     }
 
     // Setters
-    set from(value: string) {
+    set from(value: EmailAddress) {
         this._from = value;
     }
 
-    set to(value: string[]) {
+    set to(value: EmailAddress[]) {
         this._to = [...value];
     }
 
-    set cc(value: string[]) {
+    set cc(value: EmailAddress[]) {
         this._cc = [...value];
     }
 
-    set bcc(value: string[]) {
+    set bcc(value: EmailAddress[]) {
         this._bcc = [...value];
     }
 
@@ -255,15 +292,15 @@ export class EmailMessage {
     }
 
     // Methods
-    addRecipient(email: string): void {
+    addRecipient(email: EmailAddress): void {
         this._to.push(email);
     }
 
-    addCc(email: string): void {
+    addCc(email: EmailAddress): void {
         this._cc.push(email);
     }
 
-    addBcc(email: string): void {
+    addBcc(email: EmailAddress): void {
         this._bcc.push(email);
     }
 
@@ -271,39 +308,32 @@ export class EmailMessage {
         this._attachments.push(filePath);
     }
 
-    removeRecipient(email: string): void {
-        this._to = this._to.filter(e => e !== email);
+    removeRecipient(email: EmailAddress): void {
+        this._to = this._to.filter(e => !e.equals(email));
     }
 
-    removeCc(email: string): void {
-        this._cc = this._cc.filter(e => e !== email);
+    removeCc(email: EmailAddress): void {
+        this._cc = this._cc.filter(e => !e.equals(email));
     }
 
-    removeBcc(email: string): void {
-        this._bcc = this._bcc.filter(e => e !== email);
+    removeBcc(email: EmailAddress): void {
+        this._bcc = this._bcc.filter(e => !e.equals(email));
     }
 
     removeAttachment(filePath: string): void {
         this._attachments = this._attachments.filter(f => f !== filePath);
     }
 
-    // Validation method
     validate(): boolean {
-        return (
-            this._from.length > 0 &&
-            this._to.length > 0 &&
-            this._subject.length > 0 &&
-            this._body.length > 0
-        );
+        return !!this._from && this._to.length > 0 && !!this._subject && !!this._body;
     }
 
-    // Convert to plain object
     toJSON(): Record<string, any> {
         return {
-            from: this._from,
-            to: this._to,
-            cc: this._cc,
-            bcc: this._bcc,
+            from: this._from.toString(),
+            to: this._to.map(addr => addr.toString()),
+            cc: this._cc.map(addr => addr.toString()),
+            bcc: this._bcc.map(addr => addr.toString()),
             subject: this._subject,
             body: this._body,
             attachments: this._attachments,

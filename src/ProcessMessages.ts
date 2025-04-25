@@ -2,16 +2,15 @@ import { EmailMessage } from '../EmailMessage';
 import { Account } from './models/Account';
 import { User } from './models/User';
 import { SocialGraph } from './models/SocialGraph';
+import { EmailAddress } from './models/EmailAddress';
 import * as path from 'path';
 
 export class ProcessMessages {
     private messages: EmailMessage[];
-    private accounts: Map<string, Account>;
     private socialGraphs: Map<string, SocialGraph>;
 
     constructor(messages: EmailMessage[] = []) {
         this.messages = messages;
-        this.accounts = new Map();
         this.socialGraphs = new Map();
     }
 
@@ -49,39 +48,30 @@ export class ProcessMessages {
      * Create an account from a create account command message
      */
     private createAccountFromMessage(message: EmailMessage): void {
-        // Extract name and email from the From header
-        // Handle different formats:
-        // 1. "Name <email@example.com>" -> use username from useradd command
-        // 2. "email@example.com" -> use username from useradd command
-        let email: string;
-        let displayName: string;
+        // Extract username from message body after useradd command
+        const usernameMatch = message.body.match(/\$\s*useradd\s*\n+\s*([^\n]+)/);
+        if (!usernameMatch) {
+            console.warn('No username found in create account command message');
+            return;
+        }
 
-        const fromMatch = message.from.match(/^(?:(.+?)\s*<([^>]+)>|(.+))$/);
-        if (fromMatch) {
-            if (fromMatch[2]) {
-                // Format: "Name <email@example.com>"
-                email = fromMatch[2].trim();
-            } else {
-                // Format: "email@example.com"
-                email = fromMatch[3].trim();
-            }
+        const username = usernameMatch[1].trim();
+        const fromEmail = message.from;
 
-            // Extract username from the message body after the useradd command and newlines
-            const usernameMatch = message.body.match(/\$\s*useradd\s*\n+\s*(.+?)(?:\s*$|\n)/);
-            displayName = usernameMatch ? usernameMatch[1].trim() : email.split('@')[0];
-        } else {
-            console.warn('Invalid From header format');
+        // If account exists, update the username
+        const existingAccount = this.getAccount(fromEmail.toString());
+        if (existingAccount) {
+            existingAccount.user.updateProfile({ username });
             return;
         }
 
         // Create a new user and account using the username from the useradd command
-        const user = new User(displayName, email, 'password123'); // Default password, should be changed
+        const user = new User(username, fromEmail);
         const account = new Account(user);
         const socialGraph = new SocialGraph(account);
 
-        // Store the account and social graph
-        this.accounts.set(email, account);
-        this.socialGraphs.set(email, socialGraph);
+        // Store the social graph
+        this.socialGraphs.set(fromEmail.toString(), socialGraph);
     }
 
     /**
@@ -96,23 +86,15 @@ export class ProcessMessages {
         }
         const followEmail = followMatch[1].trim();
 
-        // Extract the sender's email from the From header
-        const fromMatch = message.from.match(/^(?:(.+?)\s*<([^>]+)>|(.+))$/);
-        if (!fromMatch) {
-            console.warn('Invalid From header format');
-            return;
-        }
-        const senderEmail = fromMatch[2] ? fromMatch[2].trim() : fromMatch[3].trim();
-
         // Get the sender's account (must already exist)
-        const senderAccount = this.accounts.get(senderEmail);
+        const senderAccount = this.getAccount(message.from.toString());
         if (!senderAccount) {
-            console.warn(`Cannot follow - sender account ${senderEmail} does not exist`);
+            console.warn(`Cannot follow - sender account ${message.from.toString()} does not exist`);
             return;
         }
 
         // Get the account to follow (must already exist)
-        const followAccount = this.accounts.get(followEmail);
+        const followAccount = this.getAccount(followEmail);
         if (!followAccount) {
             console.warn(`Cannot follow ${followEmail} - account does not exist`);
             return;
@@ -126,21 +108,23 @@ export class ProcessMessages {
      * Add an account to the processor
      */
     addAccount(account: Account): void {
-        this.accounts.set(account.user.email, account);
+        const socialGraph = new SocialGraph(account);
+        this.socialGraphs.set(account.user.email.toString(), socialGraph);
     }
 
     /**
      * Get an account by email
      */
     getAccount(email: string): Account | undefined {
-        return this.accounts.get(email);
+        const socialGraph = this.socialGraphs.get(email);
+        return socialGraph?.getAccount();
     }
 
     /**
      * Get all accounts
      */
     getAllAccounts(): Account[] {
-        return Array.from(this.accounts.values());
+        return Array.from(this.socialGraphs.values()).map(graph => graph.getAccount());
     }
 
     /**
@@ -153,15 +137,15 @@ export class ProcessMessages {
     /**
      * Get messages from a specific sender
      */
-    getMessagesFrom(sender: string): EmailMessage[] {
-        return this.messages.filter(message => message.from === sender);
+    getMessagesFrom(sender: EmailAddress): EmailMessage[] {
+        return this.messages.filter(message => message.from.equals(sender));
     }
 
     /**
      * Get messages to a specific recipient
      */
-    getMessagesTo(recipient: string): EmailMessage[] {
-        return this.messages.filter(message => message.to.includes(recipient));
+    getMessagesTo(recipient: EmailAddress): EmailMessage[] {
+        return this.messages.filter(message => message.to.some(addr => addr.equals(recipient)));
     }
 
     /**
@@ -244,14 +228,14 @@ export class ProcessMessages {
     /**
      * Get unique senders
      */
-    getUniqueSenders(): string[] {
+    getUniqueSenders(): EmailAddress[] {
         return [...new Set(this.messages.map(message => message.from))];
     }
 
     /**
      * Get unique recipients
      */
-    getUniqueRecipients(): string[] {
+    getUniqueRecipients(): EmailAddress[] {
         const recipients = this.messages.flatMap(message => message.to);
         return [...new Set(recipients)];
     }
@@ -259,15 +243,14 @@ export class ProcessMessages {
     /**
      * Get messages grouped by sender
      */
-    getMessagesGroupedBySender(): Map<string, EmailMessage[]> {
-        const grouped = new Map<string, EmailMessage[]>();
-        this.messages.forEach(message => {
-            const sender = message.from;
-            if (!grouped.has(sender)) {
-                grouped.set(sender, []);
+    getMessagesGroupedBySender(): Map<EmailAddress, EmailMessage[]> {
+        const grouped = new Map<EmailAddress, EmailMessage[]>();
+        for (const message of this.messages) {
+            if (!grouped.has(message.from)) {
+                grouped.set(message.from, []);
             }
-            grouped.get(sender)!.push(message);
-        });
+            grouped.get(message.from)!.push(message);
+        }
         return grouped;
     }
 
@@ -276,18 +259,17 @@ export class ProcessMessages {
      */
     getMessagesGroupedByPriority(): Map<'high' | 'normal' | 'low', EmailMessage[]> {
         const grouped = new Map<'high' | 'normal' | 'low', EmailMessage[]>();
-        this.messages.forEach(message => {
-            const priority = message.priority;
-            if (!grouped.has(priority)) {
-                grouped.set(priority, []);
+        for (const message of this.messages) {
+            if (!grouped.has(message.priority)) {
+                grouped.set(message.priority, []);
             }
-            grouped.get(priority)!.push(message);
-        });
+            grouped.get(message.priority)!.push(message);
+        }
         return grouped;
     }
 
     /**
-     * Get a social graph by email
+     * Get social graph for a specific email
      */
     getSocialGraph(email: string): SocialGraph | undefined {
         return this.socialGraphs.get(email);

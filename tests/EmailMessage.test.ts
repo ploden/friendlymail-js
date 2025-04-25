@@ -1,4 +1,5 @@
 import { EmailMessage } from '../EmailMessage';
+import { EmailAddress } from '../src/models/EmailAddress';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -8,8 +9,12 @@ describe('EmailMessage', () => {
             const filePath = path.join(__dirname, '..', 'create_command_create_account.txt');
             const email = await EmailMessage.fromTextFile(filePath);
             
-            expect(email.from).toBe('Phil Loden <ploden@gmail.com>');
-            expect(email.to).toEqual(['Phil Loden <ploden@gmail.com>']);
+            const expectedFrom = EmailAddress.fromDisplayString('Phil Loden <ploden@gmail.com>');
+            const expectedTo = [EmailAddress.fromDisplayString('Phil Loden <ploden@gmail.com>')];
+            
+            expect(email.from.equals(expectedFrom!)).toBe(true);
+            expect(email.to.length).toBe(expectedTo.length);
+            expect(email.to[0].equals(expectedTo[0]!)).toBe(true);
             expect(email.subject).toBe('fm');
             expect(email.body).toBe('$ useradd\n\nPhil');
             expect(email.isHtml).toBe(false);

@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "module": "commonjs",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "./dist",
+        "rootDir": ".",
+        "declaration": true,
+        "sourceMap": true
+    },
+    "include": [
+        "src/**/*",
+        "tests/**/*",
+        "EmailMessage.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+} 

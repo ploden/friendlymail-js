@@ -1,12 +1,12 @@
 import { PrivacySetting } from './types';
 import { Post } from './Post';
 import { Comment } from './Comment';
+import { EmailAddress } from './EmailAddress';
 
 export class User {
     private _id: string;
     private _username: string;
-    private _email: string;
-    private _password: string;
+    private _email: EmailAddress;
     private _profilePicture: string;
     private _bio: string;
     private _posts: Post[];
@@ -22,8 +22,7 @@ export class User {
 
     constructor(
         username: string,
-        email: string,
-        password: string,
+        email: EmailAddress,
         options: {
             profilePicture?: string;
             bio?: string;
@@ -37,7 +36,6 @@ export class User {
         this._id = crypto.randomUUID();
         this._username = username;
         this._email = email;
-        this._password = password;
         this._profilePicture = options.profilePicture || '';
         this._bio = options.bio || '';
         this._posts = [];
@@ -55,7 +53,7 @@ export class User {
     // Getters
     get id(): string { return this._id; }
     get username(): string { return this._username; }
-    get email(): string { return this._email; }
+    get email(): EmailAddress { return this._email; }
     get profilePicture(): string { return this._profilePicture; }
     get bio(): string { return this._bio; }
     get posts(): Post[] { return [...this._posts]; }
@@ -103,7 +101,7 @@ export class User {
         return this._followers.has(user);
     }
 
-    getFollowerCount(): number {
+    getFollowersCount(): number {
         return this._followers.size;
     }
 
@@ -113,7 +111,7 @@ export class User {
 
     updateProfile(updates: {
         username?: string;
-        email?: string;
+        email?: EmailAddress;
         profilePicture?: string;
         bio?: string;
     }): void {

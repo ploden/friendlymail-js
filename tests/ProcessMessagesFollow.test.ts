@@ -2,6 +2,7 @@ import { ProcessMessages } from '../src/ProcessMessages';
 import { EmailMessage } from '../EmailMessage';
 import { User } from '../src/models/User';
 import { Account } from '../src/models/Account';
+import { EmailAddress } from '../src/models/EmailAddress';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -12,8 +13,8 @@ describe('ProcessMessages Follow Command', () => {
 
             // Create sender account using useradd command
             const createSenderMessage = new EmailMessage(
-                'Phil Loden <ploden@gmail.com>',
-                ['ploden@gmail.com'],
+                EmailAddress.fromDisplayString('Phil Loden <ploden@gmail.com>')!,
+                [EmailAddress.fromDisplayString('ploden@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPhil Loden',
                 { priority: 'normal', isHtml: false }
@@ -22,8 +23,8 @@ describe('ProcessMessages Follow Command', () => {
 
             // Create account to be followed using useradd command
             const createFollowMessage = new EmailMessage(
-                'ploden.postcards@gmail.com',
-                ['ploden.postcards@gmail.com'],
+                EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!,
+                [EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPostcards',
                 { priority: 'normal', isHtml: false }
@@ -44,9 +45,9 @@ describe('ProcessMessages Follow Command', () => {
 
             // Verify user details
             expect(senderAccount?.user.username).toBe('Phil Loden');
-            expect(senderAccount?.user.email).toBe('ploden@gmail.com');
+            expect(senderAccount?.user.email.toString()).toBe('ploden@gmail.com');
             expect(followAccount?.user.username).toBe('Postcards');
-            expect(followAccount?.user.email).toBe('ploden.postcards@gmail.com');
+            expect(followAccount?.user.email.toString()).toBe('ploden.postcards@gmail.com');
 
             // Verify follow relationship
             expect(senderAccount?.socialGraph.isFollowing(followAccount!)).toBe(true);
@@ -58,8 +59,8 @@ describe('ProcessMessages Follow Command', () => {
             
             // Create only the account to be followed
             const createFollowMessage = new EmailMessage(
-                'ploden.postcards@gmail.com',
-                ['ploden.postcards@gmail.com'],
+                EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!,
+                [EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPostcards',
                 { priority: 'normal', isHtml: false }
@@ -81,8 +82,8 @@ describe('ProcessMessages Follow Command', () => {
             
             // Create only the sender account
             const createSenderMessage = new EmailMessage(
-                'Phil Loden <ploden@gmail.com>',
-                ['ploden@gmail.com'],
+                EmailAddress.fromDisplayString('Phil Loden <ploden@gmail.com>')!,
+                [EmailAddress.fromDisplayString('ploden@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPhil Loden',
                 { priority: 'normal', isHtml: false }
@@ -104,8 +105,8 @@ describe('ProcessMessages Follow Command', () => {
             
             // Create both accounts using useradd commands
             const createSenderMessage = new EmailMessage(
-                'Phil Loden <ploden@gmail.com>',
-                ['ploden@gmail.com'],
+                EmailAddress.fromDisplayString('Phil Loden <ploden@gmail.com>')!,
+                [EmailAddress.fromDisplayString('ploden@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPhil Loden',
                 { priority: 'normal', isHtml: false }
@@ -113,8 +114,8 @@ describe('ProcessMessages Follow Command', () => {
             processor.addMessage(createSenderMessage);
 
             const createFollowMessage = new EmailMessage(
-                'ploden.postcards@gmail.com',
-                ['ploden.postcards@gmail.com'],
+                EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!,
+                [EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPostcards',
                 { priority: 'normal', isHtml: false }
@@ -142,8 +143,8 @@ describe('ProcessMessages Follow Command', () => {
             
             // Create both accounts using useradd commands
             const createSenderMessage = new EmailMessage(
-                'ploden@gmail.com',
-                ['ploden@gmail.com'],
+                EmailAddress.fromDisplayString('ploden@gmail.com')!,
+                [EmailAddress.fromDisplayString('ploden@gmail.com')!],
                 'fm',
                 '$ useradd\n\nploden',
                 { priority: 'normal', isHtml: false }
@@ -151,8 +152,8 @@ describe('ProcessMessages Follow Command', () => {
             processor.addMessage(createSenderMessage);
 
             const createFollowMessage = new EmailMessage(
-                'ploden.postcards@gmail.com',
-                ['ploden.postcards@gmail.com'],
+                EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!,
+                [EmailAddress.fromDisplayString('ploden.postcards@gmail.com')!],
                 'fm',
                 '$ useradd\n\nPostcards',
                 { priority: 'normal', isHtml: false }
