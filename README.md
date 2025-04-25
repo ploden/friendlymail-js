@@ -1,0 +1,1 @@
+# friendlymail-js
