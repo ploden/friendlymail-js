@@ -1,0 +1,14 @@
+From: Phil Loden <ploden@gmail.com>
+Content-Type: text/plain;
+    charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3696.120.41.1.1\))
+Subject: fm
+X-Universally-Unique-Identifier: CCE26B0F-5A24-4658-856B-8E31127086CD
+Message-Id: <38072F6D-47C1-4225-A64A-DB8E360CFBCF@gmail.com>
+Date: Wed, 2 Nov 2022 11:18:18 -0500
+To: Phil Loden <ploden@gmail.com>
+
+$ useradd
+
+Phil

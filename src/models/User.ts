@@ -1,4 +1,6 @@
 import { PrivacySetting } from './types';
+import { Post } from './Post';
+import { Comment } from './Comment';
 
 export class User {
     private _id: string;
@@ -7,7 +9,10 @@ export class User {
     private _password: string;
     private _profilePicture: string;
     private _bio: string;
-    private _friends: User[];
+    private _posts: Post[];
+    private _comments: Comment[];
+    private _followers: Set<User>;
+    private _following: Set<User>;
     private _privacySettings: {
         profile: PrivacySetting;
         posts: PrivacySetting;
@@ -35,7 +40,10 @@ export class User {
         this._password = password;
         this._profilePicture = options.profilePicture || '';
         this._bio = options.bio || '';
-        this._friends = [];
+        this._posts = [];
+        this._comments = [];
+        this._followers = new Set();
+        this._following = new Set();
         this._privacySettings = options.privacySettings || {
             profile: 'public',
             posts: 'public',
@@ -50,19 +58,57 @@ export class User {
     get email(): string { return this._email; }
     get profilePicture(): string { return this._profilePicture; }
     get bio(): string { return this._bio; }
-    get friends(): User[] { return [...this._friends]; }
+    get posts(): Post[] { return [...this._posts]; }
+    get comments(): Comment[] { return [...this._comments]; }
+    get followers(): User[] { return Array.from(this._followers); }
+    get following(): User[] { return Array.from(this._following); }
     get privacySettings() { return { ...this._privacySettings }; }
     get createdAt(): Date { return new Date(this._createdAt); }
 
     // Methods
-    addFriend(user: User): void {
-        if (!this._friends.some(friend => friend.id === user.id)) {
-            this._friends.push(user);
-        }
+    addPost(post: Post): void {
+        this._posts.push(post);
     }
 
-    removeFriend(user: User): void {
-        this._friends = this._friends.filter(friend => friend.id !== user.id);
+    addComment(comment: Comment): void {
+        this._comments.push(comment);
+    }
+
+    follow(user: User): void {
+        if (user === this) {
+            throw new Error('Cannot follow yourself');
+        }
+        this._following.add(user);
+        user._followers.add(this);
+    }
+
+    unfollow(user: User): void {
+        this._following.delete(user);
+        user._followers.delete(this);
+    }
+
+    getFollowers(): User[] {
+        return Array.from(this._followers);
+    }
+
+    getFollowing(): User[] {
+        return Array.from(this._following);
+    }
+
+    isFollowing(user: User): boolean {
+        return this._following.has(user);
+    }
+
+    isFollowedBy(user: User): boolean {
+        return this._followers.has(user);
+    }
+
+    getFollowerCount(): number {
+        return this._followers.size;
+    }
+
+    getFollowingCount(): number {
+        return this._following.size;
     }
 
     updateProfile(updates: {
