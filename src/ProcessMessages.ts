@@ -8,10 +8,14 @@ import * as path from 'path';
 export class ProcessMessages {
     private messages: EmailMessage[];
     private socialNetworks: Map<string, SocialNetwork>;
+    private following: Map<string, Set<string>>;
+    private followers: Map<string, Set<string>>;
 
     constructor(messages: EmailMessage[] = []) {
         this.messages = messages;
         this.socialNetworks = new Map();
+        this.following = new Map();
+        this.followers = new Map();
     }
 
     /**
@@ -104,8 +108,85 @@ export class ProcessMessages {
             return;
         }
 
-        // Add the follow relationship using the account's social network
-        senderAccount.socialNetwork.follow(followAccount);
+        // Add the follow relationship
+        this.follow(senderAccount, followAccount);
+    }
+
+    /**
+     * Follow another account
+     */
+    follow(follower: Account, followee: Account): void {
+        const followerEmail = follower.user.email.toString();
+        const followeeEmail = followee.user.email.toString();
+
+        if (followerEmail === followeeEmail) {
+            console.warn('Cannot follow yourself');
+            return;
+        }
+
+        // Initialize sets if they don't exist
+        if (!this.following.has(followerEmail)) {
+            this.following.set(followerEmail, new Set());
+        }
+        if (!this.followers.has(followeeEmail)) {
+            this.followers.set(followeeEmail, new Set());
+        }
+
+        // Add the follow relationship
+        this.following.get(followerEmail)!.add(followeeEmail);
+        this.followers.get(followeeEmail)!.add(followerEmail);
+    }
+
+    /**
+     * Unfollow an account
+     */
+    unfollow(follower: Account, followee: Account): void {
+        const followerEmail = follower.user.email.toString();
+        const followeeEmail = followee.user.email.toString();
+
+        // Remove the follow relationship
+        this.following.get(followerEmail)?.delete(followeeEmail);
+        this.followers.get(followeeEmail)?.delete(followerEmail);
+    }
+
+    /**
+     * Get all accounts this account is following
+     */
+    getFollowing(account: Account): Account[] {
+        const email = account.user.email.toString();
+        const followingEmails = this.following.get(email) || new Set();
+        return Array.from(followingEmails)
+            .map(e => this.getAccountByEmail(e))
+            .filter((a): a is Account => a !== null);
+    }
+
+    /**
+     * Get all accounts following this account
+     */
+    getFollowers(account: Account): Account[] {
+        const email = account.user.email.toString();
+        const followerEmails = this.followers.get(email) || new Set();
+        return Array.from(followerEmails)
+            .map(e => this.getAccountByEmail(e))
+            .filter((a): a is Account => a !== null);
+    }
+
+    /**
+     * Check if one account is following another
+     */
+    isFollowing(follower: Account, followee: Account): boolean {
+        const followerEmail = follower.user.email.toString();
+        const followeeEmail = followee.user.email.toString();
+        return this.following.get(followerEmail)?.has(followeeEmail) || false;
+    }
+
+    /**
+     * Check if one account is followed by another
+     */
+    isFollowedBy(followee: Account, follower: Account): boolean {
+        const followerEmail = follower.user.email.toString();
+        const followeeEmail = followee.user.email.toString();
+        return this.followers.get(followeeEmail)?.has(followerEmail) || false;
     }
 
     /**

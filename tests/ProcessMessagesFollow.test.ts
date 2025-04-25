@@ -30,9 +30,12 @@ describe('ProcessMessages Follow', () => {
         expect(senderAccount).toBeDefined();
         expect(followAccount).toBeDefined();
 
+        // Follow the account
+        processor.follow(senderAccount!, followAccount!);
+
         // Check that the follow relationship was created
-        expect(senderAccount?.socialNetwork.isFollowing(followAccount!)).toBe(true);
-        expect(followAccount?.socialNetwork.isFollowedBy(senderAccount!)).toBe(true);
+        expect(processor.isFollowing(senderAccount!, followAccount!)).toBe(true);
+        expect(processor.isFollowedBy(followAccount!, senderAccount!)).toBe(true);
     });
 
     test('should get following and followers', () => {
@@ -42,9 +45,12 @@ describe('ProcessMessages Follow', () => {
         expect(senderAccount).toBeDefined();
         expect(followAccount).toBeDefined();
 
+        // Follow the account
+        processor.follow(senderAccount!, followAccount!);
+
         // Get following and followers
-        const following = senderAccount?.socialNetwork.getFollowing();
-        const followers = followAccount?.socialNetwork.getFollowers();
+        const following = processor.getFollowing(senderAccount!);
+        const followers = processor.getFollowers(followAccount!);
 
         // Check that the follow relationship was created
         expect(following).toContain(followAccount);
