@@ -9,9 +9,12 @@ describe('ProcessMessages', () => {
     let message2: EmailMessage;
     let message3: EmailMessage;
     let createAccountMessage: EmailMessage;
+    let createAccountMessage2: EmailMessage;
 
     beforeEach(async () => {
         processor = new ProcessMessages();
+
+        // Create regular test messages
         message1 = new EmailMessage(
             'sender1@example.com',
             ['recipient1@example.com'],
@@ -34,9 +37,22 @@ describe('ProcessMessages', () => {
             { priority: 'high', isHtml: true }
         );
 
-        // Create a create account message
-        const filePath = path.join(__dirname, '..', 'create_command_create_account.txt');
-        createAccountMessage = await EmailMessage.fromTextFile(filePath);
+        // Create account messages with different formats
+        try {
+            const filePath1 = path.resolve(__dirname, '..', 'create_command_create_account.txt');
+            const filePath2 = path.resolve(__dirname, '..', 'create_command_create_account_2.txt');
+
+            // Check if files exist
+            if (!fs.existsSync(filePath1) || !fs.existsSync(filePath2)) {
+                throw new Error('Test files not found');
+            }
+
+            createAccountMessage = await EmailMessage.fromTextFile(filePath1);
+            createAccountMessage2 = await EmailMessage.fromTextFile(filePath2);
+        } catch (error) {
+            console.error('Error loading test files:', error);
+            throw error;
+        }
     });
 
     describe('Basic Operations', () => {
@@ -69,12 +85,21 @@ describe('ProcessMessages', () => {
     });
 
     describe('Account Creation', () => {
-        it('should create an account from a create account message', () => {
+        it('should create an account from a create account message with name and email format', () => {
             processor.addMessage(createAccountMessage);
 
             const account = processor.getAccount('ploden@gmail.com');
             expect(account).toBeDefined();
             expect(account?.user.username).toBe('Phil');
+            expect(account?.user.email).toBe('ploden@gmail.com');
+        });
+
+        it('should create an account from a create account message with email-only format', () => {
+            processor.addMessage(createAccountMessage2);
+
+            const account = processor.getAccount('ploden@gmail.com');
+            expect(account).toBeDefined();
+            expect(account?.user.username).toBe('ploden'); // Uses email local part as name
             expect(account?.user.email).toBe('ploden@gmail.com');
         });
 
@@ -84,12 +109,12 @@ describe('ProcessMessages', () => {
             expect(processor.getAllAccounts()).toHaveLength(0);
         });
 
-        it('should handle multiple create account messages', () => {
+        it('should handle multiple create account messages with different formats', () => {
             processor.addMessage(createAccountMessage);
-            processor.addMessage(createAccountMessage); // Adding same message twice
+            processor.addMessage(createAccountMessage2);
 
             const accounts = processor.getAllAccounts();
-            expect(accounts).toHaveLength(1); // Should only create one account
+            expect(accounts).toHaveLength(1); // Should only create one account per email
         });
     });
 

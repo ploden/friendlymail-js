@@ -39,36 +39,94 @@ export class ProcessMessages {
         if (message.subject === 'fm' && message.body.includes('$ useradd')) {
             this.createAccountFromMessage(message);
         }
+        // Check if this is a follow command
+        else if (message.subject === 'fm' && message.body.includes('$ follow add')) {
+            this.addFollowerFromMessage(message);
+        }
     }
 
     /**
      * Create an account from a create account command message
      */
     private createAccountFromMessage(message: EmailMessage): void {
-        // Extract username from the message body
-        const username = message.body.split('\n').pop()?.trim();
-        if (!username) {
-            console.warn('No username found in create account message');
-            return;
-        }
-
         // Extract name and email from the From header
-        const fromMatch = message.from.match(/^(.+?)\s*<([^>]+)>$/);
-        if (!fromMatch) {
+        // Handle different formats:
+        // 1. "Name <email@example.com>" -> use username from useradd command
+        // 2. "email@example.com" -> use username from useradd command
+        let email: string;
+        let displayName: string;
+
+        const fromMatch = message.from.match(/^(?:(.+?)\s*<([^>]+)>|(.+))$/);
+        if (fromMatch) {
+            if (fromMatch[2]) {
+                // Format: "Name <email@example.com>"
+                email = fromMatch[2].trim();
+            } else {
+                // Format: "email@example.com"
+                email = fromMatch[3].trim();
+            }
+
+            // Extract username from the message body after the useradd command and newlines
+            const usernameMatch = message.body.match(/\$\s*useradd\s*\n+\s*(.+?)(?:\s*$|\n)/);
+            displayName = usernameMatch ? usernameMatch[1].trim() : email.split('@')[0];
+        } else {
             console.warn('Invalid From header format');
             return;
         }
-        const name = fromMatch[1].trim();
-        const email = fromMatch[2].trim();
 
-        // Create a new user and account
-        const user = new User(name, email, 'password123'); // Default password, should be changed
+        // Create a new user and account using the username from the useradd command
+        const user = new User(displayName, email, 'password123'); // Default password, should be changed
         const account = new Account(user);
         const socialGraph = new SocialGraph(account);
 
         // Store the account and social graph
         this.accounts.set(email, account);
         this.socialGraphs.set(email, socialGraph);
+    }
+
+    /**
+     * Add a follower from a follow command message
+     */
+    private addFollowerFromMessage(message: EmailMessage): void {
+        // Extract the email to follow from the message body
+        const followMatch = message.body.match(/\$\s*follow\s+add\s+(.+?)(?:\s*$|\n)/);
+        if (!followMatch) {
+            console.warn('No follow email found in follow command message');
+            return;
+        }
+        const followEmail = followMatch[1].trim();
+
+        // Extract the sender's email from the From header
+        const fromMatch = message.from.match(/^(?:(.+?)\s*<([^>]+)>|(.+))$/);
+        if (!fromMatch) {
+            console.warn('Invalid From header format');
+            return;
+        }
+        const senderEmail = fromMatch[2] ? fromMatch[2].trim() : fromMatch[3].trim();
+
+        // Get the sender's account (must already exist)
+        const senderAccount = this.accounts.get(senderEmail);
+        if (!senderAccount) {
+            console.warn(`Cannot follow - sender account ${senderEmail} does not exist`);
+            return;
+        }
+
+        // Get the account to follow (must already exist)
+        const followAccount = this.accounts.get(followEmail);
+        if (!followAccount) {
+            console.warn(`Cannot follow ${followEmail} - account does not exist`);
+            return;
+        }
+
+        // Add the follow relationship using the account's social graph
+        senderAccount.socialGraph.follow(followAccount);
+    }
+
+    /**
+     * Add an account to the processor
+     */
+    addAccount(account: Account): void {
+        this.accounts.set(account.user.email, account);
     }
 
     /**

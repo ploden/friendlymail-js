@@ -9,6 +9,4 @@ Message-Id: <26B42DE9-8BD7-4B11-BA98-A630827250F6@gmail.com>
 Date: Fri, 11 Feb 2022 14:19:42 +0100
 To: ploden@gmail.com
 
-$ useradd
-
-ploden
+$ follow add ploden.postcards@gmail.com 

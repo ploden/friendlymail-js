@@ -58,7 +58,9 @@ export class EmailMessage {
             let currentHeader = '';
             let currentValue = '';
 
-            for (const line of lines) {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
                 if (!inBody) {
                     if (line.trim() === '') {
                         inBody = true;
@@ -69,38 +71,38 @@ export class EmailMessage {
                     if (line.startsWith(' ') || line.startsWith('\t')) {
                         if (currentHeader) {
                             currentValue += ' ' + line.trim();
+                            continue;
                         }
-                        continue;
                     }
 
                     // Process the previous header if exists
                     if (currentHeader) {
                         switch (currentHeader.toLowerCase()) {
-                            case 'from:':
+                            case 'from':
                                 from = currentValue;
                                 break;
-                            case 'to:':
+                            case 'to':
                                 to = currentValue.split(',').map(email => email.trim());
                                 break;
-                            case 'cc:':
+                            case 'cc':
                                 cc = currentValue.split(',').map(email => email.trim());
                                 break;
-                            case 'bcc:':
+                            case 'bcc':
                                 bcc = currentValue.split(',').map(email => email.trim());
                                 break;
-                            case 'subject:':
+                            case 'subject':
                                 subject = currentValue;
                                 break;
-                            case 'content-type:':
-                                isHtml = currentValue.includes('text/html');
+                            case 'content-type':
+                                isHtml = currentValue.toLowerCase().includes('text/html');
                                 break;
-                            case 'x-priority:':
+                            case 'x-priority':
                                 const prio = currentValue.toLowerCase();
                                 if (['high', 'normal', 'low'].includes(prio)) {
                                     priority = prio as 'high' | 'normal' | 'low';
                                 }
                                 break;
-                            case 'x-attachment:':
+                            case 'x-attachment':
                                 attachments.push(currentValue);
                                 break;
                         }
@@ -109,10 +111,14 @@ export class EmailMessage {
                     // Start new header
                     const headerMatch = line.match(/^([^:]+):\s*(.*)$/);
                     if (headerMatch) {
-                        currentHeader = headerMatch[1] + ':';
+                        currentHeader = headerMatch[1].trim();
                         currentValue = headerMatch[2].trim();
                     }
                 } else {
+                    // Skip empty lines at the start of the body
+                    if (body === '' && line.trim() === '') {
+                        continue;
+                    }
                     body += line + '\n';
                 }
             }
@@ -120,31 +126,31 @@ export class EmailMessage {
             // Process the last header
             if (currentHeader) {
                 switch (currentHeader.toLowerCase()) {
-                    case 'from:':
+                    case 'from':
                         from = currentValue;
                         break;
-                    case 'to:':
+                    case 'to':
                         to = currentValue.split(',').map(email => email.trim());
                         break;
-                    case 'cc:':
+                    case 'cc':
                         cc = currentValue.split(',').map(email => email.trim());
                         break;
-                    case 'bcc:':
+                    case 'bcc':
                         bcc = currentValue.split(',').map(email => email.trim());
                         break;
-                    case 'subject:':
+                    case 'subject':
                         subject = currentValue;
                         break;
-                    case 'content-type:':
-                        isHtml = currentValue.includes('text/html');
+                    case 'content-type':
+                        isHtml = currentValue.toLowerCase().includes('text/html');
                         break;
-                    case 'x-priority:':
+                    case 'x-priority':
                         const prio = currentValue.toLowerCase();
                         if (['high', 'normal', 'low'].includes(prio)) {
                             priority = prio as 'high' | 'normal' | 'low';
                         }
                         break;
-                    case 'x-attachment:':
+                    case 'x-attachment':
                         attachments.push(currentValue);
                         break;
                 }
@@ -153,8 +159,12 @@ export class EmailMessage {
             // Trim the last newline from the body
             body = body.trim();
 
+            // Debug log before validation
+            console.log('Parsed email fields:', { from, to, subject, body });
+
             // Validate required fields
             if (!from || to.length === 0 || !subject || !body) {
+                console.error('Missing required fields:', { from, to, subject, body });
                 throw new Error('Missing required email fields in file');
             }
 

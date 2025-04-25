@@ -1,4 +1,5 @@
 import { User } from './User';
+import { SocialGraph } from './SocialGraph';
 
 export class Account {
     private _user: User;
@@ -7,6 +8,7 @@ export class Account {
     private _isLoggedIn: boolean;
     private _loginAttempts: number;
     private _lastLoginAttempt: Date;
+    private _socialGraph: SocialGraph;
 
     constructor(user: User) {
         this._user = user;
@@ -15,6 +17,7 @@ export class Account {
         this._isLoggedIn = false;
         this._loginAttempts = 0;
         this._lastLoginAttempt = new Date();
+        this._socialGraph = new SocialGraph(this);
     }
 
     // Getters
@@ -24,6 +27,12 @@ export class Account {
     get isLoggedIn(): boolean { return this._isLoggedIn; }
     get loginAttempts(): number { return this._loginAttempts; }
     get lastLoginAttempt(): Date { return new Date(this._lastLoginAttempt); }
+    get socialGraph(): SocialGraph { return this._socialGraph; }
+
+    // Get social graph (alias for socialGraph getter)
+    getSocialGraph(): SocialGraph {
+        return this._socialGraph;
+    }
 
     // Authentication methods
     login(password: string): boolean {
