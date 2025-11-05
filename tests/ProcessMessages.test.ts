@@ -97,7 +97,7 @@ describe('ProcessMessages', () => {
             const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
             processor.addMessage(message);
 
-            const account = processor.getAccount('ploden@gmail.com');
+            const account = processor.getAccountByEmail('ploden@gmail.com');
             expect(account).toBeDefined();
             expect(account?.user.username).toBe('Phil');
             expect(account?.user.email.toString()).toBe('ploden@gmail.com');
@@ -120,8 +120,8 @@ describe('ProcessMessages', () => {
             );
             processor.addMessage(message);
 
-            const account = processor.getAccount('ploden@gmail.com');
-            expect(account).toBeUndefined();
+            const account = processor.getAccountByEmail('ploden@gmail.com');
+            expect(account).toBeNull();
         });
 
         it('should handle multiple create account messages', async () => {
@@ -129,12 +129,12 @@ describe('ProcessMessages', () => {
             const message2 = await EmailMessage.fromTextFile('create_command_create_account_2.txt');
             
             processor.addMessage(message1);
-            const account1 = processor.getAccount('ploden@gmail.com');
+            const account1 = processor.getAccountByEmail('ploden@gmail.com');
             expect(account1).toBeDefined();
             expect(account1?.user.username).toBe('Phil');
 
             processor.addMessage(message2);
-            const account2 = processor.getAccount('ploden@gmail.com');
+            const account2 = processor.getAccountByEmail('ploden@gmail.com');
             expect(account2).toBeDefined();
             expect(account2?.user.username).toBe('ploden');
         });
