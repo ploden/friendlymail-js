@@ -6,12 +6,15 @@ import { EmailAddress } from './models/EmailAddress';
 import * as path from 'path';
 
 export class ProcessMessages {
+    // The email account sending and receiving messages
+    private host: EmailAddress;
     private messages: EmailMessage[];
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
     private followers: Map<string, Set<string>>;
 
-    constructor(messages: EmailMessage[] = []) {
+    constructor(host: EmailAddress, messages: EmailMessage[] = []) {
+        this.host = host;
         this.messages = messages;
         this.socialNetworks = new Map();
         this.following = new Map();
