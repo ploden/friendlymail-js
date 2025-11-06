@@ -28,6 +28,11 @@ export class ProcessMessages {
         
         // Process all messages passed to constructor
         messages.forEach(message => this.processMessage(message));
+        
+        // If no messages provided, create welcome draft from host to host
+        if (messages.length === 0) {
+            this.createWelcomeMessageDraftForHost();
+        }
     }
 
     /**
@@ -364,6 +369,47 @@ export class ProcessMessages {
      */
     getAllSocialNetworks(): SocialNetwork[] {
         return Array.from(this.socialNetworks.values());
+    }
+
+    /**
+     * Create a welcome message draft from host to host (when no messages provided)
+     */
+    private createWelcomeMessageDraftForHost(): void {
+        const hostEmail = this.host.toString();
+        
+        // Check if welcome message has already been sent for the host
+        if (this.sentWelcomeMessages.has(hostEmail)) {
+            return;
+        }
+
+        try {
+            // Load welcome template - path relative to project root
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
+            const templateContent = fs.readFileSync(templatePath, 'utf8');
+            
+            // Replace template placeholders with friendlymail@example.com
+            const body = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            
+            // Create draft with host as sender and host as recipient
+            const draft = new MessageDraft(
+                this.host,
+                [this.host],
+                'Welcome to friendlymail',
+                body,
+                {
+                    isHtml: false,
+                    priority: 'normal'
+                }
+            );
+
+            // Queue the draft for sending
+            this.messageDrafts.push(draft);
+            
+            // Mark as sent to prevent duplicates
+            this.sentWelcomeMessages.add(hostEmail);
+        } catch (error) {
+            console.warn(`Failed to create welcome message draft for host ${hostEmail}:`, error);
+        }
     }
 
     /**

@@ -148,6 +148,27 @@ describe('ProcessMessages', () => {
     });
 
     describe('Welcome Message Drafts', () => {
+        it('should create a welcome message draft when no account has been created', async () => {
+            const hostEmail = new EmailAddress('ploden@gmail.com');
+            processor = new ProcessMessages(hostEmail, []);
+            
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            const welcomeDraft = drafts[0];
+            expect(welcomeDraft).toBeDefined();
+            expect(welcomeDraft.from?.equals(hostEmail)).toBe(true);
+            expect(welcomeDraft.to).toHaveLength(1);
+            expect(welcomeDraft.to[0].equals(hostEmail)).toBe(true);
+            expect(welcomeDraft.subject).toBe('Welcome to friendlymail');
+            
+            // Verify template content was loaded and signature placeholder was replaced
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
+            const templateContent = fs.readFileSync(templatePath, 'utf8');
+            const expectedBody = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            expect(welcomeDraft.body).toBe(expectedBody);
+        });
+
         it('should create a welcome message draft when a new account is created', async () => {
             const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
             const senderEmail = new EmailAddress('ploden@gmail.com');

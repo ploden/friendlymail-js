@@ -92,28 +92,6 @@ async function main() {
                 console.error(`Error reading file ${filePath}: ${errorMessage}`);
             }
         }
-    } else {
-        // Read from stdin
-        try {
-            const stdinContent = fs.readFileSync(0, 'utf8');
-            if (stdinContent.trim()) {
-                // Write stdin content to temp file and read it
-                const tempFile = path.join(process.cwd(), '.stdin-temp.txt');
-                fs.writeFileSync(tempFile, stdinContent, 'utf8');
-                try {
-                    const message = await EmailMessage.fromTextFile(tempFile);
-                    messages.push(message);
-                } finally {
-                    // Clean up temp file
-                    if (fs.existsSync(tempFile)) {
-                        fs.unlinkSync(tempFile);
-                    }
-                }
-            }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`Error reading from stdin: ${errorMessage}`);
-        }
     }
 
     // Create ProcessMessages instance with messages (messages are processed in constructor)
