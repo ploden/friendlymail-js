@@ -28,21 +28,18 @@ export class ProcessMessages {
         
         // Process all messages passed to constructor
         messages.forEach(message => this.processMessage(message));
-        
-        // If no messages provided, create welcome draft from host to host
-        if (messages.length === 0) {
-            this.createWelcomeMessageDraftForHost();
-        }
     }
 
     /**
      * Process a single message
      */
     private processMessage(message: EmailMessage): void {
+        if (this.shouldCreateWelcomeMessageDraft()) {
+            this.createWelcomeMessageDraftForHost();
+        }
+        
         // Check if this is a create account command
         if (message.subject === 'fm' && message.body.includes('$ useradd')) {
-            // Create welcome message draft to host address regardless of account creation
-            this.createWelcomeMessageDraft(message.from);
             this.createAccountFromMessage(message);
         }
         // Check if this is a follow command
@@ -372,6 +369,15 @@ export class ProcessMessages {
     }
 
     /**
+     * Returns true if a welcome message draft should be created, false otherwise.
+     * A welcome message should be sent to the host if a welcome message has not already been sent.
+     */
+    private shouldCreateWelcomeMessageDraft(): Boolean {
+        const hostEmail = this.host.toString();
+        return !this.sentWelcomeMessages.has(hostEmail);
+    }
+
+    /**
      * Create a welcome message draft from host to host (when no messages provided)
      */
     private createWelcomeMessageDraftForHost(): void {
@@ -412,46 +418,6 @@ export class ProcessMessages {
         }
     }
 
-    /**
-     * Create a welcome message draft from template to the host address
-     */
-    private createWelcomeMessageDraft(sender: EmailAddress): void {
-        const senderEmail = sender.toString();
-        
-        // Check if welcome message has already been sent for this sender
-        if (this.sentWelcomeMessages.has(senderEmail)) {
-            return;
-        }
-
-        try {
-            // Load welcome template - path relative to project root
-            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
-            const templateContent = fs.readFileSync(templatePath, 'utf8');
-            
-            // Replace template placeholders
-            const body = templateContent.replace('{{ signature }}', this.host.toString());
-            
-            // Create draft with sender as sender and host as recipient
-            const draft = new MessageDraft(
-                sender,
-                [this.host],
-                'Welcome to friendlymail',
-                body,
-                {
-                    isHtml: false,
-                    priority: 'normal'
-                }
-            );
-
-            // Queue the draft for sending
-            this.messageDrafts.push(draft);
-            
-            // Mark as sent to prevent duplicates
-            this.sentWelcomeMessages.add(senderEmail);
-        } catch (error) {
-            console.warn(`Failed to create welcome message draft for ${senderEmail}:`, error);
-        }
-    }
 
     /**
      * Get all message drafts queued for sending
