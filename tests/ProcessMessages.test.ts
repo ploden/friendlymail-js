@@ -1,6 +1,7 @@
 import { ProcessMessages } from '../src/ProcessMessages';
 import { EmailMessage } from '../EmailMessage';
 import { EmailAddress } from '../src/models/EmailAddress';
+import { MessageDraft } from '../src/models/MessageDraft';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Account } from '../src/models/Account';
@@ -19,7 +20,8 @@ describe('ProcessMessages', () => {
     let recipient2: EmailAddress;
 
     beforeEach(async () => {
-        processor = new ProcessMessages();
+        const hostEmail = new EmailAddress('friendlymail@example.com');
+        processor = new ProcessMessages(hostEmail);
 
         sender1 = new EmailAddress('sender1@example.com');
         sender2 = new EmailAddress('sender2@example.com');
@@ -65,8 +67,8 @@ describe('ProcessMessages', () => {
 
     describe('Basic Operations', () => {
         it('should add and retrieve messages', () => {
-            processor.addMessage(message1);
-            processor.addMessages([message2, message3]);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message1, message2, message3]);
 
             const allMessages = processor.getAllMessages();
             expect(allMessages).toHaveLength(3);
@@ -76,7 +78,8 @@ describe('ProcessMessages', () => {
         });
 
         it('should remove messages', () => {
-            processor.addMessages([message1, message2, message3]);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message1, message2, message3]);
             processor.removeMessage(message2);
 
             const allMessages = processor.getAllMessages();
@@ -85,7 +88,8 @@ describe('ProcessMessages', () => {
         });
 
         it('should clear all messages', () => {
-            processor.addMessages([message1, message2, message3]);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message1, message2, message3]);
             processor.clearMessages();
 
             expect(processor.getMessageCount()).toBe(0);
@@ -95,7 +99,8 @@ describe('ProcessMessages', () => {
     describe('Account Management', () => {
         it('should create an account from a create account message', async () => {
             const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
-            processor.addMessage(message);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message]);
 
             const account = processor.getAccountByEmail('ploden@gmail.com');
             expect(account).toBeDefined();
@@ -118,7 +123,8 @@ describe('ProcessMessages', () => {
                     attachments: []
                 }
             );
-            processor.addMessage(message);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message]);
 
             const account = processor.getAccountByEmail('ploden@gmail.com');
             expect(account).toBeNull();
@@ -128,21 +134,160 @@ describe('ProcessMessages', () => {
             const message1 = await EmailMessage.fromTextFile('create_command_create_account.txt');
             const message2 = await EmailMessage.fromTextFile('create_command_create_account_2.txt');
             
-            processor.addMessage(message1);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message1]);
             const account1 = processor.getAccountByEmail('ploden@gmail.com');
             expect(account1).toBeDefined();
             expect(account1?.user.username).toBe('Phil');
 
-            processor.addMessage(message2);
+            processor = new ProcessMessages(hostEmail, [message1, message2]);
             const account2 = processor.getAccountByEmail('ploden@gmail.com');
             expect(account2).toBeDefined();
             expect(account2?.user.username).toBe('ploden');
         });
     });
 
+    describe('Welcome Message Drafts', () => {
+        it('should create a welcome message draft when a new account is created', async () => {
+            const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
+            const senderEmail = new EmailAddress('ploden@gmail.com');
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            
+            processor = new ProcessMessages(hostEmail, [message]);
+            
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            const welcomeDraft = drafts[0];
+            expect(welcomeDraft).toBeDefined();
+            expect(welcomeDraft.from?.equals(senderEmail)).toBe(true);
+            expect(welcomeDraft.to).toHaveLength(1);
+            expect(welcomeDraft.to[0].equals(hostEmail)).toBe(true);
+            expect(welcomeDraft.subject).toBe('Welcome to friendlymail');
+            
+            // Verify template content was loaded and signature placeholder was replaced
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
+            const templateContent = fs.readFileSync(templatePath, 'utf8');
+            const expectedBody = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            expect(welcomeDraft.body).toBe(expectedBody);
+        });
+
+        it('should not create duplicate welcome message drafts for the same recipient', async () => {
+            const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
+            const senderEmail = new EmailAddress('ploden@gmail.com');
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            
+            // Create account first time
+            processor = new ProcessMessages(hostEmail, [message]);
+            let drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            // Try to create account again (should update username, but still create welcome message)
+            processor = new ProcessMessages(hostEmail, [message]);
+            drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            // Verify welcome message was marked as sent
+            expect(processor.hasWelcomeMessageBeenSent(senderEmail)).toBe(true);
+        });
+
+        it('should create separate welcome message drafts for different recipients', async () => {
+            const message1 = await EmailMessage.fromTextFile('create_command_create_account.txt');
+            const message2 = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            
+            processor = new ProcessMessages(hostEmail, [message1, message2]);
+            
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(2);
+            
+            // Both drafts should be sent to host address
+            const recipientEmails = drafts.map(d => d.to[0].toString());
+            expect(recipientEmails).toContain('friendlymail@example.com');
+            expect(recipientEmails).toContain('friendlymail@example.com');
+            
+            // But from different senders
+            const senderEmails = drafts.map(d => d.from?.toString());
+            expect(senderEmails).toContain('ploden@gmail.com');
+            expect(senderEmails).toContain('phil@example.com');
+        });
+
+        it('should not create welcome message draft for non-create account messages', async () => {
+            const fromAddr = new EmailAddress('test@example.com');
+            const toAddr = new EmailAddress('test@example.com');
+            const message = new EmailMessage(
+                fromAddr,
+                [toAddr],
+                'Regular Subject',
+                'Regular Body',
+                {
+                    priority: 'normal',
+                    isHtml: false,
+                    attachments: []
+                }
+            );
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            
+            processor = new ProcessMessages(hostEmail, [message]);
+            
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(0);
+            expect(processor.hasWelcomeMessageBeenSent(fromAddr)).toBe(false);
+        });
+
+        it('should create welcome message draft even when account creation fails', async () => {
+            // Create a message with invalid account creation (missing username)
+            const fromAddr = new EmailAddress('test@example.com');
+            const toAddr = new EmailAddress('test@example.com');
+            const message = new EmailMessage(
+                fromAddr,
+                [toAddr],
+                'fm',
+                '$ useradd\n',
+                {
+                    priority: 'normal',
+                    isHtml: false,
+                    attachments: []
+                }
+            );
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            
+            processor = new ProcessMessages(hostEmail, [message]);
+            
+            // Welcome message should still be created
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            const draft = drafts[0];
+            expect(draft.from?.equals(fromAddr)).toBe(true);
+            expect(draft.to[0].equals(new EmailAddress('friendlymail@example.com'))).toBe(true);
+            
+            // Account should not be created
+            const account = processor.getAccountByEmail('test@example.com');
+            expect(account).toBeNull();
+        });
+
+        it('should queue welcome message draft with correct properties', async () => {
+            const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message]);
+            
+            const drafts = processor.getMessageDrafts();
+            expect(drafts).toHaveLength(1);
+            
+            const draft = drafts[0];
+            expect(draft.isHtml).toBe(false);
+            expect(draft.priority).toBe('normal');
+            expect(draft.attachments).toHaveLength(0);
+            expect(draft.cc).toHaveLength(0);
+            expect(draft.bcc).toHaveLength(0);
+        });
+    });
+
     describe('Message Management', () => {
         beforeEach(() => {
-            processor.addMessages([message1, message2, message3]);
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            processor = new ProcessMessages(hostEmail, [message1, message2, message3]);
         });
 
         it('should get messages from a specific sender', () => {

@@ -14,7 +14,8 @@
     "include": [
         "src/**/*",
         "tests/**/*",
-        "EmailMessage.ts"
+        "EmailMessage.ts",
+        "run-process-messages.ts"
     ],
     "exclude": [
         "node_modules",

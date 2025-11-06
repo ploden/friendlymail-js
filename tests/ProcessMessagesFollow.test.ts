@@ -10,7 +10,7 @@ describe('ProcessMessages Follow', () => {
     let message: EmailMessage;
 
     beforeEach(async () => {
-        processor = new ProcessMessages();
+        const hostEmail = new EmailAddress('friendlymail@example.com');
         fromEmail = new EmailAddress('ploden@gmail.com');
         toEmail = new EmailAddress('friendlymail@example.com');
         message = new EmailMessage(fromEmail, [toEmail], 'Follow Test', '');
@@ -19,8 +19,7 @@ describe('ProcessMessages Follow', () => {
         const createSenderMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account.txt'));
         const createFollowMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
         
-        processor.createAccountFromMessage(createSenderMessage);
-        processor.createAccountFromMessage(createFollowMessage);
+        processor = new ProcessMessages(hostEmail, [createSenderMessage, createFollowMessage]);
     });
 
     test('should follow another account', () => {

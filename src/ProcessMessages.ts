@@ -3,12 +3,16 @@ import { Account } from './models/Account';
 import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
+import { MessageDraft } from './models/MessageDraft';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class ProcessMessages {
     // The email account sending and receiving messages
     private host: EmailAddress;
     private messages: EmailMessage[];
+    private messageDrafts: MessageDraft[];
+    private sentWelcomeMessages: Set<string>;
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
     private followers: Map<string, Set<string>>;
@@ -16,24 +20,13 @@ export class ProcessMessages {
     constructor(host: EmailAddress, messages: EmailMessage[] = []) {
         this.host = host;
         this.messages = messages;
+        this.messageDrafts = [];
+        this.sentWelcomeMessages = new Set();
         this.socialNetworks = new Map();
         this.following = new Map();
         this.followers = new Map();
-    }
-
-    /**
-     * Add a single message to the processor
-     */
-    addMessage(message: EmailMessage): void {
-        this.messages.push(message);
-        this.processMessage(message);
-    }
-
-    /**
-     * Add multiple messages to the processor
-     */
-    addMessages(messages: EmailMessage[]): void {
-        this.messages.push(...messages);
+        
+        // Process all messages passed to constructor
         messages.forEach(message => this.processMessage(message));
     }
 
@@ -43,6 +36,8 @@ export class ProcessMessages {
     private processMessage(message: EmailMessage): void {
         // Check if this is a create account command
         if (message.subject === 'fm' && message.body.includes('$ useradd')) {
+            // Create welcome message draft to host address regardless of account creation
+            this.createWelcomeMessageDraft(message.from);
             this.createAccountFromMessage(message);
         }
         // Check if this is a follow command
@@ -82,6 +77,7 @@ export class ProcessMessages {
 
         const socialNetwork = new SocialNetwork(account);
         this.socialNetworks.set(fromEmail.toString(), socialNetwork);
+        
         return account;
     }
 
@@ -368,5 +364,70 @@ export class ProcessMessages {
      */
     getAllSocialNetworks(): SocialNetwork[] {
         return Array.from(this.socialNetworks.values());
+    }
+
+    /**
+     * Create a welcome message draft from template to the host address
+     */
+    private createWelcomeMessageDraft(sender: EmailAddress): void {
+        const senderEmail = sender.toString();
+        
+        // Check if welcome message has already been sent for this sender
+        if (this.sentWelcomeMessages.has(senderEmail)) {
+            return;
+        }
+
+        try {
+            // Load welcome template - path relative to project root
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
+            const templateContent = fs.readFileSync(templatePath, 'utf8');
+            
+            // Replace template placeholders
+            const body = templateContent.replace('{{ signature }}', this.host.toString());
+            
+            // Create draft with sender as sender and host as recipient
+            const draft = new MessageDraft(
+                sender,
+                [this.host],
+                'Welcome to friendlymail',
+                body,
+                {
+                    isHtml: false,
+                    priority: 'normal'
+                }
+            );
+
+            // Queue the draft for sending
+            this.messageDrafts.push(draft);
+            
+            // Mark as sent to prevent duplicates
+            this.sentWelcomeMessages.add(senderEmail);
+        } catch (error) {
+            console.warn(`Failed to create welcome message draft for ${senderEmail}:`, error);
+        }
+    }
+
+    /**
+     * Get all message drafts queued for sending
+     */
+    getMessageDrafts(): MessageDraft[] {
+        return [...this.messageDrafts];
+    }
+
+    /**
+     * Remove a draft from the queue (typically after sending)
+     */
+    removeDraft(draft: MessageDraft): void {
+        const index = this.messageDrafts.indexOf(draft);
+        if (index !== -1) {
+            this.messageDrafts.splice(index, 1);
+        }
+    }
+
+    /**
+     * Check if a welcome message has been sent for a sender
+     */
+    hasWelcomeMessageBeenSent(sender: EmailAddress): boolean {
+        return this.sentWelcomeMessages.has(sender.toString());
     }
 } 
