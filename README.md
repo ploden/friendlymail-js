@@ -30,7 +30,7 @@ friendlymail, an open-source, email-based, alternative social network
 friendlymail supports commands, similar to a CLI. Some commands are only supported when the sender is the host. Others are supported for any sender. For example, the "help" command may be used by any sender. The "useradd" command may only be used by the host. The following commands are supported.
 
 #### help
-The help command provides information about friendlymail.
+The help command provides information about friendlymail. When a message with subject "Fm" and body "help" is sent to the host, a help message should be sent in reply.
 
 Example message sent in response to "help":
 ```
