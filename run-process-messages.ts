@@ -23,6 +23,7 @@ import { EmailMessage } from './EmailMessage';
 import { EmailAddress } from './src/models/EmailAddress';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
 
 /**
  * Parse command-line arguments
@@ -59,45 +60,7 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
     return { hostEmail, hostName, messageFiles };
 }
 
-async function main() {
-    const { hostEmail, hostName, messageFiles } = parseArgs();
-
-    // Validate host email
-    if (!EmailAddress.isValid(hostEmail)) {
-        console.error(`Error: Invalid host email address: ${hostEmail}`);
-        process.exit(1);
-    }
-
-    const hostEmailAddress = EmailAddress.fromString(hostEmail);
-    if (!hostEmailAddress) {
-        console.error(`Error: Failed to parse host email address: ${hostEmail}`);
-        process.exit(1);
-    }
-
-    // Read messages from files or stdin
-    const messages: EmailMessage[] = [];
-
-    if (messageFiles.length > 0) {
-        // Read from files
-        for (const filePath of messageFiles) {
-            try {
-                if (!fs.existsSync(filePath)) {
-                    console.error(`Warning: File not found: ${filePath}`);
-                    continue;
-                }
-                const message = await EmailMessage.fromTextFile(filePath);
-                messages.push(message);
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(`Error reading file ${filePath}: ${errorMessage}`);
-            }
-        }
-    }
-
-    // Create ProcessMessages instance with messages (messages are processed in constructor)
-    const processor = new ProcessMessages(hostEmailAddress, messages);
-
-    // Print draft messages
+function printDrafts(processor: ProcessMessages): void {
     const drafts = processor.getMessageDrafts();
     
     if (drafts.length === 0) {
@@ -119,6 +82,106 @@ async function main() {
                 console.log(`Attachments: ${draft.attachments.join(', ')}`);
             }
             console.log('');
+        });
+    }
+}
+
+async function processMessageFile(filePath: string, hostEmailAddress: EmailAddress, allMessages: EmailMessage[]): Promise<EmailMessage[]> {
+    try {
+        if (!fs.existsSync(filePath)) {
+            console.error(`Warning: File not found: ${filePath}`);
+            return allMessages;
+        }
+        const message = await EmailMessage.fromTextFile(filePath);
+        const updatedMessages = [...allMessages, message];
+        const processor = new ProcessMessages(hostEmailAddress, updatedMessages);
+        printDrafts(processor);
+        return updatedMessages;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Error reading file ${filePath}: ${errorMessage}`);
+        return allMessages;
+    }
+}
+
+async function main() {
+    const { hostEmail, hostName, messageFiles } = parseArgs();
+
+    // Validate host email
+    if (!EmailAddress.isValid(hostEmail)) {
+        console.error(`Error: Invalid host email address: ${hostEmail}`);
+        process.exit(1);
+    }
+
+    const hostEmailAddress = EmailAddress.fromString(hostEmail);
+    if (!hostEmailAddress) {
+        console.error(`Error: Failed to parse host email address: ${hostEmail}`);
+        process.exit(1);
+    }
+
+    // Read messages from files if provided
+    const messages: EmailMessage[] = [];
+
+    if (messageFiles.length > 0) {
+        // Read from files
+        for (const filePath of messageFiles) {
+            try {
+                if (!fs.existsSync(filePath)) {
+                    console.error(`Warning: File not found: ${filePath}`);
+                    continue;
+                }
+                const message = await EmailMessage.fromTextFile(filePath);
+                messages.push(message);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`Error reading file ${filePath}: ${errorMessage}`);
+            }
+        }
+
+        // Create ProcessMessages instance with messages (messages are processed in constructor)
+        const processor = new ProcessMessages(hostEmailAddress, messages);
+        printDrafts(processor);
+    } else {
+        // Interactive mode: wait for input on stdin
+        let allMessages: EmailMessage[] = [];
+        const processor = new ProcessMessages(hostEmailAddress, allMessages);
+        printDrafts(processor);
+
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            prompt: '> '
+        });
+
+        rl.prompt();
+
+        rl.on('line', async (line: string) => {
+            const trimmed = line.trim();
+            
+            if (trimmed === 'q') {
+                rl.close();
+                return;
+            }
+            
+            if (trimmed.startsWith('load ')) {
+                const filePath = trimmed.substring(5).trim();
+                if (filePath) {
+                    allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
+                } else {
+                    console.error('Error: No file path provided. Usage: load <message-file>');
+                }
+            } else if (trimmed.length > 0) {
+                console.error(`Unknown command: ${trimmed}`);
+                console.error('Commands:');
+                console.error('  load <message-file>  - Load and process a message from a file');
+                console.error('  q                   - Quit');
+            }
+            
+            rl.prompt();
+        });
+
+        rl.on('close', () => {
+            process.exit(0);
         });
     }
 }
