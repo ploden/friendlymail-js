@@ -6,6 +6,7 @@ import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
 import * as path from 'path';
 import * as fs from 'fs';
+import { VERSION, SIGNATURE } from './constants';
 
 export class ProcessMessages {
     // The email account sending and receiving messages
@@ -26,18 +27,17 @@ export class ProcessMessages {
         this.following = new Map();
         this.followers = new Map();
         
-        // Process all messages passed to constructor
+        if (this.shouldCreateWelcomeMessageDraft()) {
+            this.createWelcomeMessageDraftForHost();
+        }
+        
         messages.forEach(message => this.processMessage(message));
     }
 
     /**
      * Process a single message
      */
-    private processMessage(message: EmailMessage): void {
-        if (this.shouldCreateWelcomeMessageDraft()) {
-            this.createWelcomeMessageDraftForHost();
-        }
-        
+    private processMessage(message: EmailMessage): void {        
         // Check if this is a create account command
         if (message.subject === 'fm' && message.body.includes('$ useradd')) {
             this.createAccountFromMessage(message);
@@ -393,8 +393,10 @@ export class ProcessMessages {
             const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
             const templateContent = fs.readFileSync(templatePath, 'utf8');
             
-            // Replace template placeholders with friendlymail@example.com
-            const body = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            // Replace template placeholders with constants
+            const body = templateContent
+                .replace('{{ version }}', VERSION)
+                .replace('{{ signature }}', SIGNATURE);
             
             // Create draft with host as sender and host as recipient
             const draft = new MessageDraft(

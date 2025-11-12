@@ -6,7 +6,7 @@
  |_| |_|  |_|\___|_| |_|\__,_|_|\__, |_| |_| |_|\__,_|_|_|
                                  __/ |
                                 |___/
-friendlymail 0.0.0
+friendlymail {{ version }}
 Reply to this message with "help" for more information.
 
 {{ signature }}

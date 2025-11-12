@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Account } from '../src/models/Account';
 import { User } from '../src/models/User';
+import { VERSION, SIGNATURE } from '../src/constants';
 
 describe('ProcessMessages', () => {
     let processor: ProcessMessages;
@@ -162,16 +163,17 @@ describe('ProcessMessages', () => {
             expect(welcomeDraft.to[0].equals(hostEmail)).toBe(true);
             expect(welcomeDraft.subject).toBe('Welcome to friendlymail');
             
-            // Verify template content was loaded and signature placeholder was replaced
+            // Verify template content was loaded and placeholders were replaced
             const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
             const templateContent = fs.readFileSync(templatePath, 'utf8');
-            const expectedBody = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            const expectedBody = templateContent
+                .replace('{{ version }}', VERSION)
+                .replace('{{ signature }}', SIGNATURE);
             expect(welcomeDraft.body).toBe(expectedBody);
         });
 
         it('should create a welcome message draft when a new account is created', async () => {
             const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
-            const senderEmail = new EmailAddress('ploden@gmail.com');
             const hostEmail = new EmailAddress('friendlymail@example.com');
             
             processor = new ProcessMessages(hostEmail, [message]);
@@ -181,22 +183,23 @@ describe('ProcessMessages', () => {
             
             const welcomeDraft = drafts[0];
             expect(welcomeDraft).toBeDefined();
-            expect(welcomeDraft.from?.equals(senderEmail)).toBe(true);
+            expect(welcomeDraft.from?.equals(hostEmail)).toBe(true);
             expect(welcomeDraft.to).toHaveLength(1);
             expect(welcomeDraft.to[0].equals(hostEmail)).toBe(true);
             expect(welcomeDraft.subject).toBe('Welcome to friendlymail');
             
-            // Verify template content was loaded and signature placeholder was replaced
+            // Verify template content was loaded and placeholders were replaced
             const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
             const templateContent = fs.readFileSync(templatePath, 'utf8');
-            const expectedBody = templateContent.replace('{{ signature }}', 'friendlymail@example.com');
+            const expectedBody = templateContent
+                .replace('{{ version }}', VERSION)
+                .replace('{{ signature }}', SIGNATURE);
             expect(welcomeDraft.body).toBe(expectedBody);
         });
 
         it('should not create duplicate welcome message drafts for the same recipient', async () => {
             const message = await EmailMessage.fromTextFile('create_command_create_account.txt');
-            const senderEmail = new EmailAddress('ploden@gmail.com');
-            const hostEmail = new EmailAddress('friendlymail@example.com');
+            const hostEmail = message.from;
             
             // Create account first time
             processor = new ProcessMessages(hostEmail, [message]);
@@ -209,57 +212,14 @@ describe('ProcessMessages', () => {
             expect(drafts).toHaveLength(1);
             
             // Verify welcome message was marked as sent
-            expect(processor.hasWelcomeMessageBeenSent(senderEmail)).toBe(true);
-        });
-
-        it('should create separate welcome message drafts for different recipients', async () => {
-            const message1 = await EmailMessage.fromTextFile('create_command_create_account.txt');
-            const message2 = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
-            const hostEmail = new EmailAddress('friendlymail@example.com');
-            
-            processor = new ProcessMessages(hostEmail, [message1, message2]);
-            
-            const drafts = processor.getMessageDrafts();
-            expect(drafts).toHaveLength(2);
-            
-            // Both drafts should be sent to host address
-            const recipientEmails = drafts.map(d => d.to[0].toString());
-            expect(recipientEmails).toContain('friendlymail@example.com');
-            expect(recipientEmails).toContain('friendlymail@example.com');
-            
-            // But from different senders
-            const senderEmails = drafts.map(d => d.from?.toString());
-            expect(senderEmails).toContain('ploden@gmail.com');
-            expect(senderEmails).toContain('phil@example.com');
-        });
-
-        it('should not create welcome message draft for non-create account messages', async () => {
-            const fromAddr = new EmailAddress('test@example.com');
-            const toAddr = new EmailAddress('test@example.com');
-            const message = new EmailMessage(
-                fromAddr,
-                [toAddr],
-                'Regular Subject',
-                'Regular Body',
-                {
-                    priority: 'normal',
-                    isHtml: false,
-                    attachments: []
-                }
-            );
-            const hostEmail = new EmailAddress('friendlymail@example.com');
-            
-            processor = new ProcessMessages(hostEmail, [message]);
-            
-            const drafts = processor.getMessageDrafts();
-            expect(drafts).toHaveLength(0);
-            expect(processor.hasWelcomeMessageBeenSent(fromAddr)).toBe(false);
+            expect(processor.hasWelcomeMessageBeenSent(hostEmail)).toBe(true);
         });
 
         it('should create welcome message draft even when account creation fails', async () => {
             // Create a message with invalid account creation (missing username)
-            const fromAddr = new EmailAddress('test@example.com');
-            const toAddr = new EmailAddress('test@example.com');
+            const hostEmail = new EmailAddress('friendlymail@example.com');
+            const fromAddr = hostEmail;
+            const toAddr = hostEmail;
             const message = new EmailMessage(
                 fromAddr,
                 [toAddr],
@@ -271,7 +231,6 @@ describe('ProcessMessages', () => {
                     attachments: []
                 }
             );
-            const hostEmail = new EmailAddress('friendlymail@example.com');
             
             processor = new ProcessMessages(hostEmail, [message]);
             
@@ -281,10 +240,11 @@ describe('ProcessMessages', () => {
             
             const draft = drafts[0];
             expect(draft.from?.equals(fromAddr)).toBe(true);
-            expect(draft.to[0].equals(new EmailAddress('friendlymail@example.com'))).toBe(true);
+            expect(draft.to[0].equals(hostEmail)).toBe(true);
+            expect(draft.subject).toBe('Welcome to friendlymail');
             
             // Account should not be created
-            const account = processor.getAccountByEmail('test@example.com');
+            const account = processor.getAccountByEmail(hostEmail.toString());
             expect(account).toBeNull();
         });
 
