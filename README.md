@@ -52,7 +52,18 @@ The useradd command is used to create a friendlymail account, which is required 
 Example message sent in response to "useradd":
 ```
 $ useradd
-Usage: useradd -n NAME -e EMAIL
+Usage: useradd -n NAME
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Example message sent in response to 'useradd -n "Phil L"' from host with address phil@test.com:
+```
+$ useradd -n "Phil L"
+Adding new user "Phil L" ...
+Adding new user "Phil L" with email address "phil@test.com" ...
+Done.
 
 friendlymail, an open-source, email-based, alternative social network
 
