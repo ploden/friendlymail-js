@@ -37,9 +37,13 @@ export class ProcessMessages {
     /**
      * Process a single message
      */
-    private processMessage(message: EmailMessage): void {        
+    private processMessage(message: EmailMessage): void {
+        // Check if this is a help command
+        if (message.subject === 'Fm' && message.body.trim().toLowerCase() === 'help') {
+            this.createHelpMessageDraft(message);
+        }
         // Check if this is a create account command
-        if (message.subject === 'fm' && message.body.includes('$ useradd')) {
+        else if (message.subject === 'fm' && message.body.includes('$ useradd')) {
             this.createAccountFromMessage(message);
         }
         // Check if this is a follow command
@@ -420,6 +424,39 @@ export class ProcessMessages {
         }
     }
 
+    /**
+     * Create a help message draft in response to a help command
+     */
+    private createHelpMessageDraft(message: EmailMessage): void {
+        const sender = message.from;
+        if (!sender) {
+            console.warn('Cannot create help message: missing sender');
+            return;
+        }
+
+        const helpBody = `$ help
+friendlymail: friendlymail, version ${VERSION}
+These shell commands are defined internally.  Type \`help' to see this list.
+Type \`help name' to find out more about the function \`name'.
+
+useradd
+help
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this.host,
+            [sender],
+            'Re: Fm',
+            helpBody,
+            {
+                isHtml: false,
+                priority: 'normal'
+            }
+        );
+
+        this.messageDrafts.push(draft);
+    }
 
     /**
      * Get all message drafts queued for sending
