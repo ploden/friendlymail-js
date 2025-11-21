@@ -48,3 +48,12 @@ friendlymail, an open-source, email-based, alternative social network
 
 #### useradd
 The useradd command is used to create a friendlymail account, which is required for posting. 
+
+Example message sent in response to "useradd":
+```
+$ useradd
+Usage: useradd -n NAME -e EMAIL
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
