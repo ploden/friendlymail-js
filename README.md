@@ -18,6 +18,8 @@ friendlymail is an email-based social network. It supports the core features of 
     - [New Like Notification](###new-like-notification)
     - [New Comment Notification](###new-comment-notification)
     - [New Follower Notification](###new-follower-notification)
+    - [New Follower Request Notification](###new-follower-request-notification)
+    - [Now Following Notification](###new-following-notification)
 
 # Definitions
 - host: the email account used to send and receive friendlymail messages.
