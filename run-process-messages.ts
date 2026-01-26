@@ -60,6 +60,39 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
     return { hostEmail, hostName, messageFiles };
 }
 
+/**
+ * Get list of .txt files in the simulator directory
+ */
+function getTxtFiles(): string[] {
+    const simulatorDir = __dirname;
+    try {
+        const files = fs.readdirSync(simulatorDir);
+        return files
+            .filter(file => file.endsWith('.txt'))
+            .filter(file => {
+                const filePath = path.join(simulatorDir, file);
+                return fs.statSync(filePath).isFile();
+            })
+            .sort();
+    } catch (error) {
+        return [];
+    }
+}
+
+/**
+ * Print numbered list of .txt files
+ */
+function printTxtFiles(txtFiles: string[]): void {
+    if (txtFiles.length === 0) {
+        return;
+    }
+    console.log('\nAvailable .txt files:');
+    txtFiles.forEach((file, index) => {
+        console.log(`  ${index + 1}. ${file}`);
+    });
+    console.log('');
+}
+
 function printDrafts(processor: ProcessMessages): void {
     const drafts = processor.getMessageDrafts();
     
@@ -147,6 +180,9 @@ async function main() {
         const processor = new ProcessMessages(hostEmailAddress, allMessages);
         printDrafts(processor);
 
+        const txtFiles = getTxtFiles();
+        printTxtFiles(txtFiles);
+
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
@@ -164,19 +200,36 @@ async function main() {
             }
             
             if (trimmed.startsWith('load ')) {
-                const filePath = trimmed.substring(5).trim();
-                if (filePath) {
-                    allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
+                const fileArg = trimmed.substring(5).trim();
+                if (fileArg) {
+                    let filePath: string;
+                    
+                    // Check if it's a numbered reference like $2
+                    const numberMatch = fileArg.match(/^\$(\d+)$/);
+                    if (numberMatch) {
+                        const fileIndex = parseInt(numberMatch[1], 10) - 1;
+                        if (fileIndex >= 0 && fileIndex < txtFiles.length) {
+                            filePath = path.join(__dirname, txtFiles[fileIndex]);
+                            allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
+                        } else {
+                            console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
+                        }
+                    } else {
+                        filePath = fileArg;
+                        allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
+                    }
                 } else {
-                    console.error('Error: No file path provided. Usage: load <message-file>');
+                    console.error('Error: No file path provided. Usage: load <message-file> or load $N');
                 }
             } else if (trimmed.length > 0) {
                 console.error(`Unknown command: ${trimmed}`);
                 console.error('Commands:');
                 console.error('  load <message-file>  - Load and process a message from a file');
+                console.error('  load $N              - Load file by number from the list above');
                 console.error('  q                   - Quit');
             }
             
+            printTxtFiles(txtFiles);
             rl.prompt();
         });
 
