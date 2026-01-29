@@ -119,6 +119,30 @@ function printDrafts(processor: ProcessMessages): void {
     }
 }
 
+function printSentMessages(processor: ProcessMessages): void {
+    const sentMessages = processor.getSentMessages();
+    
+    if (sentMessages.length === 0) {
+        console.log('No sent messages.');
+    } else {
+        console.log(`\n${sentMessages.length} sent message(s):\n`);
+        sentMessages.forEach((message, index) => {
+            console.log(`--- Sent ${index + 1} ---`);
+            console.log(`From: ${message.from.toString()}`);
+            console.log(`To: ${message.to.map(addr => addr.toString()).join(', ')}`);
+            console.log(`Subject: ${message.subject}`);
+            console.log(`Body:`);
+            console.log(message.body);
+            console.log(`Priority: ${message.priority}`);
+            console.log(`HTML: ${message.isHtml}`);
+            if (message.attachments.length > 0) {
+                console.log(`Attachments: ${message.attachments.join(', ')}`);
+            }
+            console.log('');
+        });
+    }
+}
+
 async function processMessageFile(filePath: string, hostEmailAddress: EmailAddress, allMessages: EmailMessage[]): Promise<EmailMessage[]> {
     try {
         if (!fs.existsSync(filePath)) {
@@ -221,11 +245,48 @@ async function main() {
                 } else {
                     console.error('Error: No file path provided. Usage: load <message-file> or load $N');
                 }
+            } else if (trimmed.startsWith('send ')) {
+                const sendArg = trimmed.substring(5).trim();
+                const numberMatch = sendArg.match(/^\$(\d+)$/);
+                if (numberMatch) {
+                    const draftIndex = parseInt(numberMatch[1], 10) - 1;
+                    const drafts = processor.getMessageDrafts();
+                    if (draftIndex >= 0 && draftIndex < drafts.length) {
+                        const sentMessage = processor.sendDraft(draftIndex);
+                        if (sentMessage) {
+                            console.log(`\nSent draft ${draftIndex + 1}:`);
+                            console.log(`From: ${sentMessage.from.toString()}`);
+                            console.log(`To: ${sentMessage.to.map(addr => addr.toString()).join(', ')}`);
+                            console.log(`Subject: ${sentMessage.subject}`);
+                            console.log(`Body:`);
+                            console.log(sentMessage.body);
+                            console.log('');
+                        } else {
+                            console.error(`Error: Draft ${draftIndex + 1} is not ready to send (missing required fields)`);
+                        }
+                    } else {
+                        console.error(`Error: Invalid draft number. Available drafts are 1-${drafts.length}`);
+                    }
+                } else {
+                    console.error('Error: Invalid send command. Usage: send $N (where N is the draft number)');
+                }
+            } else if (trimmed.startsWith('show ')) {
+                const showArg = trimmed.substring(5).trim();
+                if (showArg === '--drafts') {
+                    printDrafts(processor);
+                } else if (showArg === '--sent') {
+                    printSentMessages(processor);
+                } else {
+                    console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
+                }
             } else if (trimmed.length > 0) {
                 console.error(`Unknown command: ${trimmed}`);
                 console.error('Commands:');
                 console.error('  load <message-file>  - Load and process a message from a file');
                 console.error('  load $N              - Load file by number from the list above');
+                console.error('  send $N              - Send draft message by number');
+                console.error('  show --drafts        - List draft messages');
+                console.error('  show --sent          - List sent messages');
                 console.error('  q                   - Quit');
             }
             

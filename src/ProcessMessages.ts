@@ -13,6 +13,7 @@ export class ProcessMessages {
     private host: EmailAddress;
     private messages: EmailMessage[];
     private messageDrafts: MessageDraft[];
+    private sentMessages: EmailMessage[];
     private sentWelcomeMessages: Set<string>;
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
@@ -22,6 +23,7 @@ export class ProcessMessages {
         this.host = host;
         this.messages = messages;
         this.messageDrafts = [];
+        this.sentMessages = [];
         this.sentWelcomeMessages = new Set();
         this.socialNetworks = new Map();
         this.following = new Map();
@@ -480,5 +482,34 @@ ${SIGNATURE}`;
      */
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean {
         return this.sentWelcomeMessages.has(sender.toString());
+    }
+
+    /**
+     * Send a draft message by converting it to an EmailMessage and adding it to sentMessages
+     * @param draftIndex The index of the draft to send (0-based)
+     * @returns The sent EmailMessage, or null if the index is invalid or draft is not ready
+     */
+    sendDraft(draftIndex: number): EmailMessage | null {
+        if (draftIndex < 0 || draftIndex >= this.messageDrafts.length) {
+            return null;
+        }
+
+        const draft = this.messageDrafts[draftIndex];
+        if (!draft.isReadyToSend()) {
+            return null;
+        }
+
+        const emailMessage = draft.toEmailMessage();
+        this.sentMessages.push(emailMessage);
+        this.removeDraft(draft);
+
+        return emailMessage;
+    }
+
+    /**
+     * Get all sent messages
+     */
+    getSentMessages(): EmailMessage[] {
+        return [...this.sentMessages];
     }
 } 
