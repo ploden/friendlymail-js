@@ -21,6 +21,7 @@
 import { ProcessMessages } from './src/ProcessMessages';
 import { EmailMessage } from './EmailMessage';
 import { EmailAddress } from './src/models/EmailAddress';
+import { Mailbox } from './src/models/Mailbox';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -151,7 +152,8 @@ async function processMessageFile(filePath: string, hostEmailAddress: EmailAddre
         }
         const message = await EmailMessage.fromTextFile(filePath);
         const updatedMessages = [...allMessages, message];
-        const processor = new ProcessMessages(hostEmailAddress, updatedMessages);
+        const mailbox = new Mailbox(hostEmailAddress, updatedMessages, [], []);
+        const processor = new ProcessMessages(mailbox);
         printDrafts(processor);
         return updatedMessages;
     } catch (error) {
@@ -196,12 +198,14 @@ async function main() {
         }
 
         // Create ProcessMessages instance with messages (messages are processed in constructor)
-        const processor = new ProcessMessages(hostEmailAddress, messages);
+        const mailbox = new Mailbox(hostEmailAddress, messages, [], []);
+        const processor = new ProcessMessages(mailbox);
         printDrafts(processor);
     } else {
         // Interactive mode: wait for input on stdin
         let allMessages: EmailMessage[] = [];
-        const processor = new ProcessMessages(hostEmailAddress, allMessages);
+        const mailbox = new Mailbox(hostEmailAddress, allMessages, [], []);
+        const processor = new ProcessMessages(mailbox);
         printDrafts(processor);
 
         const txtFiles = getTxtFiles();
