@@ -4,24 +4,20 @@ import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
+import { Mailbox } from './models/Mailbox';
 import * as path from 'path';
 import * as fs from 'fs';
 import { VERSION, SIGNATURE } from './constants';
 
 export class ProcessMessages {
-    // The email account sending and receiving messages
-    private host: EmailAddress;
-    private messages: EmailMessage[];
-    private messageDrafts: MessageDraft[];
+    private mailbox: Mailbox;
     private sentWelcomeMessages: Set<string>;
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
     private followers: Map<string, Set<string>>;
 
-    constructor(host: EmailAddress, messages: EmailMessage[] = []) {
-        this.host = host;
-        this.messages = messages;
-        this.messageDrafts = [];
+    constructor(mailbox: Mailbox) {
+        this.mailbox = mailbox;
         this.sentWelcomeMessages = new Set();
         this.socialNetworks = new Map();
         this.following = new Map();
@@ -31,15 +27,19 @@ export class ProcessMessages {
             this.createWelcomeMessageDraftForHost();
         }
         
-        messages.forEach(message => this.processMessage(message));
+        mailbox.receivedMessages.forEach(message => this.processMessage(message));
     }
 
     /**
      * Process a single message
      */
-    private processMessage(message: EmailMessage): void {        
+    private processMessage(message: EmailMessage): void {
+        // Check if this is a help command
+        if (message.subject === 'Fm' && message.body.trim().toLowerCase() === 'help') {
+            this.createHelpMessageDraft(message);
+        }
         // Check if this is a create account command
-        if (message.subject === 'fm' && message.body.includes('$ useradd')) {
+        else if (message.subject === 'fm' && message.body.includes('$ useradd')) {
             this.createAccountFromMessage(message);
         }
         // Check if this is a follow command
@@ -217,63 +217,63 @@ export class ProcessMessages {
      * Get all messages
      */
     getAllMessages(): EmailMessage[] {
-        return [...this.messages];
+        return [...this.mailbox.receivedMessages];
     }
 
     /**
      * Get messages from a specific sender
      */
     getMessagesFrom(sender: EmailAddress): EmailMessage[] {
-        return this.messages.filter(message => message.from.equals(sender));
+        return this.mailbox.receivedMessages.filter(message => message.from.equals(sender));
     }
 
     /**
      * Get messages to a specific recipient
      */
     getMessagesTo(recipient: EmailAddress): EmailMessage[] {
-        return this.messages.filter(message => message.to.some(addr => addr.equals(recipient)));
+        return this.mailbox.receivedMessages.filter(message => message.to.some(addr => addr.equals(recipient)));
     }
 
     /**
      * Get messages with a specific subject
      */
     getMessagesWithSubject(subject: string): EmailMessage[] {
-        return this.messages.filter(message => message.subject === subject);
+        return this.mailbox.receivedMessages.filter(message => message.subject === subject);
     }
 
     /**
      * Get messages with high priority
      */
     getHighPriorityMessages(): EmailMessage[] {
-        return this.messages.filter(message => message.priority === 'high');
+        return this.mailbox.receivedMessages.filter(message => message.priority === 'high');
     }
 
     /**
      * Get messages with attachments
      */
     getMessagesWithAttachments(): EmailMessage[] {
-        return this.messages.filter(message => message.attachments.length > 0);
+        return this.mailbox.receivedMessages.filter(message => message.attachments.length > 0);
     }
 
     /**
      * Get HTML messages
      */
     getHtmlMessages(): EmailMessage[] {
-        return this.messages.filter(message => message.isHtml);
+        return this.mailbox.receivedMessages.filter(message => message.isHtml);
     }
 
     /**
      * Get plain text messages
      */
     getPlainTextMessages(): EmailMessage[] {
-        return this.messages.filter(message => !message.isHtml);
+        return this.mailbox.receivedMessages.filter(message => !message.isHtml);
     }
 
     /**
      * Get messages containing specific text in the body
      */
     getMessagesContaining(text: string): EmailMessage[] {
-        return this.messages.filter(message => message.body.includes(text));
+        return this.mailbox.receivedMessages.filter(message => message.body.includes(text));
     }
 
     /**
@@ -281,7 +281,7 @@ export class ProcessMessages {
      */
     getMessagesInDateRange(startDate: Date, endDate: Date): EmailMessage[] {
         // Note: This assumes EmailMessage has a date property
-        return this.messages.filter(message => {
+        return this.mailbox.receivedMessages.filter(message => {
             const messageDate = new Date(message.body); // This is a placeholder - we need to add date handling
             return messageDate >= startDate && messageDate <= endDate;
         });
@@ -291,38 +291,46 @@ export class ProcessMessages {
      * Remove a specific message
      */
     removeMessage(message: EmailMessage): void {
-        const index = this.messages.indexOf(message);
-        if (index !== -1) {
-            this.messages.splice(index, 1);
-        }
+        const receivedMessages = Array.from(this.mailbox.receivedMessages).filter(m => m !== message);
+        this.mailbox = new Mailbox(
+            this.mailbox.hostEmailAddress,
+            receivedMessages,
+            Array.from(this.mailbox.sentMessages),
+            Array.from(this.mailbox.drafts)
+        );
     }
 
     /**
      * Clear all messages
      */
     clearMessages(): void {
-        this.messages = [];
+        this.mailbox = new Mailbox(
+            this.mailbox.hostEmailAddress,
+            [],
+            Array.from(this.mailbox.sentMessages),
+            Array.from(this.mailbox.drafts)
+        );
     }
 
     /**
      * Get the total number of messages
      */
     getMessageCount(): number {
-        return this.messages.length;
+        return this.mailbox.receivedMessages.length;
     }
 
     /**
      * Get unique senders
      */
     getUniqueSenders(): EmailAddress[] {
-        return [...new Set(this.messages.map(message => message.from))];
+        return [...new Set(this.mailbox.receivedMessages.map(message => message.from))];
     }
 
     /**
      * Get unique recipients
      */
     getUniqueRecipients(): EmailAddress[] {
-        const recipients = this.messages.flatMap(message => message.to);
+        const recipients = this.mailbox.receivedMessages.flatMap(message => message.to);
         return [...new Set(recipients)];
     }
 
@@ -331,7 +339,7 @@ export class ProcessMessages {
      */
     getMessagesGroupedBySender(): Map<EmailAddress, EmailMessage[]> {
         const grouped = new Map<EmailAddress, EmailMessage[]>();
-        for (const message of this.messages) {
+        for (const message of this.mailbox.receivedMessages) {
             if (!grouped.has(message.from)) {
                 grouped.set(message.from, []);
             }
@@ -345,7 +353,7 @@ export class ProcessMessages {
      */
     getMessagesGroupedByPriority(): Map<'high' | 'normal' | 'low', EmailMessage[]> {
         const grouped = new Map<'high' | 'normal' | 'low', EmailMessage[]>();
-        for (const message of this.messages) {
+        for (const message of this.mailbox.receivedMessages) {
             if (!grouped.has(message.priority)) {
                 grouped.set(message.priority, []);
             }
@@ -373,7 +381,7 @@ export class ProcessMessages {
      * A welcome message should be sent to the host if a welcome message has not already been sent.
      */
     private shouldCreateWelcomeMessageDraft(): Boolean {
-        const hostEmail = this.host.toString();
+        const hostEmail = this.mailbox.hostEmailAddress.toString();
         return !this.sentWelcomeMessages.has(hostEmail);
     }
 
@@ -381,7 +389,7 @@ export class ProcessMessages {
      * Create a welcome message draft from host to host (when no messages provided)
      */
     private createWelcomeMessageDraftForHost(): void {
-        const hostEmail = this.host.toString();
+        const hostEmail = this.mailbox.hostEmailAddress.toString();
         
         // Check if welcome message has already been sent for the host
         if (this.sentWelcomeMessages.has(hostEmail)) {
@@ -400,8 +408,8 @@ export class ProcessMessages {
             
             // Create draft with host as sender and host as recipient
             const draft = new MessageDraft(
-                this.host,
-                [this.host],
+                this.mailbox.hostEmailAddress,
+                [this.mailbox.hostEmailAddress],
                 'Welcome to friendlymail',
                 body,
                 {
@@ -411,7 +419,7 @@ export class ProcessMessages {
             );
 
             // Queue the draft for sending
-            this.messageDrafts.push(draft);
+            this.mailbox = this.mailbox.addingDrafts([draft]) as Mailbox;
             
             // Mark as sent to prevent duplicates
             this.sentWelcomeMessages.add(hostEmail);
@@ -420,22 +428,52 @@ export class ProcessMessages {
         }
     }
 
+    /**
+     * Create a help message draft in response to a help command
+     */
+    private createHelpMessageDraft(message: EmailMessage): void {
+        const sender = message.from;
+        if (!sender) {
+            console.warn('Cannot create help message: missing sender');
+            return;
+        }
+
+        const helpBody = `$ help
+friendlymail: friendlymail, version ${VERSION}
+These shell commands are defined internally.  Type \`help' to see this list.
+Type \`help name' to find out more about the function \`name'.
+
+useradd
+help
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this.mailbox.hostEmailAddress,
+            [sender],
+            'Re: Fm',
+            helpBody,
+            {
+                isHtml: false,
+                priority: 'normal'
+            }
+        );
+
+        this.mailbox = this.mailbox.addingDrafts([draft]) as Mailbox;
+    }
 
     /**
      * Get all message drafts queued for sending
      */
     getMessageDrafts(): MessageDraft[] {
-        return [...this.messageDrafts];
+        return [...this.mailbox.drafts];
     }
 
     /**
      * Remove a draft from the queue (typically after sending)
      */
     removeDraft(draft: MessageDraft): void {
-        const index = this.messageDrafts.indexOf(draft);
-        if (index !== -1) {
-            this.messageDrafts.splice(index, 1);
-        }
+        this.mailbox = this.mailbox.removingDrafts([draft]) as Mailbox;
     }
 
     /**
@@ -443,5 +481,35 @@ export class ProcessMessages {
      */
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean {
         return this.sentWelcomeMessages.has(sender.toString());
+    }
+
+    /**
+     * Send a draft message by converting it to an EmailMessage and adding it to sentMessages
+     * @param draftIndex The index of the draft to send (0-based)
+     * @returns The sent EmailMessage, or null if the index is invalid or draft is not ready
+     */
+    sendDraft(draftIndex: number): EmailMessage | null {
+        const drafts = this.mailbox.drafts;
+        if (draftIndex < 0 || draftIndex >= drafts.length) {
+            return null;
+        }
+
+        const draft = drafts[draftIndex];
+        if (!draft.isReadyToSend()) {
+            return null;
+        }
+
+        const emailMessage = draft.toEmailMessage();
+        this.mailbox = this.mailbox.addingSentMessages([emailMessage]) as Mailbox;
+        this.mailbox = this.mailbox.removingDrafts([draft]) as Mailbox;
+
+        return emailMessage;
+    }
+
+    /**
+     * Get all sent messages
+     */
+    getSentMessages(): EmailMessage[] {
+        return [...this.mailbox.sentMessages];
     }
 } 
