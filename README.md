@@ -44,7 +44,7 @@ The welcome message is sent when friendlymail is configured with a host. The wel
 Here is an example Welcome Message:
 ```
 From: Phil L <phil@test.com>
-Subject: Fm
+Subject: Welcome to friendlymail!
 To: Phil L <phil@test.com>
 
    __      _                _ _                       _ _
@@ -96,10 +96,13 @@ friendlymail: friendlymail, version 0.0.1
 These shell commands are defined internally.  Type `$ help' to see this list.
 Type `$ help adduser' to find out more about the function `adduser'.
 
-help: mailto:phil@test.com?subject=Fm&body=%24%20help
-adduser: mailto:phil@test.com?subject=Fm&body=%24%20adduser
-invite: mailto:phil@test.com?subject=Fm&body=%24%20invite
-follow: mailto:phil@test.com?subject=Fm&body=%24%20follow
+$ help: mailto:phil@test.com?subject=Fm&body=%24%20help
+$ adduser: mailto:phil@test.com?subject=Fm&body=%24%20adduser
+$ help adduser: mailto:phil@test.com?subject=Fm&body=%24%20help%20adduser
+$ invite: mailto:phil@test.com?subject=Fm&body=%24%20invite
+$ help invite: mailto:phil@test.com?subject=Fm&body=%24%20help%20invite
+$ follow: mailto:phil@test.com?subject=Fm&body=%24%20follow
+$ help follow: mailto:phil@test.com?subject=Fm&body=%24%20help%20follow
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -134,7 +137,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 The adduser command can only be used by the host. If an adduser command is received from an address other than the host, the command should not be executed. Here is an example message containing the adduser command from an address other than the host:
 ```
-From: Kate L <kate@test.com>
+From: Kath L <kath@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -144,7 +147,7 @@ $ adduser
 
 Here is an example message sent in reply to the above message containing the adduser command, where the sender does not match the host address:
 ```
-From: Kate L <kate@test.com>
+From: Kath L <kath@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -181,13 +184,13 @@ friendlymail, an open-source, email-based, alternative social network
 ### invite
 The invite command is used to invite someone to follow the host user. The invite command can only be used by the host user.
 
-Here is an example of the invite command. The friendlymail user is attached to the host phil@test.com, and the invitation to follow is sent to kate@test.com.
+Here is an example of the invite command. The friendlymail user is attached to the host phil@test.com, and the invitation to follow is sent to kath@test.com.
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
-$ invite kate@test.com
+$ invite kath@test.com
 
 ```
 
@@ -197,18 +200,18 @@ From: Phil L <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
-$ invite kate@test.com
-invite: Invitation sent to kate@test.com
+$ invite kath@test.com
+invite: Invitation sent to kath@test.com
 
 friendlymail, an open-source, email-based, alternative social network
 
 ```
 
-As a result of the invite command, a message is sent to the address kate@test.com. This message contains an invitation to follow the friendlymail user with host phil@test.com. Here is an example message containing the invitation:
+As a result of the invite command, a message is sent to the address kath@test.com. This message contains an invitation to follow the friendlymail user with host phil@test.com. Here is an example message containing the invitation:
 ```
 From: Phil L <phil@test.com>
 Subject: Phil L wants you to follow them on friendlymail
-To: <kate@test.com>
+To: <kath@test.com>
 
 Phil L has invited you to follow them on friendlymail. Follow to receive their posts and photos:
 
@@ -222,6 +225,19 @@ When the recipient of the above message opens the link and sends the message, th
 
 After the message containing the follow command is received, the friendlymail user attached to the host phil@test.com will receive a New Follower notification message.
 
+The invite command may only be used after a friendlymail user has been attached to the host. Here is an example message sent in reply to the invite command when a friendlymail user has not been attached to the host.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+$ invite kath@test.com
+invite: Fatal: a friendlymail user account is required for this command.
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
 ### invite --addfollower
 The invite command with the addfollower parameter is used to add someone as a follower of the host user. This differs from the invite command in that no action is required from the invitee to start receiving friendlymail notifications. This should be used only if permission has previously been obtained from the invitee, or if you are certain the invitee will be interested in receiving your notifications.
 
@@ -230,9 +246,9 @@ The invite command with the addfollower parameter can only be used by the host u
 ### follow
 The follow command is used to follow a friendlymail user. The command is sent to the host attached to the friendlymail user that is the intended followee. A friendlymail user account is not required to issue the follow command to a friendlymail host.
 
-Here is an example message containing the follow command:
+Here is an example message containing the follow command. In this example, the friendlymail host is phil@test.com.
 ```
-From: Kate L <kate@test.com>
+From: Kath L <kath@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -246,7 +262,7 @@ Here is an example message sent in reply to the above message containing the fol
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
-To: Kate L <kate@test.com>
+To: Kath L <kath@test.com>
 
 $ follow
 follow: You are now following phil@test.com.
@@ -260,7 +276,7 @@ Here is an example message sent in reply to a message containing the follow comm
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
-To: Kate L <kate@test.com>
+To: Kath L <kath@test.com>
 
 $ follow
 follow: A follow request has been sent to phil@test.com.
@@ -274,7 +290,7 @@ The unfollow command is used to unfollow a friendlymail user. A friendlymail use
 
 Here is an example message containing the unfollow command. In this example, the friendlymail host is phil@test.com.
 ```
-From: Kate L <kate@test.com>
+From: Kath L <kath@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -282,11 +298,11 @@ $ unfollow
 
 ```
 
-Here is an example message sent in reply to the above message containing the unfollow command.
+Here is an example message sent in reply to the above message containing the unfollow command. This reply will be sent regardless of whether the sender is currently following the host user.
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
-To: Kate L <kate@test.com>
+To: Kath L <kath@test.com>
 
 $ unfollow
 unfollow: You are no longer following phil@test.com.
@@ -323,7 +339,7 @@ hello, world
 
 ```
 
-Here is an example of a new post notification message which is sent to the followers of phil@test.com. Note that the contents of the Message-Id header are included in the Like and Comment links as a base 64 string. The X-friendlymail header contains metadata in the form of a json string encoded to a base64 string. In this example, the json is shown; for an actual message, the json would be encoded to base 64.
+Here is an example of a new post notification message which is sent to the followers of phil@test.com. Note that the contents of the Message-Id header are included in the Like and Comment links as a base 64 string. The X-friendlymail header contains metadata in the form of a json string encoded to a Quoted-Printable string. In this example, the json is shown; for an actual message, the json would be encoded to Quoted-Printable.
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
@@ -337,27 +353,28 @@ Phil L --> posted:
 Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
 Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
 
+friendlymail, an open-source, email-based, alternative social network
+
 ```
 
 ### New Like Notification
-The new like notification message is sent by friendlymail to the followers of the host user. When a user creates a new like on an existing post, the author of the original post is notified via the new like notification message. Here is an example of a new like notification message:
+The new like notification message is sent by friendlymail to the host user. When a follower likes a post that the host user has created, the host user is notified via the new like notification message.
+
+Here is an example of a new like notification message. In this example, the friendlymail host is phil@test.com. The follower with address kath@test.com has liked a post by the host user.
 ```
 From: Phil L <phil@test.com>
-Subject: Fm
+Subject: friendlymail: Kath L liked your post...
 To: Phil L <phil@test.com>
 
-hello, world
+Kath L --> liked your post.
 
-```
-
-Here is an example of a new post notification message which is sent to the followers of phil@test.com:
-```
-Phil L --> posted:
-
+Phil L:
 "hello, world"
 
-Like: mailto:<!-- ${replyTo} -->?subject=Fm%20Like:<!-- ${createPostMessageID} -->&body=<!-- ${likeBody} -->
-Comment: mailto:<!-- ${replyTo} -->?subject=Fm%20Comment:<!-- ${createPostMessageID} -->
+Kath L:
+"❤️"
+
+friendlymail, an open-source, email-based, alternative social network
 
 ```
 
@@ -368,21 +385,29 @@ From: Phil L <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
-hello, world
+Kath L --> commented on your post:
 
-```
+"hello, universe!"
 
-Here is an example of a new post notification message which is sent to the followers of phil@test.com:
-```
-From: Phil L <phil@test.com>
-Subject: Fm
-To: Phil L <phil@test.com>
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
 
-Phil L --> posted:
+Comment thread:
 
+Phil L:
 "hello, world"
 
-Like: mailto:<!-- ${replyTo} -->?subject=Fm%20Like:<!-- ${createPostMessageID} -->&body=<!-- ${likeBody} -->
-Comment: mailto:<!-- ${replyTo} -->?subject=Fm%20Comment:<!-- ${createPostMessageID} -->
+Kath L:
+"hello, universe!"
 
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+# Simulator
+
+friendlymail also includes a simulator for processing simulated messages and showing the resulting output.
+
+```
+npm run process -- --host-email phil@test.com --host-name "Phil L"
 ```
