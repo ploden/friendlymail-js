@@ -1,6 +1,8 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from '../../EmailMessage';
 import { IMessageDraft, IMessageDraftStatic } from './MessageDraft.interface';
+import { FriendlymailMessageType } from './FriendlymailMessageType';
+import { encodeQuotedPrintable, decodeQuotedPrintable } from '../utils/quotedPrintable';
 
 /**
  * Represents a draft email message that may be incomplete or unsent.
@@ -16,6 +18,7 @@ export class MessageDraft implements IMessageDraft {
     private _attachments: string[];
     private _isHtml: boolean;
     private _priority: 'high' | 'normal' | 'low';
+    private _messageType: FriendlymailMessageType | null;
     private _createdAt: Date;
     private _updatedAt: Date;
 
@@ -30,6 +33,7 @@ export class MessageDraft implements IMessageDraft {
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
+            messageType?: FriendlymailMessageType | null;
             createdAt?: Date;
             updatedAt?: Date;
         } = {}
@@ -43,6 +47,7 @@ export class MessageDraft implements IMessageDraft {
         this._attachments = options.attachments ? [...options.attachments] : [];
         this._isHtml = options.isHtml || false;
         this._priority = options.priority || 'normal';
+        this._messageType = options.messageType !== undefined ? options.messageType : null;
         this._createdAt = options.createdAt || new Date();
         this._updatedAt = options.updatedAt || new Date();
     }
@@ -81,6 +86,10 @@ export class MessageDraft implements IMessageDraft {
 
     get priority(): 'high' | 'normal' | 'low' {
         return this._priority;
+    }
+
+    get messageType(): FriendlymailMessageType | null {
+        return this._messageType;
     }
 
     get createdAt(): Date {
@@ -205,6 +214,13 @@ export class MessageDraft implements IMessageDraft {
             throw new Error('Draft is not ready to send. Missing required fields.');
         }
 
+        const customHeaders = new Map<string, string>();
+        if (this._messageType !== null) {
+            const metadata = JSON.stringify({ messageType: this._messageType });
+            const encodedMetadata = encodeQuotedPrintable(metadata);
+            customHeaders.set('X-friendlymail', encodedMetadata);
+        }
+
         return new EmailMessage(
             this._from!,
             this._to,
@@ -215,12 +231,27 @@ export class MessageDraft implements IMessageDraft {
                 bcc: this._bcc,
                 attachments: this._attachments,
                 isHtml: this._isHtml,
-                priority: this._priority
+                priority: this._priority,
+                customHeaders: customHeaders
             }
         );
     }
 
     static fromEmailMessage(message: EmailMessage): MessageDraft {
+        const xFriendlymailHeader = message.getCustomHeader('X-friendlymail');
+        let messageType: FriendlymailMessageType | null = null;
+        if (xFriendlymailHeader) {
+            try {
+                const decodedMetadata = decodeQuotedPrintable(xFriendlymailHeader);
+                const metadata = JSON.parse(decodedMetadata);
+                if (metadata.messageType) {
+                    messageType = metadata.messageType as FriendlymailMessageType;
+                }
+            } catch {
+                // Invalid encoding or JSON, ignore
+            }
+        }
+
         return new MessageDraft(
             message.from,
             message.to,
@@ -231,7 +262,8 @@ export class MessageDraft implements IMessageDraft {
                 bcc: message.bcc,
                 attachments: message.attachments,
                 isHtml: message.isHtml,
-                priority: message.priority
+                priority: message.priority,
+                messageType: messageType
             }
         );
     }
@@ -247,6 +279,7 @@ export class MessageDraft implements IMessageDraft {
             attachments: this._attachments,
             isHtml: this._isHtml,
             priority: this._priority,
+            messageType: this._messageType,
             createdAt: this._createdAt.toISOString(),
             updatedAt: this._updatedAt.toISOString()
         };
@@ -264,6 +297,7 @@ export class MessageDraft implements IMessageDraft {
                 attachments: json.attachments || [],
                 isHtml: json.isHtml || false,
                 priority: json.priority || 'normal',
+                messageType: json.messageType || null,
                 createdAt: json.createdAt ? new Date(json.createdAt) : undefined,
                 updatedAt: json.updatedAt ? new Date(json.updatedAt) : undefined
             }

@@ -10,6 +10,7 @@ export class EmailMessage {
     private _attachments: string[];
     private _isHtml: boolean;
     private _priority: 'high' | 'normal' | 'low';
+    private _customHeaders: Map<string, string>;
 
     constructor(
         from: EmailAddress,
@@ -22,6 +23,7 @@ export class EmailMessage {
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
+            customHeaders?: Map<string, string>;
         } = {}
     ) {
         this._from = from;
@@ -33,6 +35,7 @@ export class EmailMessage {
         this._attachments = options.attachments || [];
         this._isHtml = options.isHtml || false;
         this._priority = options.priority || 'normal';
+        this._customHeaders = options.customHeaders ? new Map(options.customHeaders) : new Map();
     }
 
     // Static factory method to create from text file
@@ -54,6 +57,7 @@ export class EmailMessage {
             let isHtml = false;
             let priority: 'high' | 'normal' | 'low' = 'normal';
             let attachments: string[] = [];
+            let customHeaders = new Map<string, string>();
 
             // Parse headers
             let inBody = false;
@@ -119,6 +123,9 @@ export class EmailMessage {
                             case 'x-attachment':
                                 attachments.push(currentValue);
                                 break;
+                            case 'x-friendlymail':
+                                customHeaders.set('X-friendlymail', currentValue);
+                                break;
                         }
                     }
 
@@ -176,9 +183,12 @@ export class EmailMessage {
                             priority = prio as 'high' | 'normal' | 'low';
                         }
                         break;
-                    case 'x-attachment':
-                        attachments.push(currentValue);
-                        break;
+                            case 'x-attachment':
+                                attachments.push(currentValue);
+                                break;
+                            case 'x-friendlymail':
+                                customHeaders.set('X-friendlymail', currentValue);
+                                break;
                 }
             }
 
@@ -209,7 +219,8 @@ export class EmailMessage {
                 bcc,
                 attachments,
                 isHtml,
-                priority
+                priority,
+                customHeaders: customHeaders.size > 0 ? customHeaders : undefined
             });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -254,6 +265,20 @@ export class EmailMessage {
         return this._priority;
     }
 
+    /**
+     * Get a custom header value
+     */
+    getCustomHeader(name: string): string | undefined {
+        return this._customHeaders.get(name);
+    }
+
+    /**
+     * Get all custom headers
+     */
+    getCustomHeaders(): Map<string, string> {
+        return new Map(this._customHeaders);
+    }
+
     // Setters
     set from(value: EmailAddress) {
         this._from = value;
@@ -289,6 +314,13 @@ export class EmailMessage {
 
     set priority(value: 'high' | 'normal' | 'low') {
         this._priority = value;
+    }
+
+    /**
+     * Set a custom header value
+     */
+    setCustomHeader(name: string, value: string): void {
+        this._customHeaders.set(name, value);
     }
 
     // Methods
@@ -329,6 +361,10 @@ export class EmailMessage {
     }
 
     toJSON(): Record<string, any> {
+        const customHeadersObj: Record<string, string> = {};
+        this._customHeaders.forEach((value, key) => {
+            customHeadersObj[key] = value;
+        });
         return {
             from: this._from.toString(),
             to: this._to.map(addr => addr.toString()),
@@ -338,7 +374,8 @@ export class EmailMessage {
             body: this._body,
             attachments: this._attachments,
             isHtml: this._isHtml,
-            priority: this._priority
+            priority: this._priority,
+            customHeaders: customHeadersObj
         };
     }
 } 

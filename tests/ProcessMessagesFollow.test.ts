@@ -1,6 +1,7 @@
 import { ProcessMessages } from '../src/ProcessMessages';
 import { EmailAddress } from '../src/models/EmailAddress';
 import { EmailMessage } from '../EmailMessage';
+import { Mailbox } from '../src/models/Mailbox';
 import * as path from 'path';
 
 describe('ProcessMessages Follow', () => {
@@ -19,7 +20,8 @@ describe('ProcessMessages Follow', () => {
         const createSenderMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account.txt'));
         const createFollowMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
         
-        processor = new ProcessMessages(hostEmail, [createSenderMessage, createFollowMessage]);
+        const mailbox = new Mailbox(hostEmail, [createSenderMessage, createFollowMessage]);
+        processor = new ProcessMessages(mailbox);
     });
 
     test('should follow another account', () => {
