@@ -1,5 +1,6 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from '../../EmailMessage';
+import { FriendlymailMessageType } from './FriendlymailMessageType';
 
 /**
  * Interface for MessageDraft data type
@@ -14,6 +15,7 @@ export interface IMessageDraft {
     readonly attachments: string[];
     readonly isHtml: boolean;
     readonly priority: 'high' | 'normal' | 'low';
+    readonly messageType: FriendlymailMessageType | null;
     readonly createdAt: Date;
     readonly updatedAt: Date;
 
