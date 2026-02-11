@@ -24,10 +24,17 @@ friendlymail is an open-source, email-based, alternative social network. It supp
     - [New Follower Notification](###new-follower-notification)
     - [New Follower Request Notification](###new-follower-request-notification)
     - [Now Following Notification](###new-following-notification)
+- [Data Types](#data-types)
+  - [MailProvider](##mailprovider)
+  - [ProviderAccount](##provideraccount)   
+  - [MailBox](##mailbox)
+  - [SocialNetwork](##socialnetwork)
+
 
 # Definitions
 - host: the email account used to send and receive friendlymail messages.
 - user: a friendlymail user account for a particular friendlymail user. An account must be attached to a specific host. Commands such as help can be used without an account. Posting requires an account, however.
+- host user: the friendlymail user attached to a specific host.
 - friendlymail message: an email sent to or from friendlymail. An email received with the subject "Fm", "fm", or "📻" will be processed by friendlymail as a friendlymail message. Emails sent by friendlymail will contain the header X-friendlymail, which contains metadata for that message. The metadata is a json string.
 
 # Message Types
@@ -342,7 +349,7 @@ hello, world
 Here is an example of a new post notification message which is sent to the followers of phil@test.com. Note that the contents of the Message-Id header are included in the Like and Comment links as a base 64 string. The X-friendlymail header contains metadata in the form of a json string encoded to a Quoted-Printable string. In this example, the json is shown; for an actual message, the json would be encoded to Quoted-Printable.
 ```
 From: Phil L <phil@test.com>
-Subject: Fm
+Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 X-friendlymail: ""
 
@@ -382,7 +389,7 @@ friendlymail, an open-source, email-based, alternative social network
 The new comment notification message is sent by friendlymail to the followers of the host user. When a user creates a new comment on an existing post, the author of the original post is notified via the new comment notification message. Here is an example of a new comment notification message:
 ```
 From: Phil L <phil@test.com>
-Subject: Fm
+Subject: friendlymail: New comment from Kath L
 To: Phil L <phil@test.com>
 
 Kath L --> commented on your post:
@@ -404,6 +411,41 @@ friendlymail, an open-source, email-based, alternative social network
 
 ```
 
+# Data Types
+
+Many data types are defined within friendlymail.
+
+## SimpleMessage
+
+The SimpleMessage defines the interface for the most basic message type. It includes attributes for From, To, Subject, message body, and Date. It can also include an optional X-friendlymail value, which corresponds to an email header.
+
+## MessageSender
+
+MessageSender defines the interface for a data type capable of sending messages. The interface declares a method sendDraft that will send a draft message.
+
+## MessageReceiver
+
+MessageReceiver defines the interface for a data type capable of receiving messages. The interface declares a method getMessages that will retrieve messages from the server.
+
+## MailProvider
+
+MailProvider is a data type for sending and receiving email messages. It implements both MessageSender and MessageReceiver.
+
+## MessageStore
+
+MessageStore is a data type for storing the messages received from a MessageReceiver. The MessageStore also stores messages that should be sent using a MessageSender. A MessageStore contains an allMessages property for storing all messages, and a draftMessages property for storing messages that should be sent by a MessageSender.
+
+## MessageProcessor
+
+MessageProcessor is a data type for processing the messages contained in a MessageStore. Based on the contents of the MessageStore, the processor will create draft messages to be sent. As soon as a draft is created, the MessageProcessor should stop processing messages. If a SocialNetwork object is passed into the MessageProcessor, the MessageProcessor will update the SocialNetwork object. Otherwise, the MessageProcessor will create a new SocialNetwork object.
+
+## SocialNetwork
+SocialNetwork is the data type for representing the social network for a specific host user. It includes data types such as followers, posts, comments, and likes. The SocialNetwork object is modified by the MessageProcessor based on the contents of a MessageStore. For example, if a follow message is processed, the MessageProcessor will add the sender as a follower of the host user.
+
+## TestMessageProvider
+
+The TestMessageProvider is used for testing and in the simulator. It implements MessageSender and MessageReceiver, and loads messages from files. If a file contains <host_address> as the To or From field, the email address of the host user will be used.
+
 # Simulator
 
 friendlymail also includes a simulator for processing simulated messages and showing the resulting output.
@@ -411,3 +453,11 @@ friendlymail also includes a simulator for processing simulated messages and sho
 ```
 npm run process -- --host-email phil@test.com --host-name "Phil L"
 ```
+
+After starting the simulator with an empty mailbox, a Welcome Message should be added to drafts. The simulator user can send the draft using the send command:
+
+```
+> send $1
+```
+
+This will send the first available draft, which will move the message from Drafts to Sent. Drafts should then be empty, and Sent should contain one message.
