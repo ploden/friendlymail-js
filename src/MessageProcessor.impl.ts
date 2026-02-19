@@ -6,12 +6,12 @@ import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
 import { Mailbox } from './models/Mailbox';
 import { FriendlymailMessageType } from './models/FriendlymailMessageType';
-import { IProcessMessages } from './ProcessMessages.interface';
+import { IMessageProcessor } from './MessageProcessor.interface';
 import * as path from 'path';
 import * as fs from 'fs';
 import { VERSION, SIGNATURE } from './constants';
 
-export class ProcessMessages implements IProcessMessages {
+export class MessageProcessor implements IMessageProcessor {
     private mailbox: Mailbox;
     private sentWelcomeMessages: Set<string>;
     private socialNetworks: Map<string, SocialNetwork>;

@@ -5,9 +5,9 @@ import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
 
 /**
- * Interface for ProcessMessages data type
+ * Interface for MessageProcessor data type
  */
-export interface IProcessMessages {
+export interface IMessageProcessor {
     /**
      * Create an account from a create account command message
      */
