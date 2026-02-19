@@ -446,6 +446,14 @@ SocialNetwork is the data type for representing the social network for a specifi
 
 The TestMessageProvider is used for testing and in the simulator. It implements MessageSender and MessageReceiver, and loads messages from files. If a file contains <host_address> as the To or From field, the email address of the host user will be used.
 
+## Daemon
+The Daemon uses the main friendlymail data types to send and receive friendlymail messages. A Daemon will:
+- use a MessageStore to store messages
+- use a MessageReceiver to populate the MessageStore with messages 
+- use a MessageSender to send friendlymail messages
+- use a MessageProcessor to process the messages in the MessageStore
+- use a SocialNetwork to save the changes made by the MessageProcessor
+
 # Simulator
 
 friendlymail also includes a simulator for processing simulated messages and showing the resulting output.
