@@ -2,6 +2,7 @@ import { ITestMessageProvider } from './TestMessageProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from '../../EmailMessage';
 import { MessageDraft } from './MessageDraft.impl';
+import { SimpleMessage } from './SimpleMessage';
 import * as fs from 'fs';
 
 /**
@@ -35,6 +36,7 @@ export class TestMessageProvider implements ITestMessageProvider {
      * @param draft The draft message to send
      */
     async sendDraft(draft: MessageDraft): Promise<void> {
+        await new Promise(resolve => setTimeout(resolve, 1000));
         if (!draft.isReadyToSend()) {
             throw new Error('Draft is not ready to send');
         }
@@ -43,11 +45,33 @@ export class TestMessageProvider implements ITestMessageProvider {
     }
 
     /**
-     * Retrieve loaded messages
+     * Retrieve loaded messages. Each message is returned only once;
+     * messages are cleared after being returned.
      * @returns Promise that resolves to an array of EmailMessage objects
      */
     async getMessages(): Promise<EmailMessage[]> {
-        return [...this._messages];
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const messages = [...this._messages];
+        this._messages = [];
+        return messages;
+    }
+
+    /**
+     * Load a SimpleMessage. The message will be returned on the next call to getMessages().
+     * @param message The SimpleMessage to load
+     */
+    async loadMessage(message: SimpleMessage): Promise<void> {
+        const customHeaders = message.xFriendlymail
+            ? new Map([['X-friendlymail', message.xFriendlymail]])
+            : new Map<string, string>();
+        const emailMessage = new EmailMessage(
+            message.from,
+            message.to,
+            message.subject,
+            message.body,
+            { customHeaders }
+        );
+        this._messages.push(emailMessage);
     }
 
     /**
@@ -57,7 +81,7 @@ export class TestMessageProvider implements ITestMessageProvider {
      */
     async loadFromFile(filePath: string): Promise<void> {
         const content = await fs.promises.readFile(filePath, 'utf8');
-        
+
         // Replace <host_address> placeholders with the host email address
         const processedContent = content.replace(
             /<host_address>/g,

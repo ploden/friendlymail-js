@@ -1,5 +1,6 @@
 import { IMailProvider } from './MailProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
+import { SimpleMessage } from './SimpleMessage';
 
 /**
  * Interface for TestMessageProvider used for testing and in the simulator.
@@ -14,13 +15,15 @@ export interface ITestMessageProvider extends IMailProvider {
     readonly hostAddress: EmailAddress;
 
     /**
-     * Load messages from a file
+     * Load message. After the message has been loaded,
+     * it will be returned on the next call to getMessages().
+     */
+    loadMessage(message: SimpleMessage): Promise<void>;
+
+    /**
+     * Load messages from a file. After the file has been loaded,
+     * it will be returned on the next call to getMessages().
      * @param filePath The path to the file to load
      */
     loadFromFile(filePath: string): Promise<void>;
-
-    /**
-     * Get sent messages (messages that were sent via sendDraft)
-     */
-    readonly sentMessages: ReadonlyArray<any>;
 }
