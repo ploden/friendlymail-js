@@ -1,0 +1,456 @@
+/**
+ * Scenario: A friendlymail account is created and a post is made
+ *
+ * A fresh Daemon and TestMessageProvider are created before each test.
+ * Each step's beforeEach runs through all prior steps to establish the
+ * correct cumulative state. Each test then makes assertions about the
+ * messages sent during that step.
+ */
+
+import { Daemon } from '../../src/models/Daemon';
+import { TestMessageProvider } from '../../src/models/TestMessageProvider';
+import { EmailAddress } from '../../src/models/EmailAddress';
+import { SimpleMessage } from '../../src/models/SimpleMessage';
+import { FriendlymailMessageType } from '../../src/models/FriendlymailMessageType';
+import { ISocialNetwork } from '../../src/models/SocialNetwork';
+
+const HOST_EMAIL = 'phil@test.com';
+const FOLLOWER_EMAIL = 'kath@test.com';
+
+function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
+    return {
+        getAccount: jest.fn(),
+        setAccount: jest.fn()
+    };
+}
+
+describe('Scenario: A friendlymail account is created and a post is made', () => {
+    let hostAddress: EmailAddress;
+    let followerAddress: EmailAddress;
+    let provider: TestMessageProvider;
+    let daemon: Daemon;
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        hostAddress = new EmailAddress(HOST_EMAIL);
+        followerAddress = new EmailAddress(FOLLOWER_EMAIL);
+        provider = new TestMessageProvider(hostAddress);
+        daemon = new Daemon(hostAddress, provider, provider, makeSocialNetwork());
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    /**
+     * Run one daemon cycle. Each cycle =
+     *   getMessages (1s) + numDrafts × sendDraft (1s each) + getMessages (1s).
+     */
+    async function runDaemon(numDrafts = 1): Promise<void> {
+        const runPromise = daemon.run();
+        await jest.advanceTimersByTimeAsync((numDrafts + 2) * 1000);
+        await runPromise;
+    }
+
+    // ── Message factories ──────────────────────────────────────────────────────
+
+    function helpCommand(): SimpleMessage {
+        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ help');
+    }
+
+    function adduserCommand(): SimpleMessage {
+        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ adduser');
+    }
+
+    function inviteAddfollowerCommand(): SimpleMessage {
+        return new SimpleMessage(
+            hostAddress, [hostAddress], 'Fm',
+            `$ invite --addfollower ${FOLLOWER_EMAIL}`
+        );
+    }
+
+    function createPostMessage(): SimpleMessage {
+        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', 'Hello, world');
+    }
+
+    function likeMessage(): SimpleMessage {
+        return new SimpleMessage(
+            followerAddress, [hostAddress],
+            'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            '❤️'
+        );
+    }
+
+    function commentMessage(): SimpleMessage {
+        return new SimpleMessage(
+            followerAddress, [hostAddress],
+            'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            'hello, universe!'
+        );
+    }
+
+    // ── Step helpers ───────────────────────────────────────────────────────────
+
+    async function step1_attachHost(): Promise<void> {
+        await runDaemon(1);
+    }
+
+    async function step2_sendHelp(): Promise<void> {
+        await provider.loadMessage(helpCommand());
+        await runDaemon(1);
+    }
+
+    async function step3_createAccount(): Promise<void> {
+        await provider.loadMessage(adduserCommand());
+        await runDaemon(1);
+    }
+
+    async function step4_inviteFollower(): Promise<void> {
+        await provider.loadMessage(inviteAddfollowerCommand());
+        await runDaemon(1);
+    }
+
+    async function step5_createPost(): Promise<void> {
+        await provider.loadMessage(createPostMessage());
+        await runDaemon(2); // sends new post notification to host + to follower
+    }
+
+    async function step6_likePost(): Promise<void> {
+        await provider.loadMessage(likeMessage());
+        await runDaemon(1);
+    }
+
+    async function step7_commentOnPost(): Promise<void> {
+        await provider.loadMessage(commentMessage());
+        await runDaemon(1);
+    }
+
+    // ── Step 1: friendlymail is attached to a host ─────────────────────────────
+
+    describe('Step 1: friendlymail is attached to a host', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+        });
+
+        it('should send exactly one message', () => {
+            expect(provider.sentMessages).toHaveLength(1);
+        });
+
+        it('should send the welcome message to the host', () => {
+            expect(provider.sentMessages[0].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the welcome message from the host address', () => {
+            expect(provider.sentMessages[0].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the welcome message with the correct subject', () => {
+            expect(provider.sentMessages[0].subject).toBe('Welcome to friendlymail!');
+        });
+
+        it('should set the X-friendlymail header to the welcome type', () => {
+            expect(provider.sentMessages[0].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.WELCOME);
+        });
+
+        it('should include the version number in the welcome message body', () => {
+            expect(provider.sentMessages[0].body).toContain('friendlymail 0.0.1');
+        });
+
+        it('should include the help prompt in the welcome message body', () => {
+            expect(provider.sentMessages[0].body)
+                .toContain('Reply to this message with "$ help" for more information.');
+        });
+
+        it('should include the signature in the welcome message body', () => {
+            expect(provider.sentMessages[0].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 2: The host sends a help command ──────────────────────────────────
+
+    describe('Step 2: The host sends a help command', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+        });
+
+        it('should send exactly two messages total', () => {
+            expect(provider.sentMessages).toHaveLength(2);
+        });
+
+        it('should send the help reply to the host', () => {
+            expect(provider.sentMessages[1].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the help reply from the host address', () => {
+            expect(provider.sentMessages[1].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should set the X-friendlymail header to the help type', () => {
+            expect(provider.sentMessages[1].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.HELP);
+        });
+
+        it('should include command listings in the help reply body', () => {
+            expect(provider.sentMessages[1].body).toContain('$ help');
+        });
+
+        it('should include the signature in the help reply body', () => {
+            expect(provider.sentMessages[1].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 3: The host sends a create account command ────────────────────────
+
+    describe('Step 3: The host sends a create account command', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+        });
+
+        it('should send exactly three messages total', () => {
+            expect(provider.sentMessages).toHaveLength(3);
+        });
+
+        it('should send the adduser reply to the host', () => {
+            expect(provider.sentMessages[2].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the adduser reply from the host address', () => {
+            expect(provider.sentMessages[2].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should set the X-friendlymail header to the adduser_response type', () => {
+            expect(provider.sentMessages[2].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
+        });
+
+        it('should include confirmation text in the adduser reply body', () => {
+            expect(provider.sentMessages[2].body).toContain('Done.');
+        });
+
+        it('should include the signature in the adduser reply body', () => {
+            expect(provider.sentMessages[2].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 4: The host sends an invite --addfollower command ─────────────────
+
+    describe('Step 4: The host user sends an invite command with the addfollower parameter', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+        });
+
+        it('should send exactly four messages total', () => {
+            expect(provider.sentMessages).toHaveLength(4);
+        });
+
+        it('should send the invite reply to the host', () => {
+            expect(provider.sentMessages[3].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the invite reply from the host address', () => {
+            expect(provider.sentMessages[3].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should set the X-friendlymail header to the invite type', () => {
+            expect(provider.sentMessages[3].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.INVITE);
+        });
+
+        it('should confirm the follower was added in the reply body', () => {
+            expect(provider.sentMessages[3].body).toContain(`${FOLLOWER_EMAIL} is now following you`);
+        });
+
+        it('should include the signature in the invite reply body', () => {
+            expect(provider.sentMessages[3].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 5: The user sends a create post message ───────────────────────────
+
+    describe('Step 5: The user sends a create post message', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+        });
+
+        it('should send exactly six messages total', () => {
+            expect(provider.sentMessages).toHaveLength(6);
+        });
+
+        it('should send a new post notification to the host user', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === HOST_EMAIL)
+            );
+            expect(notification).toBeDefined();
+        });
+
+        it('should send a new post notification to the follower', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notification).toBeDefined();
+        });
+
+        it('should send both notifications from the host address', () => {
+            const notifications = provider.sentMessages.filter(
+                m => m.subject === 'friendlymail: New post from Phil L'
+            );
+            expect(notifications).toHaveLength(2);
+            expect(notifications.every(m => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should set the X-friendlymail header to the new_post_notification type on the host notification', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === HOST_EMAIL)
+            );
+            expect(notification!.getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
+        });
+
+        it('should set the X-friendlymail header to the new_post_notification type on the follower notification', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notification!.getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
+        });
+
+        it('should include the post content in the host notification body', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === HOST_EMAIL)
+            );
+            expect(notification!.body).toContain('Hello, world');
+        });
+
+        it('should include the post content in the follower notification body', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notification!.body).toContain('Hello, world');
+        });
+
+        it('should include the signature in the host notification body', () => {
+            const notification = provider.sentMessages.find(
+                m => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some(a => a.toString() === HOST_EMAIL)
+            );
+            expect(notification!.body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 6: The follower likes the post ────────────────────────────────────
+
+    describe('Step 6: The follower likes the post', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+            await step6_likePost();
+        });
+
+        it('should send exactly seven messages total', () => {
+            expect(provider.sentMessages).toHaveLength(7);
+        });
+
+        it('should send the like notification to the host user', () => {
+            expect(provider.sentMessages[6].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the like notification from the host address', () => {
+            expect(provider.sentMessages[6].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the like notification with the correct subject', () => {
+            expect(provider.sentMessages[6].subject).toContain('Kath L liked your post');
+        });
+
+        it('should set the X-friendlymail header to the new_like_notification type', () => {
+            expect(provider.sentMessages[6].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.NEW_LIKE_NOTIFICATION);
+        });
+
+        it('should include the original post content in the like notification body', () => {
+            expect(provider.sentMessages[6].body).toContain('Hello, world');
+        });
+
+        it('should include the like emoji in the like notification body', () => {
+            expect(provider.sentMessages[6].body).toContain('❤️');
+        });
+
+        it('should include the signature in the like notification body', () => {
+            expect(provider.sentMessages[6].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 7: The follower comments on the post ──────────────────────────────
+
+    describe('Step 7: The follower comments on the post', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+            await step6_likePost();
+            await step7_commentOnPost();
+        });
+
+        it('should send exactly eight messages total', () => {
+            expect(provider.sentMessages).toHaveLength(8);
+        });
+
+        it('should send the comment notification to the host user', () => {
+            expect(provider.sentMessages[7].to.map(a => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the comment notification from the host address', () => {
+            expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the comment notification with the correct subject', () => {
+            expect(provider.sentMessages[7].subject).toContain('New comment from Kath L');
+        });
+
+        it('should set the X-friendlymail header to the new_comment_notification type', () => {
+            expect(provider.sentMessages[7].getCustomHeader('X-friendlymail'))
+                .toContain(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION);
+        });
+
+        it('should include the comment text in the notification body', () => {
+            expect(provider.sentMessages[7].body).toContain('hello, universe!');
+        });
+
+        it('should include the original post content in the comment thread', () => {
+            expect(provider.sentMessages[7].body).toContain('Hello, world');
+        });
+
+        it('should include the signature in the comment notification body', () => {
+            expect(provider.sentMessages[7].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+});
