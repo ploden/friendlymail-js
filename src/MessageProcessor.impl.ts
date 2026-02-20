@@ -4,32 +4,36 @@ import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
-import { Mailbox } from './models/Mailbox';
 import { FriendlymailMessageType } from './models/FriendlymailMessageType';
 import { IMessageProcessor } from './MessageProcessor.interface';
+import { encodeQuotedPrintable, decodeQuotedPrintable } from './utils/quotedPrintable';
 import * as path from 'path';
 import * as fs from 'fs';
 import { VERSION, SIGNATURE } from './constants';
 
 export class MessageProcessor implements IMessageProcessor {
-    private mailbox: Mailbox;
-    private sentWelcomeMessages: Set<string>;
+    private _hostEmailAddress: EmailAddress;
+    private _receivedMessages: EmailMessage[];
+    private _drafts: MessageDraft[];
+    private _sentMessages: EmailMessage[];
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
     private followers: Map<string, Set<string>>;
 
-    constructor(mailbox: Mailbox) {
-        this.mailbox = mailbox;
-        this.sentWelcomeMessages = new Set();
+    constructor(hostEmailAddress: EmailAddress, receivedMessages: EmailMessage[] = []) {
+        this._hostEmailAddress = hostEmailAddress;
+        this._receivedMessages = [...receivedMessages];
+        this._drafts = [];
+        this._sentMessages = [];
         this.socialNetworks = new Map();
         this.following = new Map();
         this.followers = new Map();
-        
+
         if (this.shouldCreateWelcomeMessageDraft()) {
             this.createWelcomeMessageDraftForHost();
         }
-        
-        mailbox.receivedMessages.forEach(message => this.processMessage(message));
+
+        this._receivedMessages.forEach(message => this.processMessage(message));
     }
 
     /**
@@ -78,7 +82,7 @@ export class MessageProcessor implements IMessageProcessor {
 
         const socialNetwork = new SocialNetwork(account);
         this.socialNetworks.set(fromEmail.toString(), socialNetwork);
-        
+
         return account;
     }
 
@@ -186,84 +190,73 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     getAllMessages(): EmailMessage[] {
-        return [...this.mailbox.receivedMessages];
+        return [...this._receivedMessages];
     }
 
     getMessagesFrom(sender: EmailAddress): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.from.equals(sender));
+        return this._receivedMessages.filter(message => message.from.equals(sender));
     }
 
     getMessagesTo(recipient: EmailAddress): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.to.some(addr => addr.equals(recipient)));
+        return this._receivedMessages.filter(message => message.to.some(addr => addr.equals(recipient)));
     }
 
     getMessagesWithSubject(subject: string): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.subject === subject);
+        return this._receivedMessages.filter(message => message.subject === subject);
     }
 
     getHighPriorityMessages(): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.priority === 'high');
+        return this._receivedMessages.filter(message => message.priority === 'high');
     }
 
     getMessagesWithAttachments(): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.attachments.length > 0);
+        return this._receivedMessages.filter(message => message.attachments.length > 0);
     }
 
     getHtmlMessages(): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.isHtml);
+        return this._receivedMessages.filter(message => message.isHtml);
     }
 
     getPlainTextMessages(): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => !message.isHtml);
+        return this._receivedMessages.filter(message => !message.isHtml);
     }
 
     getMessagesContaining(text: string): EmailMessage[] {
-        return this.mailbox.receivedMessages.filter(message => message.body.includes(text));
+        return this._receivedMessages.filter(message => message.body.includes(text));
     }
 
     getMessagesInDateRange(startDate: Date, endDate: Date): EmailMessage[] {
         // Note: This assumes EmailMessage has a date property
-        return this.mailbox.receivedMessages.filter(message => {
+        return this._receivedMessages.filter(message => {
             const messageDate = new Date(message.body); // This is a placeholder - we need to add date handling
             return messageDate >= startDate && messageDate <= endDate;
         });
     }
 
     removeMessage(message: EmailMessage): void {
-        const receivedMessages = Array.from(this.mailbox.receivedMessages).filter(m => m !== message);
-        this.mailbox = new Mailbox(
-            this.mailbox.hostEmailAddress,
-            receivedMessages,
-            Array.from(this.mailbox.sentMessages),
-            Array.from(this.mailbox.drafts)
-        );
+        this._receivedMessages = this._receivedMessages.filter(m => m !== message);
     }
 
     clearMessages(): void {
-        this.mailbox = new Mailbox(
-            this.mailbox.hostEmailAddress,
-            [],
-            Array.from(this.mailbox.sentMessages),
-            Array.from(this.mailbox.drafts)
-        );
+        this._receivedMessages = [];
     }
 
     getMessageCount(): number {
-        return this.mailbox.receivedMessages.length;
+        return this._receivedMessages.length;
     }
 
     getUniqueSenders(): EmailAddress[] {
-        return Array.from(new Set(this.mailbox.receivedMessages.map(message => message.from)));
+        return Array.from(new Set(this._receivedMessages.map(message => message.from)));
     }
 
     getUniqueRecipients(): EmailAddress[] {
-        const recipients = this.mailbox.receivedMessages.flatMap(message => message.to);
+        const recipients = this._receivedMessages.flatMap(message => message.to);
         return Array.from(new Set(recipients));
     }
 
     getMessagesGroupedBySender(): Map<EmailAddress, EmailMessage[]> {
         const grouped = new Map<EmailAddress, EmailMessage[]>();
-        for (const message of this.mailbox.receivedMessages) {
+        for (const message of this._receivedMessages) {
             if (!grouped.has(message.from)) {
                 grouped.set(message.from, []);
             }
@@ -274,7 +267,7 @@ export class MessageProcessor implements IMessageProcessor {
 
     getMessagesGroupedByPriority(): Map<'high' | 'normal' | 'low', EmailMessage[]> {
         const grouped = new Map<'high' | 'normal' | 'low', EmailMessage[]>();
-        for (const message of this.mailbox.receivedMessages) {
+        for (const message of this._receivedMessages) {
             if (!grouped.has(message.priority)) {
                 grouped.set(message.priority, []);
             }
@@ -292,39 +285,51 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
-     * Returns true if a welcome message draft should be created, false otherwise.
-     * A welcome message should be sent to the host if a welcome message has not already been sent.
+     * Returns true if any received message carries an X-friendlymail header
+     * identifying it as a welcome message.
      */
-    private shouldCreateWelcomeMessageDraft(): Boolean {
-        const hostEmail = this.mailbox.hostEmailAddress.toString();
-        return !this.sentWelcomeMessages.has(hostEmail);
+    private _welcomeMessageExists(): boolean {
+        return this._receivedMessages.some(msg => {
+            const header = msg.getCustomHeader('X-friendlymail');
+            if (!header) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(header));
+                return meta.messageType === FriendlymailMessageType.WELCOME;
+            } catch {
+                return false;
+            }
+        });
     }
 
     /**
-     * Create a welcome message draft from host to host (when no messages provided)
+     * Returns true if a welcome message draft should be created.
+     * A welcome draft is only created when no welcome message is already present
+     * in the received messages.
+     */
+    private shouldCreateWelcomeMessageDraft(): boolean {
+        return !this._welcomeMessageExists();
+    }
+
+    /**
+     * Create a welcome message draft from host to host.
      */
     private createWelcomeMessageDraftForHost(): void {
-        const hostEmail = this.mailbox.hostEmailAddress.toString();
-        
-        // Check if welcome message has already been sent for the host
-        if (this.sentWelcomeMessages.has(hostEmail)) {
-            return;
-        }
+        const hostEmail = this._hostEmailAddress.toString();
 
         try {
             // Load welcome template - path relative to project root
             const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
             const templateContent = fs.readFileSync(templatePath, 'utf8');
-            
+
             // Replace template placeholders with constants
             const body = templateContent
                 .replace('{{ version }}', VERSION)
                 .replace('{{ signature }}', SIGNATURE);
-            
+
             // Create draft with host as sender and host as recipient
             const draft = new MessageDraft(
-                this.mailbox.hostEmailAddress,
-                [this.mailbox.hostEmailAddress],
+                this._hostEmailAddress,
+                [this._hostEmailAddress],
                 'Welcome to friendlymail',
                 body,
                 {
@@ -334,11 +339,7 @@ export class MessageProcessor implements IMessageProcessor {
                 }
             );
 
-            // Queue the draft for sending
-            this.mailbox = this.mailbox.addingDrafts([draft]) as Mailbox;
-            
-            // Mark as sent to prevent duplicates
-            this.sentWelcomeMessages.add(hostEmail);
+            this._drafts.push(draft);
         } catch (error) {
             console.warn(`Failed to create welcome message draft for host ${hostEmail}:`, error);
         }
@@ -365,7 +366,7 @@ help
 ${SIGNATURE}`;
 
         const draft = new MessageDraft(
-            this.mailbox.hostEmailAddress,
+            this._hostEmailAddress,
             [sender],
             'Re: Fm',
             helpBody,
@@ -376,40 +377,57 @@ ${SIGNATURE}`;
             }
         );
 
-        this.mailbox = this.mailbox.addingDrafts([draft]) as Mailbox;
+        this._drafts.push(draft);
     }
 
     getMessageDrafts(): MessageDraft[] {
-        return [...this.mailbox.drafts];
+        return [...this._drafts];
     }
 
     removeDraft(draft: MessageDraft): void {
-        this.mailbox = this.mailbox.removingDrafts([draft]) as Mailbox;
+        this._drafts = this._drafts.filter(d => d !== draft);
     }
 
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean {
-        return this.sentWelcomeMessages.has(sender.toString());
+        return this._welcomeMessageExists();
     }
 
     sendDraft(draftIndex: number): EmailMessage | null {
-        const drafts = this.mailbox.drafts;
-        if (draftIndex < 0 || draftIndex >= drafts.length) {
+        if (draftIndex < 0 || draftIndex >= this._drafts.length) {
             return null;
         }
 
-        const draft = drafts[draftIndex];
+        const draft = this._drafts[draftIndex];
         if (!draft.isReadyToSend()) {
             return null;
         }
 
-        const emailMessage = draft.toEmailMessage();
-        this.mailbox = this.mailbox.addingSentMessages([emailMessage]) as Mailbox;
-        this.mailbox = this.mailbox.removingDrafts([draft]) as Mailbox;
+        const customHeaders = new Map<string, string>();
+        if (draft.messageType !== null) {
+            const metadata = JSON.stringify({ messageType: draft.messageType });
+            customHeaders.set('X-friendlymail', encodeQuotedPrintable(metadata));
+        }
+        const emailMessage = new EmailMessage(
+            draft.from!,
+            draft.to,
+            draft.subject,
+            draft.body,
+            {
+                cc: draft.cc,
+                bcc: draft.bcc,
+                attachments: draft.attachments,
+                isHtml: draft.isHtml,
+                priority: draft.priority,
+                customHeaders
+            }
+        );
+        this._sentMessages.push(emailMessage);
+        this._drafts = this._drafts.filter(d => d !== draft);
 
         return emailMessage;
     }
 
     getSentMessages(): EmailMessage[] {
-        return [...this.mailbox.sentMessages];
+        return [...this._sentMessages];
     }
 }

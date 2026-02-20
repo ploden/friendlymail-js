@@ -28,7 +28,6 @@ export interface IMessageDraft {
     removeBcc(email: EmailAddress): void;
     removeAttachment(filePath: string): void;
     isReadyToSend(): boolean;
-    toEmailMessage(): EmailMessage;
     toJSON(): Record<string, any>;
 }
 

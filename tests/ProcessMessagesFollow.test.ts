@@ -1,7 +1,6 @@
 import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
 import { EmailMessage } from '../EmailMessage';
-import { Mailbox } from '../src/models/Mailbox';
 import * as path from 'path';
 
 describe('MessageProcessor Follow', () => {
@@ -20,8 +19,7 @@ describe('MessageProcessor Follow', () => {
         const createSenderMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account.txt'));
         const createFollowMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
         
-        const mailbox = new Mailbox(hostEmail, [createSenderMessage, createFollowMessage]);
-        processor = new MessageProcessor(mailbox);
+        processor = new MessageProcessor(hostEmail, [createSenderMessage, createFollowMessage]);
     });
 
     test('should follow another account', () => {

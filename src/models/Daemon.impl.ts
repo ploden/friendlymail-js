@@ -6,7 +6,7 @@ import { ISocialNetwork } from './SocialNetwork.interface';
 import { IMessageProcessor } from '../MessageProcessor.interface';
 import { MessageStore } from './MessageStore.impl';
 import { MessageProcessor } from '../MessageProcessor';
-import { Mailbox } from './Mailbox.impl';
+import { EmailAddress } from './EmailAddress.impl';
 
 /**
  * Daemon coordinates the core friendlymail components to send and receive
@@ -20,27 +20,27 @@ export class Daemon implements IDaemon {
     private _messageSender: IMessageSender;
     private _messageProcessor: IMessageProcessor;
     private _socialNetwork: ISocialNetwork;
-    private _hostMailbox: Mailbox;
+    private _hostEmailAddress: EmailAddress;
 
     /**
      * Creates a new Daemon instance.
-     * @param hostMailbox The mailbox of the host user (provides host address and initial state)
+     * @param hostEmailAddress The email address of the host user
      * @param messageReceiver Used to fetch incoming messages
      * @param messageSender Used to dispatch draft messages
      * @param socialNetwork Used to persist social network state across runs
      */
     constructor(
-        hostMailbox: Mailbox,
+        hostEmailAddress: EmailAddress,
         messageReceiver: IMessageReceiver,
         messageSender: IMessageSender,
         socialNetwork: ISocialNetwork
     ) {
-        this._hostMailbox = hostMailbox;
+        this._hostEmailAddress = hostEmailAddress;
         this._messageStore = new MessageStore();
         this._messageReceiver = messageReceiver;
         this._messageSender = messageSender;
         this._socialNetwork = socialNetwork;
-        this._messageProcessor = new MessageProcessor(hostMailbox);
+        this._messageProcessor = new MessageProcessor(hostEmailAddress);
     }
 
     /** The store holding all received and pending draft messages */
@@ -77,12 +77,11 @@ export class Daemon implements IDaemon {
         const newMessages = await this._messageReceiver.getMessages();
         this._messageStore.addMessages(newMessages);
 
-        // Build a mailbox from the accumulated store messages and run the processor
-        const mailbox = new Mailbox(
-            this._hostMailbox.hostEmailAddress,
+        // Build a processor from the accumulated store messages
+        this._messageProcessor = new MessageProcessor(
+            this._hostEmailAddress,
             [...this._messageStore.allMessages]
         );
-        this._messageProcessor = new MessageProcessor(mailbox);
 
         // Send each draft produced by the processor
         const drafts = this._messageProcessor.getMessageDrafts();
@@ -91,10 +90,15 @@ export class Daemon implements IDaemon {
             this._messageProcessor.removeDraft(draft);
         }
 
+        // Fetch any messages produced by sending drafts and add them to the store
+        const sentMessages = await this._messageReceiver.getMessages();
+        this._messageStore.addMessages(sentMessages);
+
         // Update the social network from processor state
         const socialNetworks = this._messageProcessor.getAllSocialNetworks();
         if (socialNetworks.length > 0) {
             this._socialNetwork.setAccount(socialNetworks[0].getAccount());
         }
     }
+
 }

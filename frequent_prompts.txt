@@ -1,0 +1,2 @@
+reset the context for this session, read README.md, and read README_for_sdev_agent.md and use as the prompt for this session.
+reset the context for this session, read README.md, and read README_for_sdet_agent.md and use as the prompt for this session.

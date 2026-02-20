@@ -3,6 +3,7 @@ import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from '../../EmailMessage';
 import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessage } from './SimpleMessage';
+import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 import * as fs from 'fs';
 
 /**
@@ -31,8 +32,10 @@ export class TestMessageProvider implements ITestMessageProvider {
     }
 
     /**
-     * Send a draft message
-     * Stores the message in sentMessages for testing verification
+     * Send a draft message.
+     * Builds an EmailMessage from the draft, including the X-friendlymail header,
+     * and makes it available on the next call to getMessages().
+     * Also stores the message in sentMessages for testing verification.
      * @param draft The draft message to send
      */
     async sendDraft(draft: MessageDraft): Promise<void> {
@@ -40,8 +43,27 @@ export class TestMessageProvider implements ITestMessageProvider {
         if (!draft.isReadyToSend()) {
             throw new Error('Draft is not ready to send');
         }
-        const message = draft.toEmailMessage();
+        const customHeaders = new Map<string, string>();
+        if (draft.messageType !== null) {
+            const metadata = JSON.stringify({ messageType: draft.messageType });
+            customHeaders.set('X-friendlymail', encodeQuotedPrintable(metadata));
+        }
+        const message = new EmailMessage(
+            draft.from!,
+            draft.to,
+            draft.subject,
+            draft.body,
+            {
+                cc: draft.cc,
+                bcc: draft.bcc,
+                attachments: draft.attachments,
+                isHtml: draft.isHtml,
+                priority: draft.priority,
+                customHeaders
+            }
+        );
         this._sentMessages.push(message);
+        this._messages.push(message);
     }
 
     /**

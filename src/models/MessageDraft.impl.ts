@@ -2,7 +2,7 @@ import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from '../../EmailMessage';
 import { IMessageDraft, IMessageDraftStatic } from './MessageDraft.interface';
 import { FriendlymailMessageType } from './FriendlymailMessageType';
-import { encodeQuotedPrintable, decodeQuotedPrintable } from '../utils/quotedPrintable';
+import { decodeQuotedPrintable } from '../utils/quotedPrintable';
 
 /**
  * Represents a draft email message that may be incomplete or unsent.
@@ -207,34 +207,6 @@ export class MessageDraft implements IMessageDraft {
 
     isReadyToSend(): boolean {
         return !!this._from && this._to.length > 0 && !!this._subject && !!this._body;
-    }
-
-    toEmailMessage(): EmailMessage {
-        if (!this.isReadyToSend()) {
-            throw new Error('Draft is not ready to send. Missing required fields.');
-        }
-
-        const customHeaders = new Map<string, string>();
-        if (this._messageType !== null) {
-            const metadata = JSON.stringify({ messageType: this._messageType });
-            const encodedMetadata = encodeQuotedPrintable(metadata);
-            customHeaders.set('X-friendlymail', encodedMetadata);
-        }
-
-        return new EmailMessage(
-            this._from!,
-            this._to,
-            this._subject,
-            this._body,
-            {
-                cc: this._cc,
-                bcc: this._bcc,
-                attachments: this._attachments,
-                isHtml: this._isHtml,
-                priority: this._priority,
-                customHeaders: customHeaders
-            }
-        );
     }
 
     static fromEmailMessage(message: EmailMessage): MessageDraft {

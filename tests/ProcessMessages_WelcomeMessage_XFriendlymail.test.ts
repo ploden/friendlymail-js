@@ -1,7 +1,6 @@
 import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
 import { EmailMessage } from '../EmailMessage';
-import { Mailbox } from '../src/models/Mailbox';
 
 describe('MessageProcessor Welcome Message X-friendlymail Header', () => {
     // Test that the sent welcome message contains the X-friendlymail header

@@ -27,7 +27,6 @@ friendlymail is an open-source, email-based, alternative social network. It supp
 - [Data Types](#data-types)
   - [MailProvider](##mailprovider)
   - [ProviderAccount](##provideraccount)   
-  - [MailBox](##mailbox)
   - [SocialNetwork](##socialnetwork)
 
 
@@ -449,7 +448,7 @@ The TestMessageProvider is used for testing and in the simulator. It implements 
 ## Daemon
 The Daemon uses the main friendlymail data types to send and receive friendlymail messages. A Daemon will:
 - use a MessageStore to store messages
-- use a MessageReceiver to populate the MessageStore with messages 
+- use a MessageReceiver to populate the MessageStore with messages
 - use a MessageSender to send friendlymail messages
 - use a MessageProcessor to process the messages in the MessageStore
 - use a SocialNetwork to save the changes made by the MessageProcessor
@@ -462,7 +461,7 @@ friendlymail also includes a simulator for processing simulated messages and sho
 npm run process -- --host-email phil@test.com --host-name "Phil L"
 ```
 
-After starting the simulator with an empty mailbox, a Welcome Message should be added to drafts. The simulator user can send the draft using the send command:
+After starting the simulator with an empty MessageStore, a Welcome Message should be added to drafts. The simulator user can send the draft using the send command:
 
 ```
 > send $1

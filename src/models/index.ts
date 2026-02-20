@@ -4,7 +4,6 @@ export * from './Post';
 export * from './Comment';
 export * from './Account';
 export * from './MessageDraft';
-export * from './Mailbox';
 export * from './FriendlymailMessageType';
 export * from './SimpleMessage';
 export * from './MessageSender';
