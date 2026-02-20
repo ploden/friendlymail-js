@@ -11,5 +11,4 @@ export * from './MessageSender';
 export * from './MessageReceiver';
 export * from './MailProvider';
 export * from './MessageStore';
-export * from './MessageProcessor';
 export * from './TestMessageProvider'; 

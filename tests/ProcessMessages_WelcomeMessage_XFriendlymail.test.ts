@@ -1,9 +1,9 @@
-import { ProcessMessages } from '../src/ProcessMessages';
+import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
 import { EmailMessage } from '../EmailMessage';
 import { Mailbox } from '../src/models/Mailbox';
 
-describe('ProcessMessages Welcome Message X-friendlymail Header', () => {
+describe('MessageProcessor Welcome Message X-friendlymail Header', () => {
     // Test that the sent welcome message contains the X-friendlymail header
     it('should include X-friendlymail header in sent welcome message', () => {
         // TODO: Implement test

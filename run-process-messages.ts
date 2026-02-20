@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Command-line script to run ProcessMessages
+ * Command-line script to run MessageProcessor
  * 
  * Usage:
  *   npm run process -- --host-email <email> --host-name <name> [message-file...]
@@ -18,7 +18,7 @@
  * Note: The host-name parameter is currently accepted but not used (reserved for future use).
  */
 
-import { ProcessMessages } from './src/ProcessMessages';
+import { MessageProcessor } from './src/MessageProcessor';
 import { EmailMessage } from './EmailMessage';
 import { EmailAddress } from './src/models/EmailAddress';
 import { Mailbox } from './src/models/Mailbox';
@@ -94,7 +94,7 @@ function printTxtFiles(txtFiles: string[]): void {
     console.log('');
 }
 
-function printDrafts(processor: ProcessMessages): void {
+function printDrafts(processor: MessageProcessor): void {
     const drafts = processor.getMessageDrafts();
     
     if (drafts.length === 0) {
@@ -120,7 +120,7 @@ function printDrafts(processor: ProcessMessages): void {
     }
 }
 
-function printSentMessages(processor: ProcessMessages): void {
+function printSentMessages(processor: MessageProcessor): void {
     const sentMessages = processor.getSentMessages();
     
     if (sentMessages.length === 0) {
@@ -153,7 +153,7 @@ async function processMessageFile(filePath: string, hostEmailAddress: EmailAddre
         const message = await EmailMessage.fromTextFile(filePath);
         const updatedMessages = [...allMessages, message];
         const mailbox = new Mailbox(hostEmailAddress, updatedMessages, [], []);
-        const processor = new ProcessMessages(mailbox);
+        const processor = new MessageProcessor(mailbox);
         printDrafts(processor);
         return updatedMessages;
     } catch (error) {
@@ -197,15 +197,15 @@ async function main() {
             }
         }
 
-        // Create ProcessMessages instance with messages (messages are processed in constructor)
+        // Create MessageProcessor instance with messages (messages are processed in constructor)
         const mailbox = new Mailbox(hostEmailAddress, messages, [], []);
-        const processor = new ProcessMessages(mailbox);
+        const processor = new MessageProcessor(mailbox);
         printDrafts(processor);
     } else {
         // Interactive mode: wait for input on stdin
         let allMessages: EmailMessage[] = [];
         const mailbox = new Mailbox(hostEmailAddress, allMessages, [], []);
-        const processor = new ProcessMessages(mailbox);
+        const processor = new MessageProcessor(mailbox);
         printDrafts(processor);
 
         const txtFiles = getTxtFiles();

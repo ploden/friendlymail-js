@@ -1,10 +1,10 @@
-import { ProcessMessages } from '../src/ProcessMessages';
+import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
 import { EmailMessage } from '../EmailMessage';
 import { Mailbox } from '../src/models/Mailbox';
 import { VERSION, SIGNATURE } from '../src/constants';
 
-describe('ProcessMessages Help Message', () => {
+describe('MessageProcessor Help Message', () => {
     // Test that a help message draft is created when a help command message is received
     it('should create a help message draft when help command is received', () => {
         // TODO: Implement test
