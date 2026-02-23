@@ -36,23 +36,143 @@ export class MessageProcessor implements IMessageProcessor {
         this._receivedMessages.forEach(message => this.processMessage(message));
     }
 
+    // ── Private helpers ────────────────────────────────────────────────────────
+
+    /** Returns true if the subject identifies a friendlymail command message. */
+    private _isFriendlymailSubject(subject: string): boolean {
+        return subject === 'Fm' || subject === 'fm' || subject === '📻';
+    }
+
     /**
-     * Process a single message
+     * Returns a display name derived from an email address.
+     * Format: "FirstName X" where FirstName is the capitalised local-part and X
+     * is an initial derived from the second-level domain (sum of letter positions mod 26).
+     */
+    private _displayName(email: EmailAddress): string {
+        const local = email.getLocalPart();
+        const firstName = local.charAt(0).toUpperCase() + local.slice(1);
+
+        const domain = email.getDomain();
+        const sld = domain.split('.')[0]; // e.g. 'test' from 'test.com'
+
+        let sum = 0;
+        for (const char of sld) {
+            const code = char.toLowerCase().charCodeAt(0);
+            if (code >= 97 && code <= 122) {
+                sum += code - 96; // a=1 … z=26
+            }
+        }
+
+        const position = sum % 26 || 26; // 0 → 26 (Z)
+        const lastInitial = String.fromCharCode(64 + position);
+
+        return `${firstName} ${lastInitial}`;
+    }
+
+    /**
+     * Returns true if any message in the store already carries an X-friendlymail
+     * header with the given messageType (i.e. a response of that type was already sent).
+     */
+    private _hasResponseOfType(type: FriendlymailMessageType): boolean {
+        return this._receivedMessages.some(msg => {
+            const header = msg.getCustomHeader('X-friendlymail');
+            if (!header) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(header));
+                return meta.messageType === type;
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Returns true if a NEW_POST_NOTIFICATION already exists in the store
+     * whose body contains the given post content (used to prevent re-notifying
+     * for the same post on every run cycle).
+     */
+    private _hasPostNotificationForContent(content: string): boolean {
+        return this._receivedMessages.some(msg => {
+            const header = msg.getCustomHeader('X-friendlymail');
+            if (!header) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(header));
+                return meta.messageType === FriendlymailMessageType.NEW_POST_NOTIFICATION
+                    && msg.body.includes(content);
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    /** Returns all create-post messages from the host (subject Fm, body not a command). */
+    private getCreatePostMessages(): EmailMessage[] {
+        return this._receivedMessages.filter(msg =>
+            this._isFriendlymailSubject(msg.subject) &&
+            msg.from.equals(this._hostEmailAddress) &&
+            !msg.body.trim().startsWith('$') &&
+            !msg.getCustomHeader('X-friendlymail')
+        );
+    }
+
+    // ── Message processing ─────────────────────────────────────────────────────
+
+    /**
+     * Process a single received message and create at most one draft in response.
      */
     private processMessage(message: EmailMessage): void {
-        // Check if this is a help command
-        if (message.subject === 'Fm' && message.body.trim().toLowerCase() === 'help') {
-            this.createHelpMessageDraft(message);
+        // Skip system-generated messages (replies from friendlymail itself)
+        if (message.getCustomHeader('X-friendlymail')) return;
+
+        const subject = message.subject;
+        const body = message.body.trim();
+        const fromHost = message.from.equals(this._hostEmailAddress);
+
+        // Like message: "Fm Like ❤️:<base64-message-id>"
+        if (subject.startsWith('Fm Like')) {
+            if (!this._hasResponseOfType(FriendlymailMessageType.NEW_LIKE_NOTIFICATION)) {
+                this.createLikeNotification(message);
+            }
+            return;
         }
-        // Check if this is a create account command
-        else if (message.subject === 'fm' && message.body.includes('$ useradd')) {
-            this.createAccountFromMessage(message);
+
+        // Comment message: "Fm Comment 💬:<base64-message-id>"
+        if (subject.startsWith('Fm Comment')) {
+            if (!this._hasResponseOfType(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION)) {
+                this.createCommentNotification(message);
+            }
+            return;
         }
-        // Check if this is a follow command
-        else if (message.subject === 'fm' && message.body.includes('$ follow add')) {
-            this.addFollowerFromMessage(message);
+
+        if (!this._isFriendlymailSubject(subject)) {
+            return;
+        }
+
+        if (body === '$ help') {
+            if (!this._hasResponseOfType(FriendlymailMessageType.HELP)) {
+                this.createHelpMessageDraft(message);
+            }
+        } else if (body.startsWith('$ adduser') || body.startsWith('$ adduser')) {
+            // Any sender can register an account; only the host gets a confirmation reply
+            const account = this.createAccountFromMessage(message);
+            if (account && fromHost && !this._hasResponseOfType(FriendlymailMessageType.ADDUSER_RESPONSE)) {
+                this.createAdduserDraft(message, account.user.username, account.user.email.toString());
+            }
+        } else if (fromHost && body.startsWith('$ invite --addfollower')) {
+            // Always populate followers map (needed for post notification recipients)
+            const followerEmail = this._applyInviteFollowerState(message);
+            // Only create draft if not already responded
+            if (followerEmail && !this._hasResponseOfType(FriendlymailMessageType.INVITE)) {
+                this._createInviteDraft(message, followerEmail);
+            }
+        } else if (fromHost && !body.startsWith('$')) {
+            if (!this._hasPostNotificationForContent(body)) {
+                this.createPostNotifications(message);
+            }
         }
     }
+
+    // ── Account management ─────────────────────────────────────────────────────
 
     createAccountFromMessage(message: EmailMessage): Account | null {
         const fromEmail = message.from;
@@ -61,36 +181,323 @@ export class MessageProcessor implements IMessageProcessor {
             return null;
         }
 
-        const usernameMatch = message.body.match(/\$\s*useradd\s*\n+\s*([^\n]+)/);
-        if (!usernameMatch) {
-            console.warn('Cannot create account: missing username in message body');
-            return null;
-        }
-
-        const username = usernameMatch[1].trim();
-        const user = new User(username, fromEmail);
-        const account = new Account(user);
-
         // Check if account already exists
         const existingAccount = this.getAccountByEmail(fromEmail.toString());
         if (existingAccount) {
-            // Update the username
-            existingAccount.user.updateProfile({ username });
-            console.warn(`Account already exists for ${fromEmail}, updating username to ${username}`);
             return existingAccount;
         }
 
+        // Extract username: inline arg ("$ adduser Name"), next non-empty line ("$ adduser\n\nName"), or default
+        const inlineMatch = message.body.match(/\$\s*(?:adduser|adduser)\s+([^\n]+)/);
+        let username: string;
+        if (inlineMatch) {
+            username = inlineMatch[1].trim();
+        } else {
+            const nameLine = message.body.split('\n').slice(1).find(l => l.trim() && !l.trim().startsWith('$'));
+            username = nameLine ? nameLine.trim() : this._displayName(fromEmail);
+        }
+
+        const user = new User(username, fromEmail);
+        const account = new Account(user);
         const socialNetwork = new SocialNetwork(account);
         this.socialNetworks.set(fromEmail.toString(), socialNetwork);
 
         return account;
     }
 
+    // ── Draft creation ─────────────────────────────────────────────────────────
+
     /**
-     * Add a follower from a follow command message
+     * Create a welcome message draft from host to host.
+     */
+    private createWelcomeMessageDraftForHost(): void {
+        const hostEmail = this._hostEmailAddress.toString();
+
+        try {
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
+            const templateContent = fs.readFileSync(templatePath, 'utf8');
+
+            const body = templateContent
+                .replace('{{ version }}', VERSION)
+                .replace('{{ host_email }}', hostEmail)
+                .replace('{{ signature }}', SIGNATURE);
+
+            const draft = new MessageDraft(
+                this._hostEmailAddress,
+                [this._hostEmailAddress],
+                'Welcome to friendlymail!',
+                body,
+                {
+                    isHtml: false,
+                    priority: 'normal',
+                    messageType: FriendlymailMessageType.WELCOME
+                }
+            );
+
+            this._drafts.push(draft);
+        } catch (error) {
+            console.warn(`Failed to create welcome message draft for host ${hostEmail}:`, error);
+        }
+    }
+
+    /**
+     * Create a help reply draft in response to a help command.
+     */
+    private createHelpMessageDraft(message: EmailMessage): void {
+        const sender = message.from;
+        if (!sender) {
+            console.warn('Cannot create help message: missing sender');
+            return;
+        }
+
+        const hostEmail = this._hostEmailAddress.toString();
+        const helpBody = `$ help
+friendlymail: friendlymail, version ${VERSION}
+These shell commands are defined internally.  Type \`$ help' to see this list.
+Type \`$ help adduser' to find out more about the function \`adduser'.
+
+$ help: mailto:${hostEmail}?subject=Fm&body=%24%20help
+$ adduser: mailto:${hostEmail}?subject=Fm&body=%24%20adduser
+$ help adduser: mailto:${hostEmail}?subject=Fm&body=%24%20help%20adduser
+$ invite: mailto:${hostEmail}?subject=Fm&body=%24%20invite
+$ help invite: mailto:${hostEmail}?subject=Fm&body=%24%20help%20invite
+$ follow: mailto:${hostEmail}?subject=Fm&body=%24%20follow
+$ help follow: mailto:${hostEmail}?subject=Fm&body=%24%20help%20follow
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [sender],
+            'Fm',
+            helpBody,
+            {
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.HELP
+            }
+        );
+
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create an adduser confirmation reply draft.
+     */
+    private createAdduserDraft(message: EmailMessage, username: string, email: string): void {
+        const body = `$ adduser
+Adding friendlymail user with name \`${username}' and email \`${email}' ...
+Done.
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            {
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.ADDUSER_RESPONSE
+            }
+        );
+
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Extract the follower email from an "invite --addfollower" command and add it to
+     * the followers map. Returns the follower email, or null if the command is malformed.
+     * Always called (even when a reply has already been sent) so the followers map stays
+     * up to date across Daemon run cycles.
+     */
+    private _applyInviteFollowerState(message: EmailMessage): string | null {
+        const match = message.body.match(/\$\s*invite\s+--addfollower\s+(\S+)/);
+        if (!match) {
+            console.warn('No email found in invite --addfollower command');
+            return null;
+        }
+
+        const followerEmail = match[1].trim();
+        const hostEmail = this._hostEmailAddress.toString();
+
+        if (!this.followers.has(hostEmail)) {
+            this.followers.set(hostEmail, new Set());
+        }
+        this.followers.get(hostEmail)!.add(followerEmail);
+
+        return followerEmail;
+    }
+
+    /**
+     * Create the confirmation draft reply for an "invite --addfollower" command.
+     * Only called when no reply has been sent yet.
+     */
+    private _createInviteDraft(message: EmailMessage, followerEmail: string): void {
+        const body = `$ invite --addfollower ${followerEmail}
+invite: ${followerEmail} is now following you.
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            {
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.INVITE
+            }
+        );
+
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create new post notification drafts for the host user and each follower.
+     */
+    private createPostNotifications(postMessage: EmailMessage): void {
+        const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+        const hostName = hostAccount
+            ? hostAccount.user.username
+            : this._displayName(this._hostEmailAddress);
+
+        const postBody = postMessage.body.trim();
+        const hostEmail = this._hostEmailAddress.toString();
+        const followerEmails = Array.from(this.followers.get(hostEmail) || new Set<string>());
+
+        const base64Id = Buffer.from(`<post:${postBody.substring(0, 20)}>`).toString('base64');
+        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
+        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
+
+        const notifBody = `${hostName} --> posted:
+
+"${postBody}"
+
+${likeLink}
+${commentLink}
+
+${SIGNATURE}`;
+
+        const subject = `friendlymail: New post from ${hostName}`;
+        const recipients: EmailAddress[] = [this._hostEmailAddress];
+
+        for (const followerEmail of followerEmails) {
+            const addr = EmailAddress.fromString(followerEmail);
+            if (addr) recipients.push(addr);
+        }
+
+        for (const recipient of recipients) {
+            const draft = new MessageDraft(
+                this._hostEmailAddress,
+                [recipient],
+                subject,
+                notifBody,
+                {
+                    isHtml: false,
+                    priority: 'normal',
+                    messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION
+                }
+            );
+            this._drafts.push(draft);
+        }
+    }
+
+    /**
+     * Create a new like notification draft for the host user.
+     */
+    private createLikeNotification(likeMessage: EmailMessage): void {
+        const posts = this.getCreatePostMessages();
+        if (posts.length === 0) return;
+
+        const originalPost = posts[posts.length - 1];
+        const senderName = this._displayName(likeMessage.from);
+        const hostName = this._displayName(this._hostEmailAddress);
+        const postBody = originalPost.body.trim();
+
+        const body = `${senderName} --> liked your post.
+
+${hostName}:
+"${postBody}"
+
+${senderName}:
+"${likeMessage.body.trim()}"
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [this._hostEmailAddress],
+            `friendlymail: ${senderName} liked your post...`,
+            body,
+            {
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.NEW_LIKE_NOTIFICATION
+            }
+        );
+
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a new comment notification draft for the host user.
+     */
+    private createCommentNotification(commentMessage: EmailMessage): void {
+        const posts = this.getCreatePostMessages();
+        if (posts.length === 0) return;
+
+        const originalPost = posts[posts.length - 1];
+        const senderName = this._displayName(commentMessage.from);
+        const hostName = this._displayName(this._hostEmailAddress);
+        const postBody = originalPost.body.trim();
+        const commentBody = commentMessage.body.trim();
+
+        const base64Id = commentMessage.subject.replace(/^Fm Comment 💬:/, '').trim();
+        const hostEmail = this._hostEmailAddress.toString();
+        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
+        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
+
+        const body = `${senderName} --> commented on your post:
+
+"${commentBody}"
+
+${likeLink}
+${commentLink}
+
+Comment thread:
+
+${hostName}:
+"${postBody}"
+
+${senderName}:
+"${commentBody}"
+
+${SIGNATURE}`;
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [this._hostEmailAddress],
+            `friendlymail: New comment from ${senderName}`,
+            body,
+            {
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION
+            }
+        );
+
+        this._drafts.push(draft);
+    }
+
+    // ── Follow / unfollow ──────────────────────────────────────────────────────
+
+    /**
+     * Add a follower from a follow command message.
      */
     private addFollowerFromMessage(message: EmailMessage): void {
-        // Extract the email to follow from the message body
         const followMatch = message.body.match(/\$\s*follow\s+add\s+(.+?)(?:\s*$|\n)/);
         if (!followMatch) {
             console.warn('No follow email found in follow command message');
@@ -98,21 +505,18 @@ export class MessageProcessor implements IMessageProcessor {
         }
         const followEmail = followMatch[1].trim();
 
-        // Get the sender's account (must already exist)
         const senderAccount = this.getAccountByEmail(message.from.toString());
         if (!senderAccount) {
             console.warn(`Cannot follow - sender account ${message.from.toString()} does not exist`);
             return;
         }
 
-        // Get the account to follow (must already exist)
         const followAccount = this.getAccountByEmail(followEmail);
         if (!followAccount) {
             console.warn(`Cannot follow ${followEmail} - account does not exist`);
             return;
         }
 
-        // Add the follow relationship
         this.follow(senderAccount, followAccount);
     }
 
@@ -125,7 +529,6 @@ export class MessageProcessor implements IMessageProcessor {
             return;
         }
 
-        // Initialize sets if they don't exist
         if (!this.following.has(followerEmail)) {
             this.following.set(followerEmail, new Set());
         }
@@ -133,7 +536,6 @@ export class MessageProcessor implements IMessageProcessor {
             this.followers.set(followeeEmail, new Set());
         }
 
-        // Add the follow relationship
         this.following.get(followerEmail)!.add(followeeEmail);
         this.followers.get(followeeEmail)!.add(followerEmail);
     }
@@ -142,7 +544,6 @@ export class MessageProcessor implements IMessageProcessor {
         const followerEmail = follower.user.email.toString();
         const followeeEmail = followee.user.email.toString();
 
-        // Remove the follow relationship
         this.following.get(followerEmail)?.delete(followeeEmail);
         this.followers.get(followeeEmail)?.delete(followeeEmail);
     }
@@ -175,6 +576,8 @@ export class MessageProcessor implements IMessageProcessor {
         return this.followers.get(followeeEmail)?.has(followerEmail) || false;
     }
 
+    // ── Account accessors ──────────────────────────────────────────────────────
+
     addAccount(account: Account): void {
         const socialNetwork = new SocialNetwork(account);
         this.socialNetworks.set(account.user.email.toString(), socialNetwork);
@@ -188,6 +591,8 @@ export class MessageProcessor implements IMessageProcessor {
     getAllAccounts(): Account[] {
         return Array.from(this.socialNetworks.values()).map(network => network.getAccount());
     }
+
+    // ── Message accessors ──────────────────────────────────────────────────────
 
     getAllMessages(): EmailMessage[] {
         return [...this._receivedMessages];
@@ -226,9 +631,8 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     getMessagesInDateRange(startDate: Date, endDate: Date): EmailMessage[] {
-        // Note: This assumes EmailMessage has a date property
         return this._receivedMessages.filter(message => {
-            const messageDate = new Date(message.body); // This is a placeholder - we need to add date handling
+            const messageDate = new Date(message.body);
             return messageDate >= startDate && messageDate <= endDate;
         });
     }
@@ -284,6 +688,8 @@ export class MessageProcessor implements IMessageProcessor {
         return Array.from(this.socialNetworks.values());
     }
 
+    // ── Welcome deduplication ──────────────────────────────────────────────────
+
     /**
      * Returns true if any received message carries an X-friendlymail header
      * identifying it as a welcome message.
@@ -303,82 +709,12 @@ export class MessageProcessor implements IMessageProcessor {
 
     /**
      * Returns true if a welcome message draft should be created.
-     * A welcome draft is only created when no welcome message is already present
-     * in the received messages.
      */
     private shouldCreateWelcomeMessageDraft(): boolean {
         return !this._welcomeMessageExists();
     }
 
-    /**
-     * Create a welcome message draft from host to host.
-     */
-    private createWelcomeMessageDraftForHost(): void {
-        const hostEmail = this._hostEmailAddress.toString();
-
-        try {
-            // Load welcome template - path relative to project root
-            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
-            const templateContent = fs.readFileSync(templatePath, 'utf8');
-
-            // Replace template placeholders with constants
-            const body = templateContent
-                .replace('{{ version }}', VERSION)
-                .replace('{{ signature }}', SIGNATURE);
-
-            // Create draft with host as sender and host as recipient
-            const draft = new MessageDraft(
-                this._hostEmailAddress,
-                [this._hostEmailAddress],
-                'Welcome to friendlymail',
-                body,
-                {
-                    isHtml: false,
-                    priority: 'normal',
-                    messageType: FriendlymailMessageType.WELCOME
-                }
-            );
-
-            this._drafts.push(draft);
-        } catch (error) {
-            console.warn(`Failed to create welcome message draft for host ${hostEmail}:`, error);
-        }
-    }
-
-    /**
-     * Create a help message draft in response to a help command
-     */
-    private createHelpMessageDraft(message: EmailMessage): void {
-        const sender = message.from;
-        if (!sender) {
-            console.warn('Cannot create help message: missing sender');
-            return;
-        }
-
-        const helpBody = `$ help
-friendlymail: friendlymail, version ${VERSION}
-These shell commands are defined internally.  Type \`help' to see this list.
-Type \`help name' to find out more about the function \`name'.
-
-useradd
-help
-
-${SIGNATURE}`;
-
-        const draft = new MessageDraft(
-            this._hostEmailAddress,
-            [sender],
-            'Re: Fm',
-            helpBody,
-            {
-                isHtml: false,
-                priority: 'normal',
-                messageType: FriendlymailMessageType.HELP
-            }
-        );
-
-        this._drafts.push(draft);
-    }
+    // ── Draft management ───────────────────────────────────────────────────────
 
     getMessageDrafts(): MessageDraft[] {
         return [...this._drafts];

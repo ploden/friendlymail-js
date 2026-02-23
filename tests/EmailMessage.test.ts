@@ -16,7 +16,7 @@ describe('EmailMessage', () => {
             expect(email.to.length).toBe(expectedTo.length);
             expect(email.to[0].equals(expectedTo[0]!)).toBe(true);
             expect(email.subject).toBe('fm');
-            expect(email.body).toBe('$ useradd\n\nPhil');
+            expect(email.body).toBe('$ adduser\n\nPhil');
             expect(email.isHtml).toBe(false);
             expect(email.priority).toBe('normal');
             expect(email.cc).toEqual([]);

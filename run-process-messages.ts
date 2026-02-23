@@ -1,26 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * Command-line script to run MessageProcessor
- * 
+ * Simulator for friendlymail using the Daemon.
+ *
  * Usage:
  *   npm run process -- --host-email <email> --host-name <name> [message-file...]
- *   npm run process -- --host-email ploden@gmail.com --host-name "Phil Loden" message1.txt message2.txt
- * 
+ *   npm run process -- --host-email phil@test.com --host-name "Phil L"
+ *
  * Or with tsx directly:
  *   tsx run-process-messages.ts --host-email <email> --host-name <name> [message-file...]
- * 
+ *
  * Note: When using npm run, you must use -- to separate npm arguments from script arguments.
- * 
- * If no message files are provided, reads from stdin.
- * 
- * The script processes email messages and prints any draft messages that are created.
- * Note: The host-name parameter is currently accepted but not used (reserved for future use).
+ *
+ * If no message files are provided, the simulator enters interactive mode.
+ * The Daemon is used to process messages and send drafts automatically.
  */
 
-import { MessageProcessor } from './src/MessageProcessor';
-import { EmailMessage } from './EmailMessage';
+import { Daemon } from './src/models/Daemon';
+import { TestMessageProvider } from './src/models/TestMessageProvider';
+import { ISocialNetwork } from './src/models/SocialNetwork';
+import { Account } from './src/models/Account';
 import { EmailAddress } from './src/models/EmailAddress';
+import { MessageDraft } from './src/models/MessageDraft';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -36,7 +37,7 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        
+
         if (arg === '--host-email' && i + 1 < args.length) {
             hostEmail = args[++i];
         } else if (arg === '--host-name' && i + 1 < args.length) {
@@ -51,8 +52,8 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
 
     if (!hostEmail || !hostName) {
         console.error('Usage: npm run process -- --host-email <email> --host-name <name> [message-file...]');
-        console.error('  If no message files are provided, reads from stdin');
-        console.error('  Example: npm run process -- --host-email ploden@gmail.com --host-name "Phil Loden" message.txt');
+        console.error('  If no message files are provided, enters interactive mode');
+        console.error('  Example: npm run process -- --host-email phil@test.com --host-name "Phil L"');
         console.error('\nNote: When using npm run, use -- to separate npm arguments from script arguments.');
         process.exit(1);
     }
@@ -93,48 +94,53 @@ function printTxtFiles(txtFiles: string[]): void {
     console.log('');
 }
 
-function printDrafts(processor: MessageProcessor): void {
-    const drafts = processor.getMessageDrafts();
-    
+/**
+ * Print a single draft message
+ */
+function printDraft(draft: MessageDraft, index: number): void {
+    console.log(`--- Draft ${index + 1} ---`);
+    console.log(`From: ${draft.from?.toString() || '(none)'}`);
+    console.log(`To: ${draft.to.map(addr => addr.toString()).join(', ')}`);
+    console.log(`Subject: ${draft.subject}`);
+    console.log(`Body:`);
+    console.log(draft.body);
+    if (draft.attachments.length > 0) {
+        console.log(`Attachments: ${draft.attachments.join(', ')}`);
+    }
+    console.log('');
+}
+
+/**
+ * Print all pending drafts from the daemon's current message processor
+ */
+function printDrafts(daemon: Daemon): void {
+    const drafts = daemon.messageProcessor.getMessageDrafts();
+
     if (drafts.length === 0) {
-        console.log('No draft messages created.');
+        console.log('Drafts: (none)');
     } else {
-        console.log(`\nCreated ${drafts.length} draft message(s):\n`);
-        drafts.forEach((draft, index) => {
-            console.log(`--- Draft ${index + 1} ---`);
-            console.log(`From: ${draft.from?.toString() || '(none)'}`);
-            console.log(`To: ${draft.to.map(addr => addr.toString()).join(', ')}`);
-            console.log(`Subject: ${draft.subject}`);
-            console.log(`Body:`);
-            console.log(draft.body);
-            console.log(`Priority: ${draft.priority}`);
-            console.log(`HTML: ${draft.isHtml}`);
-            console.log(`Created: ${draft.createdAt.toISOString()}`);
-            console.log(`Updated: ${draft.updatedAt.toISOString()}`);
-            if (draft.attachments.length > 0) {
-                console.log(`Attachments: ${draft.attachments.join(', ')}`);
-            }
-            console.log('');
-        });
+        console.log(`\nDrafts (${drafts.length}):\n`);
+        drafts.forEach((draft, index) => printDraft(draft, index));
     }
 }
 
-function printSentMessages(processor: MessageProcessor): void {
-    const sentMessages = processor.getSentMessages();
-    
+/**
+ * Print sent messages from the provider starting at sentOffset
+ */
+function printSentMessages(provider: TestMessageProvider, sentOffset: number): void {
+    const sentMessages = provider.sentMessages.slice(sentOffset);
+
     if (sentMessages.length === 0) {
-        console.log('No sent messages.');
+        console.log('Sent: (none)');
     } else {
-        console.log(`\n${sentMessages.length} sent message(s):\n`);
+        console.log(`\nSent (${sentMessages.length}):\n`);
         sentMessages.forEach((message, index) => {
-            console.log(`--- Sent ${index + 1} ---`);
+            console.log(`--- Sent ${sentOffset + index + 1} ---`);
             console.log(`From: ${message.from.toString()}`);
             console.log(`To: ${message.to.map(addr => addr.toString()).join(', ')}`);
             console.log(`Subject: ${message.subject}`);
             console.log(`Body:`);
             console.log(message.body);
-            console.log(`Priority: ${message.priority}`);
-            console.log(`HTML: ${message.isHtml}`);
             if (message.attachments.length > 0) {
                 console.log(`Attachments: ${message.attachments.join(', ')}`);
             }
@@ -143,66 +149,51 @@ function printSentMessages(processor: MessageProcessor): void {
     }
 }
 
-async function processMessageFile(filePath: string, hostEmailAddress: EmailAddress, allMessages: EmailMessage[]): Promise<EmailMessage[]> {
-    try {
-        if (!fs.existsSync(filePath)) {
-            console.error(`Warning: File not found: ${filePath}`);
-            return allMessages;
-        }
-        const message = await EmailMessage.fromTextFile(filePath);
-        const updatedMessages = [...allMessages, message];
-        const processor = new MessageProcessor(hostEmailAddress, updatedMessages);
-        printDrafts(processor);
-        return updatedMessages;
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Error reading file ${filePath}: ${errorMessage}`);
-        return allMessages;
-    }
+/**
+ * Run the daemon and print any messages sent during the run
+ */
+async function runDaemon(daemon: Daemon, provider: TestMessageProvider): Promise<void> {
+    const sentOffset = provider.sentMessages.length;
+    await daemon.run();
+    printSentMessages(provider, sentOffset);
 }
 
 async function main() {
     const { hostEmail, hostName, messageFiles } = parseArgs();
 
-    // Validate host email
     if (!EmailAddress.isValid(hostEmail)) {
         console.error(`Error: Invalid host email address: ${hostEmail}`);
         process.exit(1);
     }
 
-    const hostEmailAddress = EmailAddress.fromString(hostEmail);
-    if (!hostEmailAddress) {
-        console.error(`Error: Failed to parse host email address: ${hostEmail}`);
-        process.exit(1);
-    }
+    const hostEmailAddress = EmailAddress.fromString(hostEmail)!;
 
-    // Read messages from files if provided
-    const messages: EmailMessage[] = [];
+    // TestMessageProvider acts as both sender and receiver for the Daemon
+    const provider = new TestMessageProvider(hostEmailAddress);
+
+    // Minimal ISocialNetwork implementation; updated by the Daemon as accounts are created
+    let _account: Account | null = null;
+    const socialNetwork: ISocialNetwork = {
+        getAccount: () => _account!,
+        setAccount: (account: Account) => { _account = account; }
+    };
+
+    const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);
 
     if (messageFiles.length > 0) {
-        // Read from files
+        // Non-interactive: load files, run the daemon once, show results
         for (const filePath of messageFiles) {
-            try {
-                if (!fs.existsSync(filePath)) {
-                    console.error(`Warning: File not found: ${filePath}`);
-                    continue;
-                }
-                const message = await EmailMessage.fromTextFile(filePath);
-                messages.push(message);
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(`Error reading file ${filePath}: ${errorMessage}`);
+            if (!fs.existsSync(filePath)) {
+                console.error(`Warning: File not found: ${filePath}`);
+                continue;
             }
+            await provider.loadFromFile(filePath);
         }
-
-        // Create MessageProcessor instance with messages (messages are processed in constructor)
-        const processor = new MessageProcessor(hostEmailAddress, messages);
-        printDrafts(processor);
+        await runDaemon(daemon, provider);
     } else {
-        // Interactive mode: wait for input on stdin
-        let allMessages: EmailMessage[] = [];
-        const processor = new MessageProcessor(hostEmailAddress, allMessages);
-        printDrafts(processor);
+        // Interactive mode
+        // Initial run with empty store; the Daemon creates and sends the welcome message
+        await runDaemon(daemon, provider);
 
         const txtFiles = getTxtFiles();
         printTxtFiles(txtFiles);
@@ -217,79 +208,63 @@ async function main() {
 
         rl.on('line', async (line: string) => {
             const trimmed = line.trim();
-            
+
             if (trimmed === 'q') {
                 rl.close();
                 return;
             }
-            
+
             if (trimmed.startsWith('load ')) {
                 const fileArg = trimmed.substring(5).trim();
-                if (fileArg) {
+                if (!fileArg) {
+                    console.error('Error: No file path provided. Usage: load <file> or load $N');
+                } else {
                     let filePath: string;
-                    
-                    // Check if it's a numbered reference like $2
                     const numberMatch = fileArg.match(/^\$(\d+)$/);
                     if (numberMatch) {
                         const fileIndex = parseInt(numberMatch[1], 10) - 1;
                         if (fileIndex >= 0 && fileIndex < txtFiles.length) {
                             filePath = path.join(__dirname, txtFiles[fileIndex]);
-                            allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
                         } else {
                             console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
+                            rl.prompt();
+                            return;
                         }
                     } else {
                         filePath = fileArg;
-                        allMessages = await processMessageFile(filePath, hostEmailAddress, allMessages);
                     }
-                } else {
-                    console.error('Error: No file path provided. Usage: load <message-file> or load $N');
-                }
-            } else if (trimmed.startsWith('send ')) {
-                const sendArg = trimmed.substring(5).trim();
-                const numberMatch = sendArg.match(/^\$(\d+)$/);
-                if (numberMatch) {
-                    const draftIndex = parseInt(numberMatch[1], 10) - 1;
-                    const drafts = processor.getMessageDrafts();
-                    if (draftIndex >= 0 && draftIndex < drafts.length) {
-                        const sentMessage = processor.sendDraft(draftIndex);
-                        if (sentMessage) {
-                            console.log(`\nSent draft ${draftIndex + 1}:`);
-                            console.log(`From: ${sentMessage.from.toString()}`);
-                            console.log(`To: ${sentMessage.to.map(addr => addr.toString()).join(', ')}`);
-                            console.log(`Subject: ${sentMessage.subject}`);
-                            console.log(`Body:`);
-                            console.log(sentMessage.body);
-                            console.log('');
-                        } else {
-                            console.error(`Error: Draft ${draftIndex + 1} is not ready to send (missing required fields)`);
-                        }
+
+                    if (!fs.existsSync(filePath)) {
+                        console.error(`Error: File not found: ${filePath}`);
                     } else {
-                        console.error(`Error: Invalid draft number. Available drafts are 1-${drafts.length}`);
+                        await provider.loadFromFile(filePath);
+                        await runDaemon(daemon, provider);
                     }
-                } else {
-                    console.error('Error: Invalid send command. Usage: send $N (where N is the draft number)');
                 }
+            } else if (trimmed === 'run' || trimmed.startsWith('send')) {
+                // 'run' and 'send' both trigger a daemon cycle
+                await runDaemon(daemon, provider);
             } else if (trimmed.startsWith('show ')) {
                 const showArg = trimmed.substring(5).trim();
                 if (showArg === '--drafts') {
-                    printDrafts(processor);
+                    printDrafts(daemon);
                 } else if (showArg === '--sent') {
-                    printSentMessages(processor);
+                    printSentMessages(provider, 0);
                 } else {
                     console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
                 }
             } else if (trimmed.length > 0) {
                 console.error(`Unknown command: ${trimmed}`);
                 console.error('Commands:');
-                console.error('  load <message-file>  - Load and process a message from a file');
-                console.error('  load $N              - Load file by number from the list above');
-                console.error('  send $N              - Send draft message by number');
-                console.error('  show --drafts        - List draft messages');
-                console.error('  show --sent          - List sent messages');
-                console.error('  q                   - Quit');
+                console.error('  load <file>   - Load a message file and run the daemon');
+                console.error('  load $N       - Load file by number from the list above');
+                console.error('  run           - Run the daemon (process and send pending messages)');
+                console.error('  send          - Alias for run');
+                console.error('  show --drafts - List pending draft messages');
+                console.error('  show --sent   - List all sent messages');
+                console.error('  q             - Quit');
             }
-            
+
             printTxtFiles(txtFiles);
             rl.prompt();
         });

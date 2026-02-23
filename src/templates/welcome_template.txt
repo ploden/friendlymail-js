@@ -7,6 +7,8 @@
                                  __/ |
                                 |___/
 friendlymail {{ version }}
-Reply to this message with "help" for more information.
+Reply to this message with "$ help" for more information.
+
+help: mailto:{{ host_email }}?subject=Fm&body=%24%20help
 
 {{ signature }}
