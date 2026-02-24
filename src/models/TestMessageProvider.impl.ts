@@ -15,7 +15,7 @@ import * as fs from 'fs';
 export class TestMessageProvider implements ITestMessageProvider {
     private _hostAddress: EmailAddress;
     private _messages: EmailMessage[];
-    private _sentMessages: EmailMessage[];
+    private _sentMessages: SimpleMessage[];
 
     constructor(hostAddress: EmailAddress) {
         this._hostAddress = hostAddress;
@@ -27,7 +27,7 @@ export class TestMessageProvider implements ITestMessageProvider {
         return this._hostAddress;
     }
 
-    get sentMessages(): ReadonlyArray<EmailMessage> {
+    get sentMessages(): ReadonlyArray<SimpleMessage> {
         return [...this._sentMessages];
     }
 
@@ -43,12 +43,22 @@ export class TestMessageProvider implements ITestMessageProvider {
         if (!draft.isReadyToSend()) {
             throw new Error('Draft is not ready to send');
         }
+        const xFriendlymail = draft.messageType !== null
+            ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
+            : undefined;
         const customHeaders = new Map<string, string>();
-        if (draft.messageType !== null) {
-            const metadata = JSON.stringify({ messageType: draft.messageType });
-            customHeaders.set('X-friendlymail', encodeQuotedPrintable(metadata));
+        if (xFriendlymail !== undefined) {
+            customHeaders.set('X-friendlymail', xFriendlymail);
         }
-        const message = new EmailMessage(
+        this._sentMessages.push(new SimpleMessage(
+            draft.from!,
+            draft.to,
+            draft.subject,
+            draft.body,
+            new Date(),
+            xFriendlymail
+        ));
+        this._messages.push(new EmailMessage(
             draft.from!,
             draft.to,
             draft.subject,
@@ -61,9 +71,7 @@ export class TestMessageProvider implements ITestMessageProvider {
                 priority: draft.priority,
                 customHeaders
             }
-        );
-        this._sentMessages.push(message);
-        this._messages.push(message);
+        ));
     }
 
     /**
@@ -127,8 +135,17 @@ export class TestMessageProvider implements ITestMessageProvider {
      * Add a message directly (useful for testing)
      * @param message The message to add
      */
-    addMessage(message: EmailMessage): void {
-        this._messages.push(message);
+    addMessage(message: SimpleMessage): void {
+        const customHeaders = message.xFriendlymail
+            ? new Map([['X-friendlymail', message.xFriendlymail]])
+            : new Map<string, string>();
+        this._messages.push(new EmailMessage(
+            message.from,
+            message.to,
+            message.subject,
+            message.body,
+            { customHeaders }
+        ));
     }
 
     /**

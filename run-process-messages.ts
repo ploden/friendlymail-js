@@ -141,9 +141,7 @@ function printSentMessages(provider: TestMessageProvider, sentOffset: number): v
             console.log(`Subject: ${message.subject}`);
             console.log(`Body:`);
             console.log(message.body);
-            if (message.attachments.length > 0) {
-                console.log(`Attachments: ${message.attachments.join(', ')}`);
-            }
+
             console.log('');
         });
     }

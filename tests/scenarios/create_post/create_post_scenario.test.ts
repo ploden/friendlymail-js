@@ -7,12 +7,14 @@
  * messages sent during that step.
  */
 
-import { Daemon } from '../../src/models/Daemon';
-import { TestMessageProvider } from '../../src/models/TestMessageProvider';
-import { EmailAddress } from '../../src/models/EmailAddress';
-import { SimpleMessage } from '../../src/models/SimpleMessage';
-import { FriendlymailMessageType } from '../../src/models/FriendlymailMessageType';
-import { ISocialNetwork } from '../../src/models/SocialNetwork';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Daemon } from '../../../src/models/Daemon';
+import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
+import { EmailAddress } from '../../../src/models/EmailAddress';
+import { SimpleMessage } from '../../../src/models/SimpleMessage';
+import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
+import { ISocialNetwork } from '../../../src/models/SocialNetwork';
 
 const HOST_EMAIL = 'phil@test.com';
 const FOLLOWER_EMAIL = 'kath@test.com';
@@ -137,7 +139,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the welcome message to the host', () => {
-            expect(provider.sentMessages[0].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[0].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the welcome message from the host address', () => {
@@ -149,7 +151,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the welcome type', () => {
-            expect(provider.sentMessages[0].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[0].xFriendlymail)
                 .toContain(FriendlymailMessageType.WELCOME);
         });
 
@@ -181,7 +183,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the help reply to the host', () => {
-            expect(provider.sentMessages[1].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[1].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the help reply from the host address', () => {
@@ -189,7 +191,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the help type', () => {
-            expect(provider.sentMessages[1].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[1].xFriendlymail)
                 .toContain(FriendlymailMessageType.HELP);
         });
 
@@ -217,7 +219,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the adduser reply to the host', () => {
-            expect(provider.sentMessages[2].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[2].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the adduser reply from the host address', () => {
@@ -225,7 +227,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the adduser_response type', () => {
-            expect(provider.sentMessages[2].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[2].xFriendlymail)
                 .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
         });
 
@@ -254,7 +256,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the invite reply to the host', () => {
-            expect(provider.sentMessages[3].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[3].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the invite reply from the host address', () => {
@@ -262,7 +264,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
-            expect(provider.sentMessages[3].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[3].xFriendlymail)
                 .toContain(FriendlymailMessageType.INVITE);
         });
 
@@ -293,66 +295,66 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the host user', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === HOST_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification).toBeDefined();
         });
 
         it('should send a new post notification to the follower', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification).toBeDefined();
         });
 
         it('should send both notifications from the host address', () => {
             const notifications = provider.sentMessages.filter(
-                m => m.subject === 'friendlymail: New post from Phil L'
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
             );
             expect(notifications).toHaveLength(2);
-            expect(notifications.every(m => m.from.toString() === HOST_EMAIL)).toBe(true);
+            expect(notifications.every((m: SimpleMessage) => m.from.toString() === HOST_EMAIL)).toBe(true);
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on the host notification', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === HOST_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
-            expect(notification!.getCustomHeader('X-friendlymail'))
+            expect(notification!.xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on the follower notification', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
-            expect(notification!.getCustomHeader('X-friendlymail'))
+            expect(notification!.xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
         });
 
         it('should include the post content in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === HOST_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain('Hello, world');
         });
 
         it('should include the post content in the follower notification body', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === FOLLOWER_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.body).toContain('Hello, world');
         });
 
         it('should include the signature in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                m => m.subject === 'friendlymail: New post from Phil L' &&
-                     m.to.some(a => a.toString() === HOST_EMAIL)
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
@@ -376,7 +378,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the like notification to the host user', () => {
-            expect(provider.sentMessages[6].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[6].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the like notification from the host address', () => {
@@ -388,7 +390,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the new_like_notification type', () => {
-            expect(provider.sentMessages[6].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[6].xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_LIKE_NOTIFICATION);
         });
 
@@ -403,6 +405,87 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         it('should include the signature in the like notification body', () => {
             expect(provider.sentMessages[6].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Output: write sent and received message files ──────────────────────────
+
+    afterAll(async () => {
+        jest.useFakeTimers();
+
+        const localHost = new EmailAddress(HOST_EMAIL);
+        const localFollower = new EmailAddress(FOLLOWER_EMAIL);
+        const localProvider = new TestMessageProvider(localHost);
+        const localDaemon = new Daemon(localHost, localProvider, localProvider, makeSocialNetwork());
+        const receivedMessages: SimpleMessage[] = [];
+
+        async function localRun(numDrafts = 1): Promise<void> {
+            const p = localDaemon.run();
+            await jest.advanceTimersByTimeAsync((numDrafts + 2) * 1000);
+            await p;
+        }
+
+        async function receive(message: SimpleMessage): Promise<void> {
+            receivedMessages.push(message);
+            await localProvider.loadMessage(message);
+        }
+
+        function formatMessage(message: SimpleMessage): string {
+            const lines: string[] = [];
+            lines.push(`From: ${message.from.toString()}`);
+            lines.push(`To: ${message.to.map((a: EmailAddress) => a.toString()).join(', ')}`);
+            lines.push(`Subject: ${message.subject}`);
+            lines.push(`Date: ${message.date.toUTCString()}`);
+            if (message.xFriendlymail !== undefined) {
+                lines.push(`X-friendlymail: ${message.xFriendlymail}`);
+            }
+            lines.push('');
+            lines.push(message.body);
+            return lines.join('\n');
+        }
+
+        // Step 1
+        await localRun(1);
+        // Step 2
+        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ help'));
+        await localRun(1);
+        // Step 3
+        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
+        await localRun(1);
+        // Step 4
+        await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite --addfollower ${FOLLOWER_EMAIL}`));
+        await localRun(1);
+        // Step 5
+        await receive(new SimpleMessage(localHost, [localHost], 'Fm', 'Hello, world'));
+        await localRun(2);
+        // Step 6
+        await receive(new SimpleMessage(
+            localFollower, [localHost],
+            'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            '❤️'
+        ));
+        await localRun(1);
+        // Step 7
+        await receive(new SimpleMessage(
+            localFollower, [localHost],
+            'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            'hello, universe!'
+        ));
+        await localRun(1);
+
+        jest.useRealTimers();
+
+        const sentDir = path.join(__dirname, 'sent');
+        const receivedDir = path.join(__dirname, 'received');
+        fs.mkdirSync(sentDir, { recursive: true });
+        fs.mkdirSync(receivedDir, { recursive: true });
+
+        localProvider.sentMessages.forEach((message: SimpleMessage, index: number) => {
+            fs.writeFileSync(path.join(sentDir, `${index + 1}.txt`), formatMessage(message));
+        });
+
+        receivedMessages.forEach((message: SimpleMessage, index: number) => {
+            fs.writeFileSync(path.join(receivedDir, `${index + 1}.txt`), formatMessage(message));
         });
     });
 
@@ -424,7 +507,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the comment notification to the host user', () => {
-            expect(provider.sentMessages[7].to.map(a => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[7].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the comment notification from the host address', () => {
@@ -436,7 +519,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should set the X-friendlymail header to the new_comment_notification type', () => {
-            expect(provider.sentMessages[7].getCustomHeader('X-friendlymail'))
+            expect(provider.sentMessages[7].xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION);
         });
 
