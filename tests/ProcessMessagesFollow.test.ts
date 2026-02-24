@@ -1,25 +1,28 @@
 import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
-import { EmailMessage } from '../EmailMessage';
+import { SimpleMessage } from '../src/models/SimpleMessage';
+import { TestMessageProvider } from '../src/models/TestMessageProvider';
 import * as path from 'path';
 
 describe('MessageProcessor Follow', () => {
     let processor: MessageProcessor;
     let fromEmail: EmailAddress;
     let toEmail: EmailAddress;
-    let message: EmailMessage;
+    let message: SimpleMessage;
 
     beforeEach(async () => {
         const hostEmail = new EmailAddress('friendlymail@example.com');
         fromEmail = new EmailAddress('ploden@gmail.com');
         toEmail = new EmailAddress('friendlymail@example.com');
-        message = new EmailMessage(fromEmail, [toEmail], 'Follow Test', '');
+        message = new SimpleMessage(fromEmail, [toEmail], 'Follow Test', '', new Date());
 
         // Create test accounts
-        const createSenderMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account.txt'));
-        const createFollowMessage = await EmailMessage.fromTextFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
-        
-        processor = new MessageProcessor(hostEmail, [createSenderMessage, createFollowMessage]);
+        const provider = new TestMessageProvider(hostEmail);
+        await provider.loadFromFile(path.join(__dirname, 'test_data', 'create_command_create_account.txt'));
+        await provider.loadFromFile(path.join(__dirname, 'test_data', 'create_command_create_account2.txt'));
+        const messages = await provider.getMessages();
+
+        processor = new MessageProcessor(hostEmail, messages);
     });
 
     test('should follow another account', () => {

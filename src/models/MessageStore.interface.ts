@@ -1,4 +1,4 @@
-import { EmailMessage } from '../../EmailMessage';
+import { SimpleMessage } from './SimpleMessage';
 import { MessageDraft } from './MessageDraft.impl';
 
 /**
@@ -11,7 +11,7 @@ export interface IMessageStore {
     /**
      * All received messages
      */
-    readonly allMessages: ReadonlyArray<EmailMessage>;
+    readonly allMessages: ReadonlyArray<SimpleMessage>;
 
     /**
      * Draft messages to be sent
@@ -22,13 +22,13 @@ export interface IMessageStore {
      * Add a received message to the store
      * @param message The message to add
      */
-    addMessage(message: EmailMessage): void;
+    addMessage(message: SimpleMessage): void;
 
     /**
      * Add multiple received messages to the store
      * @param messages The messages to add
      */
-    addMessages(messages: EmailMessage[]): void;
+    addMessages(messages: SimpleMessage[]): void;
 
     /**
      * Add a draft message to be sent

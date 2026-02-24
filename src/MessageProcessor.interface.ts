@@ -1,4 +1,4 @@
-import { EmailMessage } from '../EmailMessage';
+import { SimpleMessage } from './models/SimpleMessage';
 import { Account } from './models/Account';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
@@ -11,7 +11,7 @@ export interface IMessageProcessor {
     /**
      * Create an account from a create account command message
      */
-    createAccountFromMessage(message: EmailMessage): Account | null;
+    createAccountFromMessage(message: SimpleMessage): Account | null;
 
     /**
      * Follow another account
@@ -61,57 +61,37 @@ export interface IMessageProcessor {
     /**
      * Get all messages
      */
-    getAllMessages(): EmailMessage[];
+    getAllMessages(): SimpleMessage[];
 
     /**
      * Get messages from a specific sender
      */
-    getMessagesFrom(sender: EmailAddress): EmailMessage[];
+    getMessagesFrom(sender: EmailAddress): SimpleMessage[];
 
     /**
      * Get messages to a specific recipient
      */
-    getMessagesTo(recipient: EmailAddress): EmailMessage[];
+    getMessagesTo(recipient: EmailAddress): SimpleMessage[];
 
     /**
      * Get messages with a specific subject
      */
-    getMessagesWithSubject(subject: string): EmailMessage[];
-
-    /**
-     * Get messages with high priority
-     */
-    getHighPriorityMessages(): EmailMessage[];
-
-    /**
-     * Get messages with attachments
-     */
-    getMessagesWithAttachments(): EmailMessage[];
-
-    /**
-     * Get HTML messages
-     */
-    getHtmlMessages(): EmailMessage[];
-
-    /**
-     * Get plain text messages
-     */
-    getPlainTextMessages(): EmailMessage[];
+    getMessagesWithSubject(subject: string): SimpleMessage[];
 
     /**
      * Get messages containing specific text in the body
      */
-    getMessagesContaining(text: string): EmailMessage[];
+    getMessagesContaining(text: string): SimpleMessage[];
 
     /**
      * Get messages within a date range
      */
-    getMessagesInDateRange(startDate: Date, endDate: Date): EmailMessage[];
+    getMessagesInDateRange(startDate: Date, endDate: Date): SimpleMessage[];
 
     /**
      * Remove a specific message
      */
-    removeMessage(message: EmailMessage): void;
+    removeMessage(message: SimpleMessage): void;
 
     /**
      * Clear all messages
@@ -136,12 +116,7 @@ export interface IMessageProcessor {
     /**
      * Get messages grouped by sender
      */
-    getMessagesGroupedBySender(): Map<EmailAddress, EmailMessage[]>;
-
-    /**
-     * Get messages grouped by priority
-     */
-    getMessagesGroupedByPriority(): Map<'high' | 'normal' | 'low', EmailMessage[]>;
+    getMessagesGroupedBySender(): Map<EmailAddress, SimpleMessage[]>;
 
     /**
      * Get social network for a specific email
@@ -169,14 +144,14 @@ export interface IMessageProcessor {
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean;
 
     /**
-     * Send a draft message by converting it to an EmailMessage and adding it to sentMessages
+     * Send a draft message by converting it to a SimpleMessage and adding it to sentMessages
      * @param draftIndex The index of the draft to send (0-based)
-     * @returns The sent EmailMessage, or null if the index is invalid or draft is not ready
+     * @returns The sent SimpleMessage, or null if the index is invalid or draft is not ready
      */
-    sendDraft(draftIndex: number): EmailMessage | null;
+    sendDraft(draftIndex: number): SimpleMessage | null;
 
     /**
      * Get all sent messages
      */
-    getSentMessages(): EmailMessage[];
+    getSentMessages(): SimpleMessage[];
 }

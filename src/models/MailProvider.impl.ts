@@ -1,6 +1,6 @@
 import { IMailProvider } from './MailProvider.interface';
 import { MessageDraft } from './MessageDraft.impl';
-import { EmailMessage } from '../../EmailMessage';
+import { SimpleMessage } from './SimpleMessage';
 
 /**
  * Implementation of MailProvider for sending and receiving email messages.
@@ -19,9 +19,9 @@ export class MailProvider implements IMailProvider {
 
     /**
      * Retrieve messages from the server
-     * @returns Promise that resolves to an array of EmailMessage objects
+     * @returns Promise that resolves to an array of SimpleMessage objects
      */
-    async getMessages(): Promise<EmailMessage[]> {
+    async getMessages(): Promise<SimpleMessage[]> {
         // Base implementation - override in subclasses for actual email retrieval
         throw new Error('getMessages must be implemented by a concrete provider');
     }

@@ -1,17 +1,18 @@
 import { Daemon } from '../src/models/Daemon';
 import { EmailAddress } from '../src/models/EmailAddress';
-import { EmailMessage } from '../EmailMessage';
+import { SimpleMessage } from '../src/models/SimpleMessage';
 import { IMessageReceiver } from '../src/models/MessageReceiver';
 import { IMessageSender } from '../src/models/MessageSender';
 import { ISocialNetwork } from '../src/models/SocialNetwork';
 import { MessageDraft } from '../src/models/MessageDraft';
 import { FriendlymailMessageType } from '../src/models/FriendlymailMessageType';
+import { encodeQuotedPrintable } from '../src/utils/quotedPrintable';
 
 const HOST_EMAIL = 'phil@test.com';
 const hostAddress = new EmailAddress(HOST_EMAIL);
 
 /** Create a mock IMessageReceiver that returns the given messages */
-function makeReceiver(messages: EmailMessage[] = []): jest.Mocked<IMessageReceiver> {
+function makeReceiver(messages: SimpleMessage[] = []): jest.Mocked<IMessageReceiver> {
     return { getMessages: jest.fn().mockResolvedValue(messages) };
 }
 
@@ -96,11 +97,12 @@ describe('Daemon', () => {
         });
 
         it('should add messages fetched from the receiver to the messageStore', async () => {
-            const message = new EmailMessage(
+            const message = new SimpleMessage(
                 new EmailAddress('kath@test.com'),
                 [hostAddress],
                 'Fm',
-                'hello'
+                'hello',
+                new Date()
             );
             const receiver = makeReceiver([message]);
             const daemon = new Daemon(hostAddress,receiver, makeSender(), makeSocialNetwork());
@@ -109,8 +111,8 @@ describe('Daemon', () => {
         });
 
         it('should accumulate messages in the messageStore across multiple runs', async () => {
-            const msg1 = new EmailMessage(new EmailAddress('a@test.com'), [hostAddress], 'Fm', 'one');
-            const msg2 = new EmailMessage(new EmailAddress('b@test.com'), [hostAddress], 'Fm', 'two');
+            const msg1 = new SimpleMessage(new EmailAddress('a@test.com'), [hostAddress], 'Fm', 'one', new Date());
+            const msg2 = new SimpleMessage(new EmailAddress('b@test.com'), [hostAddress], 'Fm', 'two', new Date());
 
             const receiver = makeReceiver();
             receiver.getMessages
@@ -150,16 +152,13 @@ describe('Daemon', () => {
             // After run 1 sends the welcome draft, the post-send getMessages() call must
             // return the sent welcome message so the MessageProcessor on run 2 sees it
             // and does not create another welcome draft.
-            const sentWelcome = new EmailMessage(
+            const sentWelcome = new SimpleMessage(
                 hostAddress,
                 [hostAddress],
                 'Welcome to friendlymail',
                 'Welcome body',
-                {
-                    customHeaders: new Map([
-                        ['X-friendlymail', `{"messageType":"${FriendlymailMessageType.WELCOME}"}`]
-                    ])
-                }
+                new Date(),
+                encodeQuotedPrintable(JSON.stringify({ messageType: FriendlymailMessageType.WELCOME }))
             );
             receiver.getMessages
                 .mockResolvedValueOnce([])          // run 1: fetch incoming

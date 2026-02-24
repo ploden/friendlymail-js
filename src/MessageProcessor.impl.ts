@@ -1,4 +1,4 @@
-import { EmailMessage } from '../EmailMessage';
+import { SimpleMessage } from './models/SimpleMessage';
 import { Account } from './models/Account';
 import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
@@ -13,14 +13,14 @@ import { VERSION, SIGNATURE } from './constants';
 
 export class MessageProcessor implements IMessageProcessor {
     private _hostEmailAddress: EmailAddress;
-    private _receivedMessages: EmailMessage[];
+    private _receivedMessages: SimpleMessage[];
     private _drafts: MessageDraft[];
-    private _sentMessages: EmailMessage[];
+    private _sentMessages: SimpleMessage[];
     private socialNetworks: Map<string, SocialNetwork>;
     private following: Map<string, Set<string>>;
     private followers: Map<string, Set<string>>;
 
-    constructor(hostEmailAddress: EmailAddress, receivedMessages: EmailMessage[] = []) {
+    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessage[] = []) {
         this._hostEmailAddress = hostEmailAddress;
         this._receivedMessages = [...receivedMessages];
         this._drafts = [];
@@ -70,15 +70,14 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
-     * Returns true if any message in the store already carries an X-friendlymail
-     * header with the given messageType (i.e. a response of that type was already sent).
+     * Returns true if any message in the store already carries an xFriendlymail
+     * value with the given messageType (i.e. a response of that type was already sent).
      */
     private _hasResponseOfType(type: FriendlymailMessageType): boolean {
         return this._receivedMessages.some(msg => {
-            const header = msg.getCustomHeader('X-friendlymail');
-            if (!header) return false;
+            if (!msg.xFriendlymail) return false;
             try {
-                const meta = JSON.parse(decodeQuotedPrintable(header));
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
                 return meta.messageType === type;
             } catch {
                 return false;
@@ -93,10 +92,9 @@ export class MessageProcessor implements IMessageProcessor {
      */
     private _hasPostNotificationForContent(content: string): boolean {
         return this._receivedMessages.some(msg => {
-            const header = msg.getCustomHeader('X-friendlymail');
-            if (!header) return false;
+            if (!msg.xFriendlymail) return false;
             try {
-                const meta = JSON.parse(decodeQuotedPrintable(header));
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
                 return meta.messageType === FriendlymailMessageType.NEW_POST_NOTIFICATION
                     && msg.body.includes(content);
             } catch {
@@ -106,12 +104,12 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /** Returns all create-post messages from the host (subject Fm, body not a command). */
-    private getCreatePostMessages(): EmailMessage[] {
+    private getCreatePostMessages(): SimpleMessage[] {
         return this._receivedMessages.filter(msg =>
             this._isFriendlymailSubject(msg.subject) &&
             msg.from.equals(this._hostEmailAddress) &&
             !msg.body.trim().startsWith('$') &&
-            !msg.getCustomHeader('X-friendlymail')
+            !msg.xFriendlymail
         );
     }
 
@@ -120,9 +118,9 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Process a single received message and create at most one draft in response.
      */
-    private processMessage(message: EmailMessage): void {
+    private processMessage(message: SimpleMessage): void {
         // Skip system-generated messages (replies from friendlymail itself)
-        if (message.getCustomHeader('X-friendlymail')) return;
+        if (message.xFriendlymail) return;
 
         const subject = message.subject;
         const body = message.body.trim();
@@ -174,7 +172,7 @@ export class MessageProcessor implements IMessageProcessor {
 
     // ── Account management ─────────────────────────────────────────────────────
 
-    createAccountFromMessage(message: EmailMessage): Account | null {
+    createAccountFromMessage(message: SimpleMessage): Account | null {
         const fromEmail = message.from;
         if (!fromEmail) {
             console.warn('Cannot create account: missing from email');
@@ -243,7 +241,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a help reply draft in response to a help command.
      */
-    private createHelpMessageDraft(message: EmailMessage): void {
+    private createHelpMessageDraft(message: SimpleMessage): void {
         const sender = message.from;
         if (!sender) {
             console.warn('Cannot create help message: missing sender');
@@ -284,7 +282,7 @@ ${SIGNATURE}`;
     /**
      * Create an adduser confirmation reply draft.
      */
-    private createAdduserDraft(message: EmailMessage, username: string, email: string): void {
+    private createAdduserDraft(message: SimpleMessage, username: string, email: string): void {
         const body = `$ adduser
 Adding friendlymail user with name \`${username}' and email \`${email}' ...
 Done.
@@ -312,7 +310,7 @@ ${SIGNATURE}`;
      * Always called (even when a reply has already been sent) so the followers map stays
      * up to date across Daemon run cycles.
      */
-    private _applyInviteFollowerState(message: EmailMessage): string | null {
+    private _applyInviteFollowerState(message: SimpleMessage): string | null {
         const match = message.body.match(/\$\s*invite\s+--addfollower\s+(\S+)/);
         if (!match) {
             console.warn('No email found in invite --addfollower command');
@@ -334,7 +332,7 @@ ${SIGNATURE}`;
      * Create the confirmation draft reply for an "invite --addfollower" command.
      * Only called when no reply has been sent yet.
      */
-    private _createInviteDraft(message: EmailMessage, followerEmail: string): void {
+    private _createInviteDraft(message: SimpleMessage, followerEmail: string): void {
         const body = `$ invite --addfollower ${followerEmail}
 invite: ${followerEmail} is now following you.
 
@@ -358,7 +356,7 @@ ${SIGNATURE}`;
     /**
      * Create new post notification drafts for the host user and each follower.
      */
-    private createPostNotifications(postMessage: EmailMessage): void {
+    private createPostNotifications(postMessage: SimpleMessage): void {
         const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
         const hostName = hostAccount
             ? hostAccount.user.username
@@ -408,7 +406,7 @@ ${SIGNATURE}`;
     /**
      * Create a new like notification draft for the host user.
      */
-    private createLikeNotification(likeMessage: EmailMessage): void {
+    private createLikeNotification(likeMessage: SimpleMessage): void {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
@@ -445,7 +443,7 @@ ${SIGNATURE}`;
     /**
      * Create a new comment notification draft for the host user.
      */
-    private createCommentNotification(commentMessage: EmailMessage): void {
+    private createCommentNotification(commentMessage: SimpleMessage): void {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
@@ -493,32 +491,6 @@ ${SIGNATURE}`;
     }
 
     // ── Follow / unfollow ──────────────────────────────────────────────────────
-
-    /**
-     * Add a follower from a follow command message.
-     */
-    private addFollowerFromMessage(message: EmailMessage): void {
-        const followMatch = message.body.match(/\$\s*follow\s+add\s+(.+?)(?:\s*$|\n)/);
-        if (!followMatch) {
-            console.warn('No follow email found in follow command message');
-            return;
-        }
-        const followEmail = followMatch[1].trim();
-
-        const senderAccount = this.getAccountByEmail(message.from.toString());
-        if (!senderAccount) {
-            console.warn(`Cannot follow - sender account ${message.from.toString()} does not exist`);
-            return;
-        }
-
-        const followAccount = this.getAccountByEmail(followEmail);
-        if (!followAccount) {
-            console.warn(`Cannot follow ${followEmail} - account does not exist`);
-            return;
-        }
-
-        this.follow(senderAccount, followAccount);
-    }
 
     follow(follower: Account, followee: Account): void {
         const followerEmail = follower.user.email.toString();
@@ -594,50 +566,33 @@ ${SIGNATURE}`;
 
     // ── Message accessors ──────────────────────────────────────────────────────
 
-    getAllMessages(): EmailMessage[] {
+    getAllMessages(): SimpleMessage[] {
         return [...this._receivedMessages];
     }
 
-    getMessagesFrom(sender: EmailAddress): EmailMessage[] {
+    getMessagesFrom(sender: EmailAddress): SimpleMessage[] {
         return this._receivedMessages.filter(message => message.from.equals(sender));
     }
 
-    getMessagesTo(recipient: EmailAddress): EmailMessage[] {
+    getMessagesTo(recipient: EmailAddress): SimpleMessage[] {
         return this._receivedMessages.filter(message => message.to.some(addr => addr.equals(recipient)));
     }
 
-    getMessagesWithSubject(subject: string): EmailMessage[] {
+    getMessagesWithSubject(subject: string): SimpleMessage[] {
         return this._receivedMessages.filter(message => message.subject === subject);
     }
 
-    getHighPriorityMessages(): EmailMessage[] {
-        return this._receivedMessages.filter(message => message.priority === 'high');
-    }
-
-    getMessagesWithAttachments(): EmailMessage[] {
-        return this._receivedMessages.filter(message => message.attachments.length > 0);
-    }
-
-    getHtmlMessages(): EmailMessage[] {
-        return this._receivedMessages.filter(message => message.isHtml);
-    }
-
-    getPlainTextMessages(): EmailMessage[] {
-        return this._receivedMessages.filter(message => !message.isHtml);
-    }
-
-    getMessagesContaining(text: string): EmailMessage[] {
+    getMessagesContaining(text: string): SimpleMessage[] {
         return this._receivedMessages.filter(message => message.body.includes(text));
     }
 
-    getMessagesInDateRange(startDate: Date, endDate: Date): EmailMessage[] {
-        return this._receivedMessages.filter(message => {
-            const messageDate = new Date(message.body);
-            return messageDate >= startDate && messageDate <= endDate;
-        });
+    getMessagesInDateRange(startDate: Date, endDate: Date): SimpleMessage[] {
+        return this._receivedMessages.filter(message =>
+            message.date >= startDate && message.date <= endDate
+        );
     }
 
-    removeMessage(message: EmailMessage): void {
+    removeMessage(message: SimpleMessage): void {
         this._receivedMessages = this._receivedMessages.filter(m => m !== message);
     }
 
@@ -658,24 +613,13 @@ ${SIGNATURE}`;
         return Array.from(new Set(recipients));
     }
 
-    getMessagesGroupedBySender(): Map<EmailAddress, EmailMessage[]> {
-        const grouped = new Map<EmailAddress, EmailMessage[]>();
+    getMessagesGroupedBySender(): Map<EmailAddress, SimpleMessage[]> {
+        const grouped = new Map<EmailAddress, SimpleMessage[]>();
         for (const message of this._receivedMessages) {
             if (!grouped.has(message.from)) {
                 grouped.set(message.from, []);
             }
             grouped.get(message.from)!.push(message);
-        }
-        return grouped;
-    }
-
-    getMessagesGroupedByPriority(): Map<'high' | 'normal' | 'low', EmailMessage[]> {
-        const grouped = new Map<'high' | 'normal' | 'low', EmailMessage[]>();
-        for (const message of this._receivedMessages) {
-            if (!grouped.has(message.priority)) {
-                grouped.set(message.priority, []);
-            }
-            grouped.get(message.priority)!.push(message);
         }
         return grouped;
     }
@@ -691,15 +635,14 @@ ${SIGNATURE}`;
     // ── Welcome deduplication ──────────────────────────────────────────────────
 
     /**
-     * Returns true if any received message carries an X-friendlymail header
+     * Returns true if any received message carries an xFriendlymail value
      * identifying it as a welcome message.
      */
     private _welcomeMessageExists(): boolean {
         return this._receivedMessages.some(msg => {
-            const header = msg.getCustomHeader('X-friendlymail');
-            if (!header) return false;
+            if (!msg.xFriendlymail) return false;
             try {
-                const meta = JSON.parse(decodeQuotedPrintable(header));
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
                 return meta.messageType === FriendlymailMessageType.WELCOME;
             } catch {
                 return false;
@@ -728,7 +671,7 @@ ${SIGNATURE}`;
         return this._welcomeMessageExists();
     }
 
-    sendDraft(draftIndex: number): EmailMessage | null {
+    sendDraft(draftIndex: number): SimpleMessage | null {
         if (draftIndex < 0 || draftIndex >= this._drafts.length) {
             return null;
         }
@@ -738,32 +681,24 @@ ${SIGNATURE}`;
             return null;
         }
 
-        const customHeaders = new Map<string, string>();
-        if (draft.messageType !== null) {
-            const metadata = JSON.stringify({ messageType: draft.messageType });
-            customHeaders.set('X-friendlymail', encodeQuotedPrintable(metadata));
-        }
-        const emailMessage = new EmailMessage(
+        const xFriendlymail = draft.messageType !== null
+            ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
+            : undefined;
+        const simpleMessage = new SimpleMessage(
             draft.from!,
             draft.to,
             draft.subject,
             draft.body,
-            {
-                cc: draft.cc,
-                bcc: draft.bcc,
-                attachments: draft.attachments,
-                isHtml: draft.isHtml,
-                priority: draft.priority,
-                customHeaders
-            }
+            new Date(),
+            xFriendlymail
         );
-        this._sentMessages.push(emailMessage);
+        this._sentMessages.push(simpleMessage);
         this._drafts = this._drafts.filter(d => d !== draft);
 
-        return emailMessage;
+        return simpleMessage;
     }
 
-    getSentMessages(): EmailMessage[] {
+    getSentMessages(): SimpleMessage[] {
         return [...this._sentMessages];
     }
 }

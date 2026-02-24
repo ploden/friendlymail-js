@@ -1,5 +1,5 @@
 import { EmailAddress } from './EmailAddress.impl';
-import { EmailMessage } from '../../EmailMessage';
+import { SimpleMessage } from './SimpleMessage';
 import { FriendlymailMessageType } from './FriendlymailMessageType';
 
 /**
@@ -32,6 +32,6 @@ export interface IMessageDraft {
 }
 
 export interface IMessageDraftStatic {
-    fromEmailMessage(message: EmailMessage): IMessageDraft;
+    fromSimpleMessage(message: SimpleMessage): IMessageDraft;
     fromJSON(json: Record<string, any>): IMessageDraft;
 }

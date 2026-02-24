@@ -1,12 +1,12 @@
 import { IMessageStore } from './MessageStore.interface';
-import { EmailMessage } from '../../EmailMessage';
+import { SimpleMessage } from './SimpleMessage';
 import { MessageDraft } from './MessageDraft.impl';
 
 /**
  * Implementation of MessageStore for storing received and draft messages.
  */
 export class MessageStore implements IMessageStore {
-    private _allMessages: EmailMessage[];
+    private _allMessages: SimpleMessage[];
     private _draftMessages: MessageDraft[];
 
     constructor() {
@@ -14,7 +14,7 @@ export class MessageStore implements IMessageStore {
         this._draftMessages = [];
     }
 
-    get allMessages(): ReadonlyArray<EmailMessage> {
+    get allMessages(): ReadonlyArray<SimpleMessage> {
         return [...this._allMessages];
     }
 
@@ -22,11 +22,11 @@ export class MessageStore implements IMessageStore {
         return [...this._draftMessages];
     }
 
-    addMessage(message: EmailMessage): void {
+    addMessage(message: SimpleMessage): void {
         this._allMessages.push(message);
     }
 
-    addMessages(messages: EmailMessage[]): void {
+    addMessages(messages: SimpleMessage[]): void {
         this._allMessages.push(...messages);
     }
 

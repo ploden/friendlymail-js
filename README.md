@@ -1,6 +1,8 @@
 # friendlymail
 
-friendlymail is an open-source, email-based, alternative social network. It supports the core features of a social network, such as posting, following, commenting, and liking, all implemented via email. The app is implemented in Typescript, and can then be integrated with an email client to send and receive messages.
+#### What if Facebook was invented by Linus Torvalds in 1993?
+
+friendlymail is an open-source, email-based, alternative social network. It supports the core features of social networking, such as posting, following, commenting, and liking, all implemented via email. The app is implemented in Typescript, and can then be integrated with an email client to send and receive messages.
 
 # Table of Contents
 - [Definitions](#definitions)

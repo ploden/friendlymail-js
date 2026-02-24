@@ -1,6 +1,5 @@
 import { ITestMessageProvider } from './TestMessageProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
-import { EmailMessage } from '../../EmailMessage';
 import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessage } from './SimpleMessage';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
@@ -14,7 +13,7 @@ import * as fs from 'fs';
  */
 export class TestMessageProvider implements ITestMessageProvider {
     private _hostAddress: EmailAddress;
-    private _messages: EmailMessage[];
+    private _messages: SimpleMessage[];
     private _sentMessages: SimpleMessage[];
 
     constructor(hostAddress: EmailAddress) {
@@ -33,7 +32,7 @@ export class TestMessageProvider implements ITestMessageProvider {
 
     /**
      * Send a draft message.
-     * Builds an EmailMessage from the draft, including the X-friendlymail header,
+     * Builds a SimpleMessage from the draft, including the X-friendlymail header,
      * and makes it available on the next call to getMessages().
      * Also stores the message in sentMessages for testing verification.
      * @param draft The draft message to send
@@ -46,40 +45,24 @@ export class TestMessageProvider implements ITestMessageProvider {
         const xFriendlymail = draft.messageType !== null
             ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
             : undefined;
-        const customHeaders = new Map<string, string>();
-        if (xFriendlymail !== undefined) {
-            customHeaders.set('X-friendlymail', xFriendlymail);
-        }
-        this._sentMessages.push(new SimpleMessage(
+        const message = new SimpleMessage(
             draft.from!,
             draft.to,
             draft.subject,
             draft.body,
             new Date(),
             xFriendlymail
-        ));
-        this._messages.push(new EmailMessage(
-            draft.from!,
-            draft.to,
-            draft.subject,
-            draft.body,
-            {
-                cc: draft.cc,
-                bcc: draft.bcc,
-                attachments: draft.attachments,
-                isHtml: draft.isHtml,
-                priority: draft.priority,
-                customHeaders
-            }
-        ));
+        );
+        this._sentMessages.push(message);
+        this._messages.push(message);
     }
 
     /**
      * Retrieve loaded messages. Each message is returned only once;
      * messages are cleared after being returned.
-     * @returns Promise that resolves to an array of EmailMessage objects
+     * @returns Promise that resolves to an array of SimpleMessage objects
      */
-    async getMessages(): Promise<EmailMessage[]> {
+    async getMessages(): Promise<SimpleMessage[]> {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const messages = [...this._messages];
         this._messages = [];
@@ -91,44 +74,86 @@ export class TestMessageProvider implements ITestMessageProvider {
      * @param message The SimpleMessage to load
      */
     async loadMessage(message: SimpleMessage): Promise<void> {
-        const customHeaders = message.xFriendlymail
-            ? new Map([['X-friendlymail', message.xFriendlymail]])
-            : new Map<string, string>();
-        const emailMessage = new EmailMessage(
-            message.from,
-            message.to,
-            message.subject,
-            message.body,
-            { customHeaders }
-        );
-        this._messages.push(emailMessage);
+        this._messages.push(message);
     }
 
     /**
-     * Load messages from a file
-     * Replaces <host_address> placeholders with the host email address
+     * Load messages from a file.
+     * Replaces <host_address> placeholders with the host email address.
+     * Parses From, To, Subject, X-friendlymail headers and body into a SimpleMessage.
      * @param filePath The path to the file to load
      */
     async loadFromFile(filePath: string): Promise<void> {
         const content = await fs.promises.readFile(filePath, 'utf8');
-
-        // Replace <host_address> placeholders with the host email address
         const processedContent = content.replace(
             /<host_address>/g,
             this._hostAddress.toString()
         );
 
-        // Write to a temporary file for parsing
-        const tempPath = filePath + '.tmp';
-        await fs.promises.writeFile(tempPath, processedContent, 'utf8');
+        const lines = processedContent.split('\n');
+        let from: EmailAddress | null = null;
+        let to: EmailAddress[] = [];
+        let subject = '';
+        let xFriendlymail: string | undefined;
+        let inBody = false;
+        let body = '';
+        let currentHeader = '';
+        let currentValue = '';
 
-        try {
-            const message = await EmailMessage.fromTextFile(tempPath);
-            this._messages.push(message);
-        } finally {
-            // Clean up temp file
-            await fs.promises.unlink(tempPath).catch(() => {});
+        const applyHeader = (header: string, value: string): void => {
+            switch (header.toLowerCase()) {
+                case 'from':
+                    from = EmailAddress.fromDisplayString(value);
+                    break;
+                case 'to':
+                    to = value.split(',')
+                        .map(e => EmailAddress.fromDisplayString(e.trim()))
+                        .filter((a): a is EmailAddress => a !== null);
+                    break;
+                case 'subject':
+                    subject = value;
+                    break;
+                case 'x-friendlymail':
+                    xFriendlymail = value;
+                    break;
+            }
+        };
+
+        for (const line of lines) {
+            if (!inBody) {
+                if (line.trim() === '') {
+                    if (currentHeader) applyHeader(currentHeader, currentValue);
+                    currentHeader = '';
+                    currentValue = '';
+                    inBody = true;
+                    continue;
+                }
+                if ((line.startsWith(' ') || line.startsWith('\t')) && currentHeader) {
+                    currentValue += ' ' + line.trim();
+                    continue;
+                }
+                if (currentHeader) applyHeader(currentHeader, currentValue);
+                const match = line.match(/^([^:]+):\s*(.*)$/);
+                if (match) {
+                    currentHeader = match[1].trim();
+                    currentValue = match[2].trim();
+                } else {
+                    currentHeader = '';
+                    currentValue = '';
+                }
+            } else {
+                if (body === '' && line.trim() === '') continue;
+                body += line + '\n';
+            }
         }
+        if (!inBody && currentHeader) applyHeader(currentHeader, currentValue);
+        body = body.trim();
+
+        if (!from || to.length === 0 || !subject) {
+            throw new Error(`Missing required email fields in file: ${filePath}`);
+        }
+
+        this._messages.push(new SimpleMessage(from, to, subject, body, new Date(), xFriendlymail));
     }
 
     /**
@@ -136,16 +161,7 @@ export class TestMessageProvider implements ITestMessageProvider {
      * @param message The message to add
      */
     addMessage(message: SimpleMessage): void {
-        const customHeaders = message.xFriendlymail
-            ? new Map([['X-friendlymail', message.xFriendlymail]])
-            : new Map<string, string>();
-        this._messages.push(new EmailMessage(
-            message.from,
-            message.to,
-            message.subject,
-            message.body,
-            { customHeaders }
-        ));
+        this._messages.push(message);
     }
 
     /**

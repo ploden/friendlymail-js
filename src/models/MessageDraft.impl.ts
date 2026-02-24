@@ -1,5 +1,5 @@
 import { EmailAddress } from './EmailAddress.impl';
-import { EmailMessage } from '../../EmailMessage';
+import { SimpleMessage } from './SimpleMessage';
 import { IMessageDraft, IMessageDraftStatic } from './MessageDraft.interface';
 import { FriendlymailMessageType } from './FriendlymailMessageType';
 import { decodeQuotedPrintable } from '../utils/quotedPrintable';
@@ -209,12 +209,11 @@ export class MessageDraft implements IMessageDraft {
         return !!this._from && this._to.length > 0 && !!this._subject && !!this._body;
     }
 
-    static fromEmailMessage(message: EmailMessage): MessageDraft {
-        const xFriendlymailHeader = message.getCustomHeader('X-friendlymail');
+    static fromSimpleMessage(message: SimpleMessage): MessageDraft {
         let messageType: FriendlymailMessageType | null = null;
-        if (xFriendlymailHeader) {
+        if (message.xFriendlymail) {
             try {
-                const decodedMetadata = decodeQuotedPrintable(xFriendlymailHeader);
+                const decodedMetadata = decodeQuotedPrintable(message.xFriendlymail);
                 const metadata = JSON.parse(decodedMetadata);
                 if (metadata.messageType) {
                     messageType = metadata.messageType as FriendlymailMessageType;
@@ -229,14 +228,7 @@ export class MessageDraft implements IMessageDraft {
             message.to,
             message.subject,
             message.body,
-            {
-                cc: message.cc,
-                bcc: message.bcc,
-                attachments: message.attachments,
-                isHtml: message.isHtml,
-                priority: message.priority,
-                messageType: messageType
-            }
+            { messageType }
         );
     }
 

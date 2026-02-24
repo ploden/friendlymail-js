@@ -1,6 +1,5 @@
 import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
-import { EmailMessage } from '../EmailMessage';
 import { VERSION, SIGNATURE } from '../src/constants';
 
 describe('MessageProcessor Help Message', () => {
