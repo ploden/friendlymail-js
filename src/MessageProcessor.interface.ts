@@ -144,13 +144,6 @@ export interface IMessageProcessor {
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean;
 
     /**
-     * Send a draft message by converting it to a SimpleMessage and adding it to sentMessages
-     * @param draftIndex The index of the draft to send (0-based)
-     * @returns The sent SimpleMessage, or null if the index is invalid or draft is not ready
-     */
-    sendDraft(draftIndex: number): SimpleMessage | null;
-
-    /**
      * Get all sent messages
      */
     getSentMessages(): SimpleMessage[];

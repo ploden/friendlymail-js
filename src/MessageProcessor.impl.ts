@@ -69,12 +69,13 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
-     * Returns true if any message in the store already carries an xFriendlymail
-     * value with the given messageType (i.e. a response of that type was already sent).
+     * Returns true if a response of the given type has already been sent to the
+     * given recipient (prevents duplicate replies across Daemon run cycles).
      */
-    private _hasResponseOfType(type: FriendlymailMessageType): boolean {
+    private _hasResponseOfTypeToRecipient(type: FriendlymailMessageType, recipient: EmailAddress): boolean {
         return this._receivedMessages.some(msg => {
             if (!msg.xFriendlymail) return false;
+            if (!msg.to.some(addr => addr.equals(recipient))) return false;
             try {
                 const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
                 return meta.messageType === type;
@@ -82,6 +83,29 @@ export class MessageProcessor implements IMessageProcessor {
                 return false;
             }
         });
+    }
+
+    /**
+     * Returns true if a fatal "user already exists" adduser error has already been
+     * sent to the host. Used to prevent re-sending the fatal on subsequent run cycles.
+     */
+    private _hasAdduserFatalResponseForHost(): boolean {
+        return this._receivedMessages.some(msg => {
+            if (!msg.xFriendlymail) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
+                return meta.messageType === FriendlymailMessageType.ADDUSER_RESPONSE
+                    && msg.body.includes('Fatal: a friendlymail user already exists');
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    /** Returns true if the given address is a follower of the host. */
+    private _isFollower(email: EmailAddress): boolean {
+        const hostEmail = this._hostEmailAddress.toString();
+        return this.followers.get(hostEmail)?.has(email.toString()) ?? false;
     }
 
     /**
@@ -124,18 +148,19 @@ export class MessageProcessor implements IMessageProcessor {
         const subject = message.subject;
         const body = message.body.trim();
         const fromHost = message.from.equals(this._hostEmailAddress);
+        const fromFollower = this._isFollower(message.from);
 
-        // Like message: "Fm Like ❤️:<base64-message-id>"
+        // Like message: "Fm Like ❤️:<base64-message-id>" — followers only
         if (subject.startsWith('Fm Like')) {
-            if (!this._hasResponseOfType(FriendlymailMessageType.NEW_LIKE_NOTIFICATION)) {
+            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_LIKE_NOTIFICATION, this._hostEmailAddress)) {
                 this.createLikeNotification(message);
             }
             return;
         }
 
-        // Comment message: "Fm Comment 💬:<base64-message-id>"
+        // Comment message: "Fm Comment 💬:<base64-message-id>" — followers only
         if (subject.startsWith('Fm Comment')) {
-            if (!this._hasResponseOfType(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION)) {
+            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION, this._hostEmailAddress)) {
                 this.createCommentNotification(message);
             }
             return;
@@ -146,21 +171,60 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         if (body === '$ help') {
-            if (!this._hasResponseOfType(FriendlymailMessageType.HELP)) {
+            if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.HELP, message.from)) {
                 this.createHelpMessageDraft(message);
             }
-        } else if (body.startsWith('$ adduser') || body.startsWith('$ adduser')) {
-            // Any sender can register an account; only the host gets a confirmation reply
-            const account = this.createAccountFromMessage(message);
-            if (account && fromHost && !this._hasResponseOfType(FriendlymailMessageType.ADDUSER_RESPONSE)) {
-                this.createAdduserDraft(message, account.username, account.email.toString());
+        } else if (body.startsWith('$ adduser')) {
+            if (!fromHost) {
+                // Non-host: create account silently, then reply with permission denied
+                this.createAccountFromMessage(message);
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, message.from)) {
+                    this._createAdduserPermissionDeniedDraft(message);
+                }
+            } else {
+                const existingAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+                if (existingAccount) {
+                    // A user already exists for this host: reply with fatal error
+                    if (!this._hasAdduserFatalResponseForHost()) {
+                        this._createAdduserFatalDraft(message);
+                    }
+                } else {
+                    const account = this.createAccountFromMessage(message);
+                    if (account && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, this._hostEmailAddress)) {
+                        this.createAdduserDraft(message, account.username, account.email.toString());
+                    }
+                }
             }
-        } else if (fromHost && body.startsWith('$ invite --addfollower')) {
-            // Always populate followers map (needed for post notification recipients)
-            const followerEmail = this._applyInviteFollowerState(message);
-            // Only create draft if not already responded
-            if (followerEmail && !this._hasResponseOfType(FriendlymailMessageType.INVITE)) {
-                this._createInviteDraft(message, followerEmail);
+        } else if (body.startsWith('$ invite --addfollower')) {
+            if (!fromHost) {
+                // Host-only command: reply with permission denied
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, message.from)) {
+                    this._createInvitePermissionDeniedDraft(message);
+                }
+            } else {
+                // Always populate followers map (needed for post notification recipients)
+                const followerEmail = this._applyInviteFollowerState(message);
+                if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
+                    this._createInviteDraft(message, followerEmail);
+                }
+            }
+        } else if (body.startsWith('$ invite')) {
+            // invite without --addfollower: requires a host user account
+            if (fromHost) {
+                const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+                if (!hostAccount && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
+                    this._createInviteFatalDraft(message);
+                }
+            }
+        } else if (body.startsWith('$ follow ') && !body.startsWith('$ follow --show')) {
+            // $ follow <email>: adding a specific follower is host-only
+            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.FOLLOW_RESPONSE, message.from)) {
+                this._createFollowPermissionDeniedDraft(message);
+            }
+        } else if (body.startsWith('$ unfollow ')) {
+            // $ unfollow <email>: removing a specific follower is host-only
+            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.UNFOLLOW_RESPONSE, message.from)) {
+                this._createUnfollowPermissionDeniedDraft(message);
             }
         } else if (fromHost && !body.startsWith('$')) {
             if (!this._hasPostNotificationForContent(body)) {
@@ -348,6 +412,97 @@ ${SIGNATURE}`;
             }
         );
 
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a permission denied reply for an adduser command from a non-host sender.
+     */
+    private _createAdduserPermissionDeniedDraft(message: SimpleMessage): void {
+        const body = `$ adduser\nadduser: Permission denied\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a fatal error reply when the host sends adduser but a user already exists.
+     */
+    private _createAdduserFatalDraft(message: SimpleMessage): void {
+        const hostEmail = this._hostEmailAddress.toString();
+        const body = `$ adduser\nadduser: Fatal: a friendlymail user already exists for ${hostEmail}\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a permission denied reply for an invite command from a non-host sender.
+     */
+    private _createInvitePermissionDeniedDraft(message: SimpleMessage): void {
+        const body = `${message.body.trim()}\ninvite: Permission denied\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a fatal error reply when the host sends invite without a user account.
+     */
+    private _createInviteFatalDraft(message: SimpleMessage): void {
+        const body = `${message.body.trim()}\ninvite: Fatal: a friendlymail user account is required for this command.\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a permission denied reply for a follow <email> command from a non-host sender.
+     */
+    private _createFollowPermissionDeniedDraft(message: SimpleMessage): void {
+        const body = `${message.body.trim()}\nfollow: Permission denied\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a permission denied reply for an unfollow <email> command from a non-host sender.
+     */
+    private _createUnfollowPermissionDeniedDraft(message: SimpleMessage): void {
+        const body = `${message.body.trim()}\nunfollow: Permission denied\n\n${SIGNATURE}`;
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE }
+        );
         this._drafts.push(draft);
     }
 
@@ -667,33 +822,6 @@ ${SIGNATURE}`;
 
     hasWelcomeMessageBeenSent(sender: EmailAddress): boolean {
         return this._welcomeMessageExists();
-    }
-
-    sendDraft(draftIndex: number): SimpleMessage | null {
-        if (draftIndex < 0 || draftIndex >= this._drafts.length) {
-            return null;
-        }
-
-        const draft = this._drafts[draftIndex];
-        if (!draft.isReadyToSend()) {
-            return null;
-        }
-
-        const xFriendlymail = draft.messageType !== null
-            ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
-            : undefined;
-        const simpleMessage = new SimpleMessage(
-            draft.from!,
-            draft.to,
-            draft.subject,
-            draft.body,
-            new Date(),
-            xFriendlymail
-        );
-        this._sentMessages.push(simpleMessage);
-        this._drafts = this._drafts.filter(d => d !== draft);
-
-        return simpleMessage;
     }
 
     getSentMessages(): SimpleMessage[] {
