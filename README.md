@@ -2,7 +2,7 @@
 
 #### What if Facebook was invented by Linus Torvalds in 1993?
 
-friendlymail is an open-source, email-based, alternative social network. It supports the core features of social networking, such as posting, following, commenting, and liking, all implemented via email. The app is implemented in Typescript, and can then be integrated with an email client to send and receive messages.
+friendlymail is an open-source, email-based, alternative social network. It supports the core features of social networking, such as posting, following, commenting, and liking, all implemented via email. The app is written in Typescript, and can be integrated with an email client to send and receive messages.
 
 # Table of Contents
 - [Definitions](#definitions)
@@ -14,6 +14,7 @@ friendlymail is an open-source, email-based, alternative social network. It supp
     - [invite](###invite)
     - [invite --addfollower](###invite-add-follower)
     - [follow](###follow)
+    - [follow --show](###follow-show)
     - [unfollow](###unfollow)
   - [Create Messages](##create-messages)
     - [Create Post Message](###create-post-message)
@@ -292,6 +293,49 @@ follow: A follow request has been sent to phil@test.com.
 friendlymail, an open-source, email-based, alternative social network
 
 ```
+
+### follow --show
+The follow command with the --show parameter is used to list the followers of the host user. If the command is sent by a non-host, non-follower user, then friendlymail will reply with permission denied.
+
+Here is an example message containing the follow --show command. In this example, the friendlymail host is phil@test.com.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Kath L <kath@test.com>
+
+$ follow --show
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Here is an example message sent in reply to the above message containing the follow --show command. In this case, Kath L is following Phil L, so friendlymail replies with a list of Phil L's followers.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Kath L <kath@test.com>
+
+$ follow --show
+Phil L has 1 follower:
+1. Kath L          <kath@test.com>
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Here is an example message sent in reply to the above message containing the follow --show command. In this case, Kath L is not following Phil L, so friendlymail replies with permission denied.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Kath L <kath@test.com>
+
+$ follow --show
+follow: Permission denied.
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
 
 ### unfollow
 The unfollow command is used to unfollow a friendlymail user. A friendlymail user account is not required to issue the unfollow command to a friendlymail host.
