@@ -19,7 +19,7 @@
 import { Daemon } from './src/models/Daemon';
 import { TestMessageProvider } from './src/models/TestMessageProvider';
 import { ISocialNetwork } from './src/models/SocialNetwork';
-import { Account } from './src/models/Account';
+import { User } from './src/models/User';
 import { EmailAddress } from './src/models/EmailAddress';
 import { MessageDraft } from './src/models/MessageDraft';
 import * as fs from 'fs';
@@ -170,10 +170,10 @@ async function main() {
     const provider = new TestMessageProvider(hostEmailAddress);
 
     // Minimal ISocialNetwork implementation; updated by the Daemon as accounts are created
-    let _account: Account | null = null;
+    let _user: User | null = null;
     const socialNetwork: ISocialNetwork = {
-        getAccount: () => _account!,
-        setAccount: (account: Account) => { _account = account; }
+        getUser: () => _user!,
+        setUser: (user: User) => { _user = user; }
     };
 
     const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);

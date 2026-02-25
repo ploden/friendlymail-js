@@ -1,4 +1,3 @@
-import { PrivacySetting } from './types';
 import { Post } from './Post.impl';
 import { Comment } from './Comment.impl';
 import { EmailAddress } from './EmailAddress.impl';
@@ -17,11 +16,6 @@ export interface IUser {
     readonly comments: Comment[];
     readonly followers: User[];
     readonly following: User[];
-    readonly privacySettings: {
-        profile: PrivacySetting;
-        posts: PrivacySetting;
-        friends: PrivacySetting;
-    };
     readonly createdAt: Date;
 
     addPost(post: Post): void;
@@ -39,10 +33,5 @@ export interface IUser {
         email?: EmailAddress;
         profilePicture?: string;
         bio?: string;
-    }): void;
-    updatePrivacySettings(settings: {
-        profile?: PrivacySetting;
-        posts?: PrivacySetting;
-        friends?: PrivacySetting;
     }): void;
 }

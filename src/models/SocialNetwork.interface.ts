@@ -1,9 +1,9 @@
-import { Account } from './Account.impl';
+import { User } from './User.impl';
 
 /**
  * Interface for SocialNetwork data type
  */
 export interface ISocialNetwork {
-    getAccount(): Account;
-    setAccount(account: Account): void;
+    getUser(): User;
+    setUser(user: User): void;
 }

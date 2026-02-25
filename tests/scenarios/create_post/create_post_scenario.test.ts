@@ -21,8 +21,8 @@ const FOLLOWER_EMAIL = 'kath@test.com';
 
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
     return {
-        getAccount: jest.fn(),
-        setAccount: jest.fn()
+        getUser: jest.fn(),
+        setUser: jest.fn()
     };
 }
 

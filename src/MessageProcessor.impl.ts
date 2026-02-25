@@ -1,5 +1,4 @@
 import { SimpleMessage } from './models/SimpleMessage';
-import { Account } from './models/Account';
 import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
@@ -154,7 +153,7 @@ export class MessageProcessor implements IMessageProcessor {
             // Any sender can register an account; only the host gets a confirmation reply
             const account = this.createAccountFromMessage(message);
             if (account && fromHost && !this._hasResponseOfType(FriendlymailMessageType.ADDUSER_RESPONSE)) {
-                this.createAdduserDraft(message, account.user.username, account.user.email.toString());
+                this.createAdduserDraft(message, account.username, account.email.toString());
             }
         } else if (fromHost && body.startsWith('$ invite --addfollower')) {
             // Always populate followers map (needed for post notification recipients)
@@ -172,7 +171,7 @@ export class MessageProcessor implements IMessageProcessor {
 
     // ── Account management ─────────────────────────────────────────────────────
 
-    createAccountFromMessage(message: SimpleMessage): Account | null {
+    createAccountFromMessage(message: SimpleMessage): User | null {
         const fromEmail = message.from;
         if (!fromEmail) {
             console.warn('Cannot create account: missing from email');
@@ -196,11 +195,10 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         const user = new User(username, fromEmail);
-        const account = new Account(user);
-        const socialNetwork = new SocialNetwork(account);
+        const socialNetwork = new SocialNetwork(user);
         this.socialNetworks.set(fromEmail.toString(), socialNetwork);
 
-        return account;
+        return user;
     }
 
     // ── Draft creation ─────────────────────────────────────────────────────────
@@ -359,7 +357,7 @@ ${SIGNATURE}`;
     private createPostNotifications(postMessage: SimpleMessage): void {
         const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
         const hostName = hostAccount
-            ? hostAccount.user.username
+            ? hostAccount.username
             : this._displayName(this._hostEmailAddress);
 
         const postBody = postMessage.body.trim();
@@ -492,9 +490,9 @@ ${SIGNATURE}`;
 
     // ── Follow / unfollow ──────────────────────────────────────────────────────
 
-    follow(follower: Account, followee: Account): void {
-        const followerEmail = follower.user.email.toString();
-        const followeeEmail = followee.user.email.toString();
+    follow(follower: User, followee: User): void {
+        const followerEmail = follower.email.toString();
+        const followeeEmail = followee.email.toString();
 
         if (followerEmail === followeeEmail) {
             console.warn('Cannot follow yourself');
@@ -512,56 +510,56 @@ ${SIGNATURE}`;
         this.followers.get(followeeEmail)!.add(followerEmail);
     }
 
-    unfollow(follower: Account, followee: Account): void {
-        const followerEmail = follower.user.email.toString();
-        const followeeEmail = followee.user.email.toString();
+    unfollow(follower: User, followee: User): void {
+        const followerEmail = follower.email.toString();
+        const followeeEmail = followee.email.toString();
 
         this.following.get(followerEmail)?.delete(followeeEmail);
         this.followers.get(followeeEmail)?.delete(followeeEmail);
     }
 
-    getFollowing(account: Account): Account[] {
-        const email = account.user.email.toString();
+    getFollowing(account: User): User[] {
+        const email = account.email.toString();
         const followingEmails = this.following.get(email) || new Set();
         return Array.from(followingEmails)
             .map(e => this.getAccountByEmail(e))
-            .filter((a): a is Account => a !== null);
+            .filter((a): a is User => a !== null);
     }
 
-    getFollowers(account: Account): Account[] {
-        const email = account.user.email.toString();
+    getFollowers(account: User): User[] {
+        const email = account.email.toString();
         const followerEmails = this.followers.get(email) || new Set();
         return Array.from(followerEmails)
             .map(e => this.getAccountByEmail(e))
-            .filter((a): a is Account => a !== null);
+            .filter((a): a is User => a !== null);
     }
 
-    isFollowing(follower: Account, followee: Account): boolean {
-        const followerEmail = follower.user.email.toString();
-        const followeeEmail = followee.user.email.toString();
+    isFollowing(follower: User, followee: User): boolean {
+        const followerEmail = follower.email.toString();
+        const followeeEmail = followee.email.toString();
         return this.following.get(followerEmail)?.has(followeeEmail) || false;
     }
 
-    isFollowedBy(followee: Account, follower: Account): boolean {
-        const followerEmail = follower.user.email.toString();
-        const followeeEmail = followee.user.email.toString();
+    isFollowedBy(followee: User, follower: User): boolean {
+        const followerEmail = follower.email.toString();
+        const followeeEmail = followee.email.toString();
         return this.followers.get(followeeEmail)?.has(followerEmail) || false;
     }
 
     // ── Account accessors ──────────────────────────────────────────────────────
 
-    addAccount(account: Account): void {
+    addAccount(account: User): void {
         const socialNetwork = new SocialNetwork(account);
-        this.socialNetworks.set(account.user.email.toString(), socialNetwork);
+        this.socialNetworks.set(account.email.toString(), socialNetwork);
     }
 
-    getAccountByEmail(email: string): Account | null {
+    getAccountByEmail(email: string): User | null {
         const socialNetwork = this.socialNetworks.get(email);
-        return socialNetwork?.getAccount() || null;
+        return socialNetwork?.getUser() || null;
     }
 
-    getAllAccounts(): Account[] {
-        return Array.from(this.socialNetworks.values()).map(network => network.getAccount());
+    getAllAccounts(): User[] {
+        return Array.from(this.socialNetworks.values()).map(network => network.getUser());
     }
 
     // ── Message accessors ──────────────────────────────────────────────────────

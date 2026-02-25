@@ -1,4 +1,3 @@
-import { PrivacySetting } from './types';
 import { Post } from './Post.impl';
 import { Comment } from './Comment.impl';
 import { EmailAddress } from './EmailAddress.impl';
@@ -14,11 +13,6 @@ export class User implements IUser {
     private _comments: Comment[];
     private _followers: Set<User>;
     private _following: Set<User>;
-    private _privacySettings: {
-        profile: PrivacySetting;
-        posts: PrivacySetting;
-        friends: PrivacySetting;
-    };
     private _createdAt: Date;
 
     constructor(
@@ -27,11 +21,6 @@ export class User implements IUser {
         options: {
             profilePicture?: string;
             bio?: string;
-            privacySettings?: {
-                profile: PrivacySetting;
-                posts: PrivacySetting;
-                friends: PrivacySetting;
-            };
         } = {}
     ) {
         this._id = crypto.randomUUID();
@@ -43,11 +32,6 @@ export class User implements IUser {
         this._comments = [];
         this._followers = new Set();
         this._following = new Set();
-        this._privacySettings = options.privacySettings || {
-            profile: 'public',
-            posts: 'public',
-            friends: 'public'
-        };
         this._createdAt = new Date();
     }
 
@@ -60,7 +44,6 @@ export class User implements IUser {
     get comments(): Comment[] { return [...this._comments]; }
     get followers(): User[] { return Array.from(this._followers); }
     get following(): User[] { return Array.from(this._following); }
-    get privacySettings() { return { ...this._privacySettings }; }
     get createdAt(): Date { return new Date(this._createdAt); }
 
     addPost(post: Post): void {
@@ -120,13 +103,4 @@ export class User implements IUser {
         if (updates.bio) this._bio = updates.bio;
     }
 
-    updatePrivacySettings(settings: {
-        profile?: PrivacySetting;
-        posts?: PrivacySetting;
-        friends?: PrivacySetting;
-    }): void {
-        if (settings.profile) this._privacySettings.profile = settings.profile;
-        if (settings.posts) this._privacySettings.posts = settings.posts;
-        if (settings.friends) this._privacySettings.friends = settings.friends;
-    }
 }

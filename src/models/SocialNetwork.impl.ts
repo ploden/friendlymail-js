@@ -1,18 +1,18 @@
-import { Account } from './Account.impl';
+import { User } from './User.impl';
 import { ISocialNetwork } from './SocialNetwork.interface';
 
 export class SocialNetwork implements ISocialNetwork {
-    private account: Account;
+    private user: User;
 
-    constructor(account: Account) {
-        this.account = account;
+    constructor(user: User) {
+        this.user = user;
     }
 
-    getAccount(): Account {
-        return this.account;
+    getUser(): User {
+        return this.user;
     }
 
-    setAccount(account: Account): void {
-        this.account = account;
+    setUser(user: User): void {
+        this.user = user;
     }
 }

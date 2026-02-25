@@ -97,7 +97,7 @@ export class Daemon implements IDaemon {
         // Update the social network from processor state
         const socialNetworks = this._messageProcessor.getAllSocialNetworks();
         if (socialNetworks.length > 0) {
-            this._socialNetwork.setAccount(socialNetworks[0].getAccount());
+            this._socialNetwork.setUser(socialNetworks[0].getUser());
         }
     }
 

@@ -24,8 +24,8 @@ function makeSender(): jest.Mocked<IMessageSender> {
 /** Create a mock ISocialNetwork */
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
     return {
-        getAccount: jest.fn(),
-        setAccount: jest.fn()
+        getUser: jest.fn(),
+        setUser: jest.fn()
     };
 }
 

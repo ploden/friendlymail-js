@@ -1,5 +1,5 @@
 import { SimpleMessage } from './models/SimpleMessage';
-import { Account } from './models/Account';
+import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
@@ -9,54 +9,54 @@ import { MessageDraft } from './models/MessageDraft';
  */
 export interface IMessageProcessor {
     /**
-     * Create an account from a create account command message
+     * Create a user from a create account command message
      */
-    createAccountFromMessage(message: SimpleMessage): Account | null;
+    createAccountFromMessage(message: SimpleMessage): User | null;
 
     /**
-     * Follow another account
+     * Follow another user
      */
-    follow(follower: Account, followee: Account): void;
+    follow(follower: User, followee: User): void;
 
     /**
-     * Unfollow an account
+     * Unfollow a user
      */
-    unfollow(follower: Account, followee: Account): void;
+    unfollow(follower: User, followee: User): void;
 
     /**
-     * Get all accounts this account is following
+     * Get all users this user is following
      */
-    getFollowing(account: Account): Account[];
+    getFollowing(user: User): User[];
 
     /**
-     * Get all accounts following this account
+     * Get all users following this user
      */
-    getFollowers(account: Account): Account[];
+    getFollowers(user: User): User[];
 
     /**
-     * Check if one account is following another
+     * Check if one user is following another
      */
-    isFollowing(follower: Account, followee: Account): boolean;
+    isFollowing(follower: User, followee: User): boolean;
 
     /**
-     * Check if one account is followed by another
+     * Check if one user is followed by another
      */
-    isFollowedBy(followee: Account, follower: Account): boolean;
+    isFollowedBy(followee: User, follower: User): boolean;
 
     /**
-     * Add an account to the processor
+     * Add a user to the processor
      */
-    addAccount(account: Account): void;
+    addAccount(user: User): void;
 
     /**
-     * Get an account by email
+     * Get a user by email
      */
-    getAccountByEmail(email: string): Account | null;
+    getAccountByEmail(email: string): User | null;
 
     /**
-     * Get all accounts
+     * Get all users
      */
-    getAllAccounts(): Account[];
+    getAllAccounts(): User[];
 
     /**
      * Get all messages
