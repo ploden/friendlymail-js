@@ -26,6 +26,7 @@ import { ISocialNetwork } from './src/models/SocialNetwork';
 import { User } from './src/models/User';
 import { EmailAddress } from './src/models/EmailAddress';
 import { MessageDraft } from './src/models/MessageDraft';
+import { SimpleMessage } from './src/models/SimpleMessage';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -211,6 +212,23 @@ const TEST_USERS: Array<{ name: string; email: string }> = [
 ];
 
 /**
+ * Parse a mailto: URL and return the to address, subject, and body.
+ * Returns null if the URL is not a valid mailto: URL.
+ * Example: mailto:phil@test.com?subject=Fm&body=%24%20help
+ */
+function parseMailtoUrl(url: string): { to: string; subject: string; body: string } | null {
+    if (!url.startsWith('mailto:')) return null;
+    const rest = url.slice('mailto:'.length);
+    const qIndex = rest.indexOf('?');
+    const to = qIndex === -1 ? rest : rest.slice(0, qIndex);
+    if (!to || !EmailAddress.isValid(to)) return null;
+    const params = new URLSearchParams(qIndex === -1 ? '' : rest.slice(qIndex + 1));
+    const subject = params.get('subject') ?? '';
+    const body = params.get('body') ?? '';
+    return { to, subject, body };
+}
+
+/**
  * Replace placeholders in a message file's content.
  *
  * Host placeholders:
@@ -347,9 +365,29 @@ async function main() {
                         await runDaemon(daemon, provider);
                     }
                 }
-            } else if (trimmed === 'run' || trimmed.startsWith('send')) {
-                // 'run' and 'send' both trigger a daemon cycle
+            } else if (trimmed === 'run' || trimmed === 'send') {
                 await runDaemon(daemon, provider);
+            } else if (trimmed.startsWith('send ')) {
+                // send "mailto:..." — simulate a message from the host via a mailto URL
+                const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
+                const parsed = parseMailtoUrl(arg);
+                if (!parsed) {
+                    console.error('Error: Invalid mailto: URL');
+                } else {
+                    const toAddress = EmailAddress.fromString(parsed.to);
+                    if (!toAddress) {
+                        console.error(`Error: Invalid email address in mailto URL: ${parsed.to}`);
+                    } else {
+                        const message = new SimpleMessage(
+                            hostEmailAddress,
+                            [toAddress],
+                            parsed.subject,
+                            parsed.body
+                        );
+                        await provider.loadMessage(message);
+                        await runDaemon(daemon, provider);
+                    }
+                }
             } else if (trimmed.startsWith('show ')) {
                 const showArg = trimmed.substring(5).trim();
                 if (showArg === '--drafts') {
@@ -362,10 +400,11 @@ async function main() {
             } else if (trimmed.length > 0) {
                 console.error(`Unknown command: ${trimmed}`);
                 console.error('Commands:');
+                console.error('  send "mailto:<email>?subject=<s>&body=<b>" - Send a message from the host');
+                console.error('  send          - Run the daemon (process and send pending messages)');
+                console.error('  run           - Alias for send');
                 console.error('  load <file>   - Load a message file and run the daemon');
                 console.error('  load $N       - Load file by number from the list above');
-                console.error('  run           - Run the daemon (process and send pending messages)');
-                console.error('  send          - Alias for run');
                 console.error('  show --drafts - List pending draft messages');
                 console.error('  show --sent   - List all sent messages');
                 console.error('  q             - Quit');
