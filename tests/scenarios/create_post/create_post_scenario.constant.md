@@ -81,6 +81,10 @@ $ adduser
 Adding friendlymail user with name `Phil L' and email `phil@test.com' ...
 Done.
 
+To create your first post, reply to this message, or open the link below.
+
+Create post: mailto:phil@test.com?subject=Fm&body=Hello%2C+world
+
 friendlymail, an open-source, email-based, alternative social network
 
 ```
