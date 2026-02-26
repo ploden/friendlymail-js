@@ -72,6 +72,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ adduser');
     }
 
+    function hostInviteAddfollowerCommand(): SimpleMessage {
+        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`);
+    }
+
     function hostInviteCommand(): SimpleMessage {
         return new SimpleMessage(hostAddress, [hostAddress], 'Fm', `$ invite ${NON_HOST_EMAIL}`);
     }
@@ -133,47 +137,52 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         await runDaemon(1); // replies: permission denied
     }
 
-    async function step2_hostInviteBeforeAccount(): Promise<void> {
+    async function step2_hostInviteAddfollowerBeforeAccount(): Promise<void> {
+        await provider.loadMessage(hostInviteAddfollowerCommand());
+        await runDaemon(1); // replies: fatal error
+    }
+
+    async function step3_hostInviteBeforeAccount(): Promise<void> {
         await provider.loadMessage(hostInviteCommand());
         await runDaemon(1); // replies: fatal error
     }
 
-    async function step3_hostSecondAdduser(): Promise<void> {
+    async function step4_hostSecondAdduser(): Promise<void> {
         await provider.loadMessage(hostAdduserCommand());
         await runDaemon(1); // replies: fatal user already exists
     }
 
-    async function step4_nonHostInviteAddfollower(): Promise<void> {
+    async function step5_nonHostInviteAddfollower(): Promise<void> {
         await provider.loadMessage(nonHostInviteAddfollowerCommand());
         await runDaemon(1); // replies: permission denied
     }
 
-    async function step5_nonHostFollowShow(): Promise<void> {
+    async function step6_nonHostFollowShow(): Promise<void> {
         await provider.loadMessage(nonHostFollowShowCommand());
         await runDaemon(0); // no reply sent
     }
 
-    async function step6_nonHostLike(): Promise<void> {
+    async function step7_nonHostLike(): Promise<void> {
         await provider.loadMessage(nonHostLikeMessage());
         await runDaemon(0); // no reply sent
     }
 
-    async function step7_nonHostComment(): Promise<void> {
+    async function step8_nonHostComment(): Promise<void> {
         await provider.loadMessage(nonHostCommentMessage());
         await runDaemon(0); // no reply sent
     }
 
-    async function step8_nonHostUnfollow(): Promise<void> {
+    async function step9_nonHostUnfollow(): Promise<void> {
         await provider.loadMessage(nonHostUnfollowCommand());
         await runDaemon(1); // replies: permission denied
     }
 
-    async function step9_nonHostFollow(): Promise<void> {
+    async function step10_nonHostFollow(): Promise<void> {
         await provider.loadMessage(nonHostFollowCommand());
         await runDaemon(1); // replies: permission denied
     }
 
-    async function step10_nonHostCreatePost(): Promise<void> {
+    async function step11_nonHostCreatePost(): Promise<void> {
         await provider.loadMessage(nonHostCreatePostMessage());
         await runDaemon(0); // no reply sent
     }
@@ -213,13 +222,13 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         });
     });
 
-    // ── Step 2: The host sends an invite command before creating a user account ─
+    // ── Step 2: The host sends an invite --addfollower command before creating a user account ─
 
-    describe('Step 2: The host sends an invite command before creating a user account', () => {
+    describe('Step 2: The host sends an invite --addfollower command before creating a user account', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
+            await step2_hostInviteAddfollowerBeforeAccount();
         });
 
         it('should send exactly three messages total', () => {
@@ -250,76 +259,76 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         });
     });
 
-    // ── Step 3: The host sends a second adduser command after an account exists ─
+    // ── Step 3: The host sends an invite command before creating a user account ─
 
-    describe('Step 3: The host sends a second adduser command after an account already exists', () => {
+    describe('Step 3: The host sends an invite command before creating a user account', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount(); // sentMessages: 4
-            await step3_hostSecondAdduser(); // sentMessages: 5
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
         });
 
-        it('should send exactly five messages total', () => {
-            expect(provider.sentMessages).toHaveLength(5);
+        it('should send exactly four messages total', () => {
+            expect(provider.sentMessages).toHaveLength(4);
         });
 
-        it('should send the adduser reply to the host', () => {
-            expect(provider.sentMessages[4].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
+        it('should send the invite reply to the host', () => {
+            expect(provider.sentMessages[3].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
-        it('should send the adduser reply from the host address', () => {
-            expect(provider.sentMessages[4].from.toString()).toBe(HOST_EMAIL);
+        it('should send the invite reply from the host address', () => {
+            expect(provider.sentMessages[3].from.toString()).toBe(HOST_EMAIL);
         });
 
-        it('should set the X-friendlymail header to the adduser_response type', () => {
-            expect(provider.sentMessages[4].xFriendlymail)
-                .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
+        it('should set the X-friendlymail header to the invite type', () => {
+            expect(provider.sentMessages[3].xFriendlymail)
+                .toContain(FriendlymailMessageType.INVITE);
         });
 
         it('should include the fatal error message in the reply body', () => {
-            expect(provider.sentMessages[4].body)
-                .toContain(`Fatal: a friendlymail user already exists for ${HOST_EMAIL}`);
+            expect(provider.sentMessages[3].body)
+                .toContain('Fatal: a friendlymail user account is required for this command.');
         });
 
         it('should include the signature in the reply body', () => {
-            expect(provider.sentMessages[4].body)
+            expect(provider.sentMessages[3].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
     });
 
-    // ── Step 4: A non-host user sends an invite --addfollower message ──────────
+    // ── Step 4: The host sends a second adduser command after an account exists ─
 
-    describe('Step 4: A non-host user sends an invite --addfollower message to the host user', () => {
+    describe('Step 4: The host sends a second adduser command after an account already exists', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount(); // sentMessages: 4
-            await step3_hostSecondAdduser(); // sentMessages: 5
-            await step4_nonHostInviteAddfollower(); // sentMessages: 6
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount(); // sentMessages: 5
+            await step4_hostSecondAdduser(); // sentMessages: 6
         });
 
         it('should send exactly six messages total', () => {
             expect(provider.sentMessages).toHaveLength(6);
         });
 
-        it('should send the invite reply to the non-host user', () => {
-            expect(provider.sentMessages[5].to.map((a: EmailAddress) => a.toString())).toContain(NON_HOST_EMAIL);
+        it('should send the adduser reply to the host', () => {
+            expect(provider.sentMessages[5].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
-        it('should send the invite reply from the host address', () => {
+        it('should send the adduser reply from the host address', () => {
             expect(provider.sentMessages[5].from.toString()).toBe(HOST_EMAIL);
         });
 
-        it('should set the X-friendlymail header to the invite type', () => {
+        it('should set the X-friendlymail header to the adduser_response type', () => {
             expect(provider.sentMessages[5].xFriendlymail)
-                .toContain(FriendlymailMessageType.INVITE);
+                .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
         });
 
-        it('should include "Permission denied" in the reply body', () => {
-            expect(provider.sentMessages[5].body).toContain('Permission denied');
+        it('should include the fatal error message in the reply body', () => {
+            expect(provider.sentMessages[5].body)
+                .toContain(`Fatal: a friendlymail user already exists for ${HOST_EMAIL}`);
         });
 
         it('should include the signature in the reply body', () => {
@@ -328,94 +337,34 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         });
     });
 
-    // ── Step 5: A non-host, non-follower user sends a follow --show message ────
+    // ── Step 5: A non-host user sends an invite --addfollower message ──────────
 
-    describe('Step 5: A non-host, non-follower user sends a follow --show message to the host user', () => {
+    describe('Step 5: A non-host user sends an invite --addfollower message to the host user', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-        });
-
-        it('should send exactly six messages total (no new reply)', () => {
-            expect(provider.sentMessages).toHaveLength(6);
-        });
-    });
-
-    // ── Step 6: A non-host, non-follower user sends a create like message ──────
-
-    describe('Step 6: A non-host, non-follower user sends a create like message to the host user', () => {
-        beforeEach(async () => {
-            await setup_attachHost();
-            await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-            await step6_nonHostLike();
-        });
-
-        it('should send exactly six messages total (no new reply)', () => {
-            expect(provider.sentMessages).toHaveLength(6);
-        });
-    });
-
-    // ── Step 7: A non-host, non-follower user sends a create comment message ───
-
-    describe('Step 7: A non-host, non-follower user sends a create comment message to the host user', () => {
-        beforeEach(async () => {
-            await setup_attachHost();
-            await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-            await step6_nonHostLike();
-            await step7_nonHostComment();
-        });
-
-        it('should send exactly six messages total (no new reply)', () => {
-            expect(provider.sentMessages).toHaveLength(6);
-        });
-    });
-
-    // ── Step 8: A non-host user sends an unfollow message ─────────────────────
-
-    describe('Step 8: A non-host user sends an unfollow message to the host user, with a third party address as the parameter', () => {
-        beforeEach(async () => {
-            await setup_attachHost();
-            await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
-            await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-            await step6_nonHostLike();
-            await step7_nonHostComment();
-            await step8_nonHostUnfollow();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount(); // sentMessages: 5
+            await step4_hostSecondAdduser(); // sentMessages: 6
+            await step5_nonHostInviteAddfollower(); // sentMessages: 7
         });
 
         it('should send exactly seven messages total', () => {
             expect(provider.sentMessages).toHaveLength(7);
         });
 
-        it('should send the unfollow reply to the non-host user', () => {
+        it('should send the invite reply to the non-host user', () => {
             expect(provider.sentMessages[6].to.map((a: EmailAddress) => a.toString())).toContain(NON_HOST_EMAIL);
         });
 
-        it('should send the unfollow reply from the host address', () => {
+        it('should send the invite reply from the host address', () => {
             expect(provider.sentMessages[6].from.toString()).toBe(HOST_EMAIL);
         });
 
-        it('should set the X-friendlymail header to the unfollow_response type', () => {
+        it('should set the X-friendlymail header to the invite type', () => {
             expect(provider.sentMessages[6].xFriendlymail)
-                .toContain(FriendlymailMessageType.UNFOLLOW_RESPONSE);
+                .toContain(FriendlymailMessageType.INVITE);
         });
 
         it('should include "Permission denied" in the reply body', () => {
@@ -428,38 +377,98 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         });
     });
 
-    // ── Step 9: A non-host user sends a follow message ─────────────────────────
+    // ── Step 6: A non-host, non-follower user sends a follow --show message ────
 
-    describe('Step 9: A non-host user sends a follow message to the host user, with a third party address as the parameter', () => {
+    describe('Step 6: A non-host, non-follower user sends a follow --show message to the host user', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
             await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-            await step6_nonHostLike();
-            await step7_nonHostComment();
-            await step8_nonHostUnfollow();
-            await step9_nonHostFollow();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+        });
+
+        it('should send exactly seven messages total (no new reply)', () => {
+            expect(provider.sentMessages).toHaveLength(7);
+        });
+    });
+
+    // ── Step 7: A non-host, non-follower user sends a create like message ──────
+
+    describe('Step 7: A non-host, non-follower user sends a create like message to the host user', () => {
+        beforeEach(async () => {
+            await setup_attachHost();
+            await step1_nonHostSendsAdduser();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+            await step7_nonHostLike();
+        });
+
+        it('should send exactly seven messages total (no new reply)', () => {
+            expect(provider.sentMessages).toHaveLength(7);
+        });
+    });
+
+    // ── Step 8: A non-host, non-follower user sends a create comment message ───
+
+    describe('Step 8: A non-host, non-follower user sends a create comment message to the host user', () => {
+        beforeEach(async () => {
+            await setup_attachHost();
+            await step1_nonHostSendsAdduser();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+            await step7_nonHostLike();
+            await step8_nonHostComment();
+        });
+
+        it('should send exactly seven messages total (no new reply)', () => {
+            expect(provider.sentMessages).toHaveLength(7);
+        });
+    });
+
+    // ── Step 9: A non-host user sends an unfollow message ─────────────────────
+
+    describe('Step 9: A non-host user sends an unfollow message to the host user, with a third party address as the parameter', () => {
+        beforeEach(async () => {
+            await setup_attachHost();
+            await step1_nonHostSendsAdduser();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+            await step7_nonHostLike();
+            await step8_nonHostComment();
+            await step9_nonHostUnfollow();
         });
 
         it('should send exactly eight messages total', () => {
             expect(provider.sentMessages).toHaveLength(8);
         });
 
-        it('should send the follow reply to the non-host user', () => {
+        it('should send the unfollow reply to the non-host user', () => {
             expect(provider.sentMessages[7].to.map((a: EmailAddress) => a.toString())).toContain(NON_HOST_EMAIL);
         });
 
-        it('should send the follow reply from the host address', () => {
+        it('should send the unfollow reply from the host address', () => {
             expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
         });
 
-        it('should set the X-friendlymail header to the follow_response type', () => {
+        it('should set the X-friendlymail header to the unfollow_response type', () => {
             expect(provider.sentMessages[7].xFriendlymail)
-                .toContain(FriendlymailMessageType.FOLLOW_RESPONSE);
+                .toContain(FriendlymailMessageType.UNFOLLOW_RESPONSE);
         });
 
         it('should include "Permission denied" in the reply body', () => {
@@ -472,26 +481,72 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         });
     });
 
-    // ── Step 10: A non-host user sends a create post message ──────────────────
+    // ── Step 10: A non-host user sends a follow message ─────────────────────────
 
-    describe('Step 10: A non-host user sends a create post message to the host user', () => {
+    describe('Step 10: A non-host user sends a follow message to the host user, with a third party address as the parameter', () => {
         beforeEach(async () => {
             await setup_attachHost();
             await step1_nonHostSendsAdduser();
-            await step2_hostInviteBeforeAccount();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
             await setup_createAccount();
-            await step3_hostSecondAdduser();
-            await step4_nonHostInviteAddfollower();
-            await step5_nonHostFollowShow();
-            await step6_nonHostLike();
-            await step7_nonHostComment();
-            await step8_nonHostUnfollow();
-            await step9_nonHostFollow();
-            await step10_nonHostCreatePost();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+            await step7_nonHostLike();
+            await step8_nonHostComment();
+            await step9_nonHostUnfollow();
+            await step10_nonHostFollow();
         });
 
-        it('should send exactly eight messages total (no new reply)', () => {
-            expect(provider.sentMessages).toHaveLength(8);
+        it('should send exactly nine messages total', () => {
+            expect(provider.sentMessages).toHaveLength(9);
+        });
+
+        it('should send the follow reply to the non-host user', () => {
+            expect(provider.sentMessages[8].to.map((a: EmailAddress) => a.toString())).toContain(NON_HOST_EMAIL);
+        });
+
+        it('should send the follow reply from the host address', () => {
+            expect(provider.sentMessages[8].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should set the X-friendlymail header to the follow_response type', () => {
+            expect(provider.sentMessages[8].xFriendlymail)
+                .toContain(FriendlymailMessageType.FOLLOW_RESPONSE);
+        });
+
+        it('should include "Permission denied" in the reply body', () => {
+            expect(provider.sentMessages[8].body).toContain('Permission denied');
+        });
+
+        it('should include the signature in the reply body', () => {
+            expect(provider.sentMessages[8].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 11: A non-host user sends a create post message ──────────────────
+
+    describe('Step 11: A non-host user sends a create post message to the host user', () => {
+        beforeEach(async () => {
+            await setup_attachHost();
+            await step1_nonHostSendsAdduser();
+            await step2_hostInviteAddfollowerBeforeAccount();
+            await step3_hostInviteBeforeAccount();
+            await setup_createAccount();
+            await step4_hostSecondAdduser();
+            await step5_nonHostInviteAddfollower();
+            await step6_nonHostFollowShow();
+            await step7_nonHostLike();
+            await step8_nonHostComment();
+            await step9_nonHostUnfollow();
+            await step10_nonHostFollow();
+            await step11_nonHostCreatePost();
+        });
+
+        it('should send exactly nine messages total (no new reply)', () => {
+            expect(provider.sentMessages).toHaveLength(9);
         });
     });
 
@@ -536,42 +591,45 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         // step1: non-host sends adduser
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
-        // step2: host sends invite before account
+        // step2: host sends invite --addfollower before account
+        await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`));
+        await localRun(1);
+        // step3: host sends invite before account
         await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite ${NON_HOST_EMAIL}`));
         await localRun(1);
         // setup_createAccount
         await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
-        // step3: host sends second adduser
+        // step4: host sends second adduser
         await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
-        // step4: non-host sends invite --addfollower
+        // step5: non-host sends invite --addfollower
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ invite --addfollower ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
-        // step5: non-host, non-follower sends follow --show
+        // step6: non-host, non-follower sends follow --show
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', '$ follow --show'));
         await localRun(0);
-        // step6: non-host, non-follower sends like
+        // step7: non-host, non-follower sends like
         await receive(new SimpleMessage(
             localNonHost, [localHost],
             'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             '❤️'
         ));
         await localRun(0);
-        // step7: non-host, non-follower sends comment
+        // step8: non-host, non-follower sends comment
         await receive(new SimpleMessage(
             localNonHost, [localHost],
             'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             'hello, universe!'
         ));
         await localRun(0);
-        // step8: non-host sends unfollow with third-party address
+        // step9: non-host sends unfollow with third-party address
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ unfollow ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
-        // step9: non-host sends follow with third-party address
+        // step10: non-host sends follow with third-party address
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ follow ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
-        // step10: non-host sends create post
+        // step11: non-host sends create post
         await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', 'hello, world'));
         await localRun(0);
 

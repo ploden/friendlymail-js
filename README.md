@@ -103,6 +103,9 @@ To: Phil L <phil@test.com>
 $ help
 friendlymail: friendlymail, version 0.0.1
 These shell commands are defined internally.  Type `$ help' to see this list.
+
+Type `$ adduser' to create an account and start using friendlymail.
+
 Type `$ help adduser' to find out more about the function `adduser'.
 
 $ help: mailto:phil@test.com?subject=Fm&body=%24%20help
@@ -306,7 +309,6 @@ To: Kath L <kath@test.com>
 $ follow --show
 
 friendlymail, an open-source, email-based, alternative social network
-
 ```
 
 Here is an example message sent in reply to the above message containing the follow --show command. In this case, Kath L is following Phil L, so friendlymail replies with a list of Phil L's followers.

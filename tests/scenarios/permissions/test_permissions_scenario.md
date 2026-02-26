@@ -49,6 +49,30 @@ friendlymail, an open-source, email-based, alternative social network
 ```
 
 
+Step: The host sends an invite --addfollower command before creating a user account.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+$ invite --addfollower kath@test.com
+
+```
+Result: friendlymail replies with a fatal error requiring a user account.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+X-friendlymail: {"messageType":"invite"}
+
+$ invite --addfollower kath@test.com
+invite: Fatal: a friendlymail user account is required for this command.
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+
 Step: The host sends a second adduser command after an account already exists.
 ```
 From: Phil L <phil@test.com>

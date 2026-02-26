@@ -85,12 +85,21 @@ export class TestMessageProvider implements ITestMessageProvider {
      */
     async loadFromFile(filePath: string): Promise<void> {
         const content = await fs.promises.readFile(filePath, 'utf8');
-        const processedContent = content.replace(
-            /<host_address>/g,
-            this._hostAddress.toString()
-        );
+        const processedContent = content.replace(/<host_address>/g, this._hostAddress.toString());
+        await this._parseAndLoad(processedContent, filePath);
+    }
 
-        const lines = processedContent.split('\n');
+    /**
+     * Load a message from a string containing email content.
+     * Parses From, To, Subject, X-friendlymail headers and body into a SimpleMessage.
+     * @param content The email content string to parse
+     */
+    async loadFromString(content: string): Promise<void> {
+        await this._parseAndLoad(content, '<string>');
+    }
+
+    private async _parseAndLoad(content: string, source: string): Promise<void> {
+        const lines = content.split('\n');
         let from: EmailAddress | null = null;
         let to: EmailAddress[] = [];
         let subject = '';
@@ -150,7 +159,7 @@ export class TestMessageProvider implements ITestMessageProvider {
         body = body.trim();
 
         if (!from || to.length === 0 || !subject) {
-            throw new Error(`Missing required email fields in file: ${filePath}`);
+            throw new Error(`Missing required email fields in ${source}`);
         }
 
         this._messages.push(new SimpleMessage(from, to, subject, body, new Date(), xFriendlymail));

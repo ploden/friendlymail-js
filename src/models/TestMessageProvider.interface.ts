@@ -26,4 +26,11 @@ export interface ITestMessageProvider extends IMailProvider {
      * @param filePath The path to the file to load
      */
     loadFromFile(filePath: string): Promise<void>;
+
+    /**
+     * Load a message from a string containing email content.
+     * After loading, the message will be returned on the next call to getMessages().
+     * @param content The email content string to parse
+     */
+    loadFromString(content: string): Promise<void>;
 }

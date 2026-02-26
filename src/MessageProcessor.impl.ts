@@ -86,6 +86,40 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
+     * Returns true if a fatal "account required" invite (without --addfollower) error
+     * has already been sent to the host.
+     */
+    private _hasInviteFatalResponseForHost(): boolean {
+        return this._receivedMessages.some(msg => {
+            if (!msg.xFriendlymail) return false;
+            if (!msg.to.some(addr => addr.equals(this._hostEmailAddress))) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
+                return meta.messageType === FriendlymailMessageType.INVITE
+                    && msg.body.includes('Fatal: a friendlymail user account is required')
+                    && !msg.body.includes('--addfollower');
+            } catch { return false; }
+        });
+    }
+
+    /**
+     * Returns true if a fatal "account required" invite --addfollower error has already
+     * been sent to the host.
+     */
+    private _hasInviteAddfollowerFatalResponseForHost(): boolean {
+        return this._receivedMessages.some(msg => {
+            if (!msg.xFriendlymail) return false;
+            if (!msg.to.some(addr => addr.equals(this._hostEmailAddress))) return false;
+            try {
+                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
+                return meta.messageType === FriendlymailMessageType.INVITE
+                    && msg.body.includes('Fatal: a friendlymail user account is required')
+                    && msg.body.includes('--addfollower');
+            } catch { return false; }
+        });
+    }
+
+    /**
      * Returns true if a fatal "user already exists" adduser error has already been
      * sent to the host. Used to prevent re-sending the fatal on subsequent run cycles.
      */
@@ -202,17 +236,25 @@ export class MessageProcessor implements IMessageProcessor {
                     this._createInvitePermissionDeniedDraft(message);
                 }
             } else {
-                // Always populate followers map (needed for post notification recipients)
-                const followerEmail = this._applyInviteFollowerState(message);
-                if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
-                    this._createInviteDraft(message, followerEmail);
+                const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+                if (!hostAccount) {
+                    // No account yet: reply with fatal error
+                    if (!this._hasInviteAddfollowerFatalResponseForHost()) {
+                        this._createInviteFatalDraft(message);
+                    }
+                } else {
+                    // Always populate followers map (needed for post notification recipients)
+                    const followerEmail = this._applyInviteFollowerState(message);
+                    if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
+                        this._createInviteDraft(message, followerEmail);
+                    }
                 }
             }
         } else if (body.startsWith('$ invite')) {
             // invite without --addfollower: requires a host user account
             if (fromHost) {
                 const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
-                if (!hostAccount && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
+                if (!hostAccount && !this._hasInviteFatalResponseForHost()) {
                     this._createInviteFatalDraft(message);
                 }
             }
@@ -314,6 +356,9 @@ export class MessageProcessor implements IMessageProcessor {
         const helpBody = `$ help
 friendlymail: friendlymail, version ${VERSION}
 These shell commands are defined internally.  Type \`$ help' to see this list.
+
+Type \`$ adduser' to create an account and start using friendlymail.
+
 Type \`$ help adduser' to find out more about the function \`adduser'.
 
 $ help: mailto:${hostEmail}?subject=Fm&body=%24%20help

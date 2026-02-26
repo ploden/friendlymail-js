@@ -1,0 +1,8 @@
+From: [host]
+To: [host]
+Subject: fm
+Date: Fri, 11 Feb 2022 14:19:42 +0100
+
+$ adduser
+
+Phil
