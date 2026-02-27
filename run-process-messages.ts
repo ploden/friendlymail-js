@@ -31,6 +31,50 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 
+const SIMULATOR_SENT_DIR = path.join(__dirname, 'simulator', 'sent');
+const SIMULATOR_RECEIVED_DIR = path.join(__dirname, 'simulator', 'received');
+
+/**
+ * Clear and recreate the simulator output directories.
+ */
+function clearSimulatorDirs(): void {
+    for (const dir of [SIMULATOR_SENT_DIR, SIMULATOR_RECEIVED_DIR]) {
+        if (fs.existsSync(dir)) {
+            for (const file of fs.readdirSync(dir)) {
+                fs.unlinkSync(path.join(dir, file));
+            }
+        } else {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+    }
+}
+
+/**
+ * Write a message to a simulator directory.
+ * Writes a .txt file with headers and plain text body.
+ * If an HTML part is present, also writes a .html file.
+ */
+function writeSimulatorMessage(
+    dir: string,
+    index: number,
+    msg: { from: EmailAddress | null; to: EmailAddress[]; subject: string; body: string; html?: string; date: Date; xFriendlymail?: string }
+): void {
+    const lines: string[] = [];
+    lines.push(`From: ${msg.from?.toString() ?? '(none)'}`);
+    lines.push(`To: ${msg.to.map(a => a.toString()).join(', ')}`);
+    lines.push(`Subject: ${msg.subject}`);
+    lines.push(`Date: ${msg.date.toUTCString()}`);
+    if (msg.xFriendlymail !== undefined) {
+        lines.push(`X-friendlymail: ${msg.xFriendlymail}`);
+    }
+    lines.push('');
+    lines.push(msg.body);
+    fs.writeFileSync(path.join(dir, `${index}.txt`), lines.join('\n'));
+    if (msg.html) {
+        fs.writeFileSync(path.join(dir, `${index}.html`), msg.html);
+    }
+}
+
 /**
  * Parse command-line arguments
  */
@@ -265,12 +309,15 @@ function applyPlaceholders(content: string, hostEmailAddress: EmailAddress, host
 }
 
 /**
- * Run the daemon and print any messages sent during the run
+ * Run the daemon, print any messages sent during the run, and write them to the simulator sent directory.
  */
-async function runDaemon(daemon: Daemon, provider: TestMessageProvider): Promise<void> {
+async function runDaemon(daemon: Daemon, provider: TestMessageProvider, simState: { sentIndex: number }): Promise<void> {
     const sentOffset = provider.sentMessages.length;
     await daemon.run();
     printSentMessages(provider, sentOffset);
+    provider.sentMessages.slice(sentOffset).forEach(msg => {
+        writeSimulatorMessage(SIMULATOR_SENT_DIR, simState.sentIndex++, msg);
+    });
 }
 
 async function main() {
@@ -298,7 +345,10 @@ async function main() {
         process.exit(1);
     }
 
+    clearSimulatorDirs();
+
     const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);
+    const simState = { sentIndex: 1, receivedIndex: 1 };
 
     if (messageFiles.length > 0) {
         // Non-interactive: load explicit files, run the daemon once, show results
@@ -310,12 +360,13 @@ async function main() {
             const raw = await fs.promises.readFile(filePath, 'utf8');
             const content = applyPlaceholders(raw, hostEmailAddress, hostName);
             await provider.loadFromString(content);
+            fs.writeFileSync(path.join(SIMULATOR_RECEIVED_DIR, `${simState.receivedIndex++}.txt`), content);
         }
-        await runDaemon(daemon, provider);
+        await runDaemon(daemon, provider, simState);
     } else {
         // Interactive mode
         // Initial run with empty store; the Daemon creates and sends the welcome message
-        await runDaemon(daemon, provider);
+        await runDaemon(daemon, provider, simState);
 
         const txtFiles = getTxtFiles(baseDir);
         printTxtFiles(txtFiles);
@@ -362,11 +413,12 @@ async function main() {
                         const raw = await fs.promises.readFile(filePath, 'utf8');
                         const content = applyPlaceholders(raw, hostEmailAddress, hostName);
                         await provider.loadFromString(content);
-                        await runDaemon(daemon, provider);
+                        fs.writeFileSync(path.join(SIMULATOR_RECEIVED_DIR, `${simState.receivedIndex++}.txt`), content);
+                        await runDaemon(daemon, provider, simState);
                     }
                 }
             } else if (trimmed === 'run' || trimmed === 'send') {
-                await runDaemon(daemon, provider);
+                await runDaemon(daemon, provider, simState);
             } else if (trimmed.startsWith('send ')) {
                 // send "mailto:..." — simulate a message from the host via a mailto URL
                 const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
@@ -385,7 +437,8 @@ async function main() {
                             parsed.body
                         );
                         await provider.loadMessage(message);
-                        await runDaemon(daemon, provider);
+                        writeSimulatorMessage(SIMULATOR_RECEIVED_DIR, simState.receivedIndex++, message);
+                        await runDaemon(daemon, provider, simState);
                     }
                 }
             } else if (trimmed.startsWith('show ')) {
