@@ -228,3 +228,42 @@ Kath L:
 friendlymail, an open-source, email-based, alternative social network
 
 ```
+
+
+Step: The user again sends a create post message containing the text "Hello, world" as the post:
+
+Result: Message sent to host user (phil@test.com):
+```
+From: Phil L <phil@test.com>
+Subject: friendlymail: New post from Phil L
+To: Phil L <phil@test.com>
+X-friendlymail: {"messageType":"new_post_notification"}
+
+Phil L --> posted:
+
+"Hello, world"
+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Result: Message sent to follower (kath@test.com):
+```
+From: Phil L <phil@test.com>
+Subject: friendlymail: New post from Phil L
+To: Kath L <kath@test.com>
+X-friendlymail: {"messageType":"new_post_notification"}
+
+Phil L --> posted:
+
+"Hello, world"
+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+
+friendlymail, an open-source, email-based, alternative social network
+
+```

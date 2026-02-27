@@ -1,6 +1,6 @@
 import { IMailProvider } from './MailProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
-import { SimpleMessage } from './SimpleMessage';
+import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId';
 
 /**
  * Interface for TestMessageProvider used for testing and in the simulator.
@@ -18,7 +18,7 @@ export interface ITestMessageProvider extends IMailProvider {
      * Load message. After the message has been loaded,
      * it will be returned on the next call to getMessages().
      */
-    loadMessage(message: SimpleMessage): Promise<void>;
+    loadMessage(message: SimpleMessageWithMessageId): Promise<void>;
 
     /**
      * Load messages from a file. After the file has been loaded,

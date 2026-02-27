@@ -1,2 +1,20 @@
 reset the context for this session, read README.md, and read README_for_sdev_agent.md and use as the prompt for this session.
 reset the context for this session, read README.md, and read README_for_sdet_agent.md and use as the prompt for this session.
+
+add the messages to test_permissions_scenario.md that should be sent and received as part of each step and result. reference README.md for examples.
+create tests based on the scenario in create_post_scenario.constant.md
+
+Your administrator account is 'admin' with password 'xxfkrKry44'.
+
+Account created: phil@test.com / password: friendlymail
+
+Stalwart ports:
+- SMTP: localhost:25 (or localhost:587 for submission)
+- IMAP: localhost:143
+
+Run the daemon:
+npm run daemon -- --host-email phil@test.com --smtp-port 587 --smtp-user phil --smtp-pass friendlymail --imap-user phil --imap-pass friendlymail
+
+Thunderbird settings:
+- Incoming: IMAP, localhost, port 143, no TLS, username phil, password friendlymail
+- Outgoing: SMTP, localhost, port 587, no TLS, username phil, password friendlymail

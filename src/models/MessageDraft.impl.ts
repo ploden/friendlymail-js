@@ -1,21 +1,19 @@
 import { EmailAddress } from './EmailAddress.impl';
-import { SimpleMessage } from './SimpleMessage';
+import { SimpleMessage } from './SimpleMessage.impl';
 import { IMessageDraft, IMessageDraftStatic } from './MessageDraft.interface';
 import { FriendlymailMessageType } from './FriendlymailMessageType';
 import { decodeQuotedPrintable } from '../utils/quotedPrintable';
 
 /**
  * Represents a draft email message that may be incomplete or unsent.
- * Allows for partial data unlike EmailMessage which requires all fields.
+ * Extends SimpleMessage with draft-specific fields such as cc, bcc,
+ * message type, and reply tracking. The from field may be null when the
+ * sender has not yet been assigned.
  */
-export class MessageDraft implements IMessageDraft {
-    private _from: EmailAddress | null;
-    private _to: EmailAddress[];
+export class MessageDraft extends SimpleMessage implements IMessageDraft {
     private _cc: EmailAddress[];
     private _bcc: EmailAddress[];
-    private _subject: string;
-    private _body: string;
-    private _html?: string;
+    private _inReplyTo?: string;
     private _attachments: string[];
     private _isHtml: boolean;
     private _priority: 'high' | 'normal' | 'low';
@@ -32,6 +30,7 @@ export class MessageDraft implements IMessageDraft {
             cc?: EmailAddress[];
             bcc?: EmailAddress[];
             html?: string;
+            inReplyTo?: string;
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
@@ -40,11 +39,8 @@ export class MessageDraft implements IMessageDraft {
             updatedAt?: Date;
         } = {}
     ) {
-        this._from = from;
-        this._to = [...to];
-        this._subject = subject;
-        this._body = body;
-        this._html = options.html;
+        super(from, to, subject, body, new Date(), undefined, options.html);
+        this._inReplyTo = options.inReplyTo;
         this._cc = options.cc ? [...options.cc] : [];
         this._bcc = options.bcc ? [...options.bcc] : [];
         this._attachments = options.attachments ? [...options.attachments] : [];
@@ -55,12 +51,23 @@ export class MessageDraft implements IMessageDraft {
         this._updatedAt = options.updatedAt || new Date();
     }
 
-    get from(): EmailAddress | null {
+    // Re-declare getters for properties that also have setters, so TypeScript
+    // keeps both accessor definitions in the same class.
+
+    override get from(): EmailAddress | null {
         return this._from;
     }
 
-    get to(): EmailAddress[] {
+    override get to(): EmailAddress[] {
         return [...this._to];
+    }
+
+    override get subject(): string {
+        return this._subject;
+    }
+
+    override get body(): string {
+        return this._body;
     }
 
     get cc(): EmailAddress[] {
@@ -71,17 +78,14 @@ export class MessageDraft implements IMessageDraft {
         return [...this._bcc];
     }
 
-    get subject(): string {
-        return this._subject;
-    }
-
-    get body(): string {
-        return this._body;
-    }
-
     /** Optional HTML part of the message (text/html alternative to body). */
-    get html(): string | undefined {
+    override get html(): string | undefined {
         return this._html;
+    }
+
+    /** messageId of the incoming message this draft is replying to. */
+    get inReplyTo(): string | undefined {
+        return this._inReplyTo;
     }
 
     get attachments(): string[] {

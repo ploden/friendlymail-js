@@ -14,6 +14,8 @@ export interface IMessageDraft {
     readonly body: string;
     /** Optional HTML part of the message (text/html alternative to body). */
     readonly html?: string;
+    /** messageId of the incoming message this draft is replying to. */
+    readonly inReplyTo?: string;
     readonly attachments: string[];
     readonly isHtml: boolean;
     readonly priority: 'high' | 'normal' | 'low';

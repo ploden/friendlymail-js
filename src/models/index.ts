@@ -5,6 +5,7 @@ export * from './Comment';
 export * from './MessageDraft';
 export * from './FriendlymailMessageType';
 export * from './SimpleMessage';
+export * from './SimpleMessageWithMessageId';
 export * from './MessageSender';
 export * from './MessageReceiver';
 export * from './MailProvider';

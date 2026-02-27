@@ -5,18 +5,19 @@ import { ISimpleMessage } from './SimpleMessage.interface';
  * Implementation of the most basic message type.
  * Includes attributes for From, To, Subject, message body, and Date.
  * Can also include an optional X-friendlymail value for the email header.
+ * Fields are protected to allow subclasses (e.g. MessageDraft) to mutate them.
  */
 export class SimpleMessage implements ISimpleMessage {
-    private _from: EmailAddress;
-    private _to: EmailAddress[];
-    private _subject: string;
-    private _body: string;
-    private _html?: string;
-    private _date: Date;
-    private _xFriendlymail?: string;
+    protected _from: EmailAddress | null;
+    protected _to: EmailAddress[];
+    protected _subject: string;
+    protected _body: string;
+    protected _html?: string;
+    protected _date: Date;
+    protected _xFriendlymail?: string;
 
     constructor(
-        from: EmailAddress,
+        from: EmailAddress | null,
         to: EmailAddress[],
         subject: string,
         body: string,
@@ -33,7 +34,7 @@ export class SimpleMessage implements ISimpleMessage {
         this._xFriendlymail = xFriendlymail;
     }
 
-    get from(): EmailAddress {
+    get from(): EmailAddress | null {
         return this._from;
     }
 
