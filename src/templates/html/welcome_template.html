@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to friendlymail!</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0a0a0a;">
+
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         style="background-color:#0a0a0a;">
+    <tr>
+      <td align="center" style="padding:30px 12px;">
+
+        <!-- Terminal window -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+               style="width:100%;max-width:600px;background-color:#0d1117;border-radius:10px;border:1px solid #30363d;">
+
+          <!-- Title bar -->
+          <tr>
+            <td style="background-color:#161b22;padding:12px 16px;border-bottom:1px solid #30363d;border-radius:10px 10px 0 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="64" style="white-space:nowrap;">
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#ff5f57;border-radius:50%;vertical-align:middle;"></span>
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#febc2e;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#28c840;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>
+                  </td>
+                  <td align="center"
+                      style="color:#8b949e;font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1;">
+                    friendlymail &mdash; bash
+                  </td>
+                  <td width="64"></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Terminal body -->
+          <tr>
+            <td style="padding:28px 28px 24px 28px;">
+
+              <!-- ASCII art logo — 62 chars wide; scales down on narrow viewports -->
+              <div style="overflow-x:auto;margin:0 0 18px 0;">
+                <pre style="color:#39d353;font-family:'Courier New',Courier,monospace;font-size:11px;line-height:1.45;margin:0;white-space:pre;">   __      _                _ _                       _ _
+  / _|    (_)              | | |                     (_) |
+ | |_ _ __ _  ___ _ __   __| | |_   _ _ __ ___   __ _ _| |
+ |  _| '__| |/ _ \ '_ \ / _` | | | | | '_ ` _ \ / _` | | |
+ | | | |  | |  __/ | | | (_| | | |_| | | | | | | (_| | | |
+ |_| |_|  |_|\___|_| |_|\__,_|_|\__, |_| |_| |_|\__,_|_|_|
+                                 __/ |
+                                |___/</pre>
+              </div>
+
+              <!-- Version -->
+              <p style="color:#39d353;font-family:'Courier New',Courier,monospace;font-size:14px;margin:0 0 6px 0;">
+                friendlymail {{ version }}
+              </p>
+
+              <!-- Prompt line -->
+              <p style="color:#8b949e;font-family:'Courier New',Courier,monospace;font-size:13px;margin:0 0 28px 0;">
+                <span style="color:#39d353;">$</span>&nbsp;_
+              </p>
+
+              <!-- Output text -->
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.7;margin:0 0 28px 0;">
+                Reply to this message with &ldquo;$ help&rdquo; for more information.
+              </p>
+
+              <!-- $ help button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 32px 0;">
+                <tr>
+                  <td style="border-radius:5px;background-color:#39d353;">
+                    <a href="mailto:{{ host_email }}?subject=Fm&amp;body=%24%20help"
+                       style="display:inline-block;padding:11px 26px;color:#0d1117;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;text-decoration:none;white-space:nowrap;">
+                      $ help
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                     style="margin-bottom:20px;">
+                <tr>
+                  <td style="border-top:1px solid #21262d;height:1px;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <!-- Signature -->
+              <p style="color:#484f58;font-family:'Courier New',Courier,monospace;font-size:11px;margin:0;line-height:1.5;">
+                {{ signature }}
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
