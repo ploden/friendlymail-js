@@ -1,2 +1,6 @@
 tests/scenarios/**/sent/
 tests/scenarios/**/received/
+simulator/sent/*
+!simulator/sent/.gitkeep
+simulator/received/*
+!simulator/received/.gitkeep
