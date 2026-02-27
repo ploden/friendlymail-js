@@ -16,8 +16,6 @@ export class MessageProcessor implements IMessageProcessor {
     private _drafts: MessageDraft[];
     private _sentMessages: SimpleMessage[];
     private socialNetworks: Map<string, SocialNetwork>;
-    private following: Map<string, Set<string>>;
-    private followers: Map<string, Set<string>>;
 
     constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessage[] = []) {
         this._hostEmailAddress = hostEmailAddress;
@@ -25,8 +23,6 @@ export class MessageProcessor implements IMessageProcessor {
         this._drafts = [];
         this._sentMessages = [];
         this.socialNetworks = new Map();
-        this.following = new Map();
-        this.followers = new Map();
 
         if (this.shouldCreateWelcomeMessageDraft()) {
             this.createWelcomeMessageDraftForHost();
@@ -138,8 +134,7 @@ export class MessageProcessor implements IMessageProcessor {
 
     /** Returns true if the given address is a follower of the host. */
     private _isFollower(email: EmailAddress): boolean {
-        const hostEmail = this._hostEmailAddress.toString();
-        return this.followers.get(hostEmail)?.has(email.toString()) ?? false;
+        return this.socialNetworks.get(this._hostEmailAddress.toString())?.isFollowedByEmail(email.toString()) ?? false;
     }
 
     /**
@@ -301,8 +296,7 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         const user = new User(username, fromEmail);
-        const socialNetwork = new SocialNetwork(user);
-        this.socialNetworks.set(fromEmail.toString(), socialNetwork);
+        this.socialNetworks.set(fromEmail.toString(), new SocialNetwork(user));
 
         return user;
     }
@@ -429,12 +423,7 @@ ${SIGNATURE}`;
         }
 
         const followerEmail = match[1].trim();
-        const hostEmail = this._hostEmailAddress.toString();
-
-        if (!this.followers.has(hostEmail)) {
-            this.followers.set(hostEmail, new Set());
-        }
-        this.followers.get(hostEmail)!.add(followerEmail);
+        this.socialNetworks.get(this._hostEmailAddress.toString())?.addFollowerEmail(followerEmail);
 
         return followerEmail;
     }
@@ -566,7 +555,7 @@ ${SIGNATURE}`;
 
         const postBody = postMessage.body.trim();
         const hostEmail = this._hostEmailAddress.toString();
-        const followerEmails = Array.from(this.followers.get(hostEmail) || new Set<string>());
+        const followerEmails = this.socialNetworks.get(hostEmail)?.getFollowerEmails() ?? [];
 
         const base64Id = Buffer.from(`<post:${postBody.substring(0, 20)}>`).toString('base64');
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
@@ -703,67 +692,52 @@ ${SIGNATURE}`;
             return;
         }
 
-        if (!this.following.has(followerEmail)) {
-            this.following.set(followerEmail, new Set());
-        }
-        if (!this.followers.has(followeeEmail)) {
-            this.followers.set(followeeEmail, new Set());
-        }
-
-        this.following.get(followerEmail)!.add(followeeEmail);
-        this.followers.get(followeeEmail)!.add(followerEmail);
+        this.socialNetworks.get(followerEmail)?.addFollowingEmail(followeeEmail);
+        this.socialNetworks.get(followeeEmail)?.addFollowerEmail(followerEmail);
     }
 
     unfollow(follower: User, followee: User): void {
         const followerEmail = follower.email.toString();
         const followeeEmail = followee.email.toString();
 
-        this.following.get(followerEmail)?.delete(followeeEmail);
-        this.followers.get(followeeEmail)?.delete(followeeEmail);
+        this.socialNetworks.get(followerEmail)?.removeFollowingEmail(followeeEmail);
+        this.socialNetworks.get(followeeEmail)?.removeFollowerEmail(followerEmail);
     }
 
     getFollowing(account: User): User[] {
-        const email = account.email.toString();
-        const followingEmails = this.following.get(email) || new Set();
-        return Array.from(followingEmails)
+        const sn = this.socialNetworks.get(account.email.toString());
+        return (sn?.getFollowingEmails() ?? [])
             .map(e => this.getAccountByEmail(e))
             .filter((a): a is User => a !== null);
     }
 
     getFollowers(account: User): User[] {
-        const email = account.email.toString();
-        const followerEmails = this.followers.get(email) || new Set();
-        return Array.from(followerEmails)
+        const sn = this.socialNetworks.get(account.email.toString());
+        return (sn?.getFollowerEmails() ?? [])
             .map(e => this.getAccountByEmail(e))
             .filter((a): a is User => a !== null);
     }
 
     isFollowing(follower: User, followee: User): boolean {
-        const followerEmail = follower.email.toString();
-        const followeeEmail = followee.email.toString();
-        return this.following.get(followerEmail)?.has(followeeEmail) || false;
+        return this.socialNetworks.get(follower.email.toString())?.isFollowingEmail(followee.email.toString()) ?? false;
     }
 
     isFollowedBy(followee: User, follower: User): boolean {
-        const followerEmail = follower.email.toString();
-        const followeeEmail = followee.email.toString();
-        return this.followers.get(followeeEmail)?.has(followerEmail) || false;
+        return this.socialNetworks.get(followee.email.toString())?.isFollowedByEmail(follower.email.toString()) ?? false;
     }
 
     // ── Account accessors ──────────────────────────────────────────────────────
 
     addAccount(account: User): void {
-        const socialNetwork = new SocialNetwork(account);
-        this.socialNetworks.set(account.email.toString(), socialNetwork);
+        this.socialNetworks.set(account.email.toString(), new SocialNetwork(account));
     }
 
     getAccountByEmail(email: string): User | null {
-        const socialNetwork = this.socialNetworks.get(email);
-        return socialNetwork?.getUser() || null;
+        return this.socialNetworks.get(email)?.getUser() || null;
     }
 
     getAllAccounts(): User[] {
-        return Array.from(this.socialNetworks.values()).map(network => network.getUser());
+        return Array.from(this.socialNetworks.values()).map(n => n.getUser());
     }
 
     // ── Message accessors ──────────────────────────────────────────────────────
@@ -826,12 +800,8 @@ ${SIGNATURE}`;
         return grouped;
     }
 
-    getSocialNetwork(email: string): SocialNetwork | undefined {
-        return this.socialNetworks.get(email);
-    }
-
-    getAllSocialNetworks(): SocialNetwork[] {
-        return Array.from(this.socialNetworks.values());
+    getHostSocialNetwork(): SocialNetwork | null {
+        return this.socialNetworks.get(this._hostEmailAddress.toString()) || null;
     }
 
     // ── Welcome deduplication ──────────────────────────────────────────────────
