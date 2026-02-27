@@ -55,7 +55,8 @@ export class TestMessageProvider implements ITestMessageProvider {
             draft.subject,
             draft.body,
             new Date(),
-            xFriendlymail
+            xFriendlymail,
+            draft.html
         );
         this._sentMessages.push(message);
         this._messages.push(message);

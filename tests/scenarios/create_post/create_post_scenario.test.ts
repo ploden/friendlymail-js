@@ -599,10 +599,16 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         localProvider.sentMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(sentDir, `${index + 1}.txt`), formatMessage(message));
+            if (message.html) {
+                fs.writeFileSync(path.join(sentDir, `${index + 1}.html`), message.html);
+            }
         });
 
         receivedMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(receivedDir, `${index + 1}.txt`), formatMessage(message));
+            if (message.html) {
+                fs.writeFileSync(path.join(receivedDir, `${index + 1}.html`), message.html);
+            }
         });
     });
 
