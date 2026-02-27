@@ -15,7 +15,8 @@
         "src/**/*",
         "tests/**/*",
         "EmailMessage.ts",
-        "run-process-messages.ts"
+        "run-process-messages.ts",
+        "run-daemon.ts"
     ],
     "exclude": [
         "node_modules",
