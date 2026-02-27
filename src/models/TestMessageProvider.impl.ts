@@ -1,7 +1,7 @@
 import { ITestMessageProvider } from './TestMessageProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
 import { MessageDraft } from './MessageDraft.impl';
-import { SimpleMessage } from './SimpleMessage';
+import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 import * as fs from 'fs';
 
@@ -13,8 +13,8 @@ import * as fs from 'fs';
  */
 export class TestMessageProvider implements ITestMessageProvider {
     private _hostAddress: EmailAddress;
-    private _messages: SimpleMessage[];
-    private _sentMessages: SimpleMessage[];
+    private _messages: SimpleMessageWithMessageId[];
+    private _sentMessages: SimpleMessageWithMessageId[];
 
     constructor(hostAddress: EmailAddress) {
         this._hostAddress = hostAddress;
@@ -26,15 +26,16 @@ export class TestMessageProvider implements ITestMessageProvider {
         return this._hostAddress;
     }
 
-    get sentMessages(): ReadonlyArray<SimpleMessage> {
+    get sentMessages(): ReadonlyArray<SimpleMessageWithMessageId> {
         return [...this._sentMessages];
     }
 
     /**
      * Send a draft message.
-     * Builds a SimpleMessage from the draft, including the X-friendlymail header,
-     * and makes it available on the next call to getMessages().
-     * Also stores the message in sentMessages for testing verification.
+     * Builds a SimpleMessageWithMessageId from the draft, including the
+     * X-friendlymail header, and makes it available on the next call to
+     * getMessages(). Also stores the message in sentMessages for testing
+     * verification.
      * @param draft The draft message to send
      */
     async sendDraft(draft: MessageDraft): Promise<void> {
@@ -42,10 +43,13 @@ export class TestMessageProvider implements ITestMessageProvider {
         if (!draft.isReadyToSend()) {
             throw new Error('Draft is not ready to send');
         }
-        const xFriendlymail = draft.messageType !== null
-            ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
+        const meta: Record<string, string> = {};
+        if (draft.messageType !== null) meta.messageType = draft.messageType;
+        if (draft.inReplyTo) meta.inReplyTo = draft.inReplyTo;
+        const xFriendlymail = Object.keys(meta).length > 0
+            ? encodeQuotedPrintable(JSON.stringify(meta))
             : undefined;
-        const message = new SimpleMessage(
+        const message = new SimpleMessageWithMessageId(
             draft.from!,
             draft.to,
             draft.subject,
@@ -60,9 +64,9 @@ export class TestMessageProvider implements ITestMessageProvider {
     /**
      * Retrieve loaded messages. Each message is returned only once;
      * messages are cleared after being returned.
-     * @returns Promise that resolves to an array of SimpleMessage objects
+     * @returns Promise that resolves to an array of SimpleMessageWithMessageId objects
      */
-    async getMessages(): Promise<SimpleMessage[]> {
+    async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const messages = [...this._messages];
         this._messages = [];
@@ -70,17 +74,20 @@ export class TestMessageProvider implements ITestMessageProvider {
     }
 
     /**
-     * Load a SimpleMessage. The message will be returned on the next call to getMessages().
-     * @param message The SimpleMessage to load
+     * Load a SimpleMessageWithMessageId. The message will be returned on the
+     * next call to getMessages().
+     * @param message The SimpleMessageWithMessageId to load
      */
-    async loadMessage(message: SimpleMessage): Promise<void> {
+    async loadMessage(message: SimpleMessageWithMessageId): Promise<void> {
         this._messages.push(message);
     }
 
     /**
      * Load messages from a file.
      * Replaces <host_address> placeholders with the host email address.
-     * Parses From, To, Subject, X-friendlymail headers and body into a SimpleMessage.
+     * Parses From, To, Subject, X-friendlymail, and Message-ID headers and body
+     * into a SimpleMessageWithMessageId. If the Message-ID value is [message-id],
+     * a UUID is generated for the messageId field.
      * @param filePath The path to the file to load
      */
     async loadFromFile(filePath: string): Promise<void> {
@@ -91,7 +98,8 @@ export class TestMessageProvider implements ITestMessageProvider {
 
     /**
      * Load a message from a string containing email content.
-     * Parses From, To, Subject, X-friendlymail headers and body into a SimpleMessage.
+     * Parses From, To, Subject, X-friendlymail headers and body into a
+     * SimpleMessageWithMessageId.
      * @param content The email content string to parse
      */
     async loadFromString(content: string): Promise<void> {
@@ -104,6 +112,7 @@ export class TestMessageProvider implements ITestMessageProvider {
         let to: EmailAddress[] = [];
         let subject = '';
         let xFriendlymail: string | undefined;
+        let messageId: string | undefined;
         let inBody = false;
         let body = '';
         let currentHeader = '';
@@ -124,6 +133,11 @@ export class TestMessageProvider implements ITestMessageProvider {
                     break;
                 case 'x-friendlymail':
                     xFriendlymail = value;
+                    break;
+                case 'message-id':
+                    messageId = value === '[message-id]'
+                        ? crypto.randomUUID()
+                        : value.replace(/^<|>$/g, '');
                     break;
             }
         };
@@ -162,14 +176,14 @@ export class TestMessageProvider implements ITestMessageProvider {
             throw new Error(`Missing required email fields in ${source}`);
         }
 
-        this._messages.push(new SimpleMessage(from, to, subject, body, new Date(), xFriendlymail));
+        this._messages.push(new SimpleMessageWithMessageId(from, to, subject, body, new Date(), xFriendlymail, undefined, messageId));
     }
 
     /**
      * Add a message directly (useful for testing)
      * @param message The message to add
      */
-    addMessage(message: SimpleMessage): void {
+    addMessage(message: SimpleMessageWithMessageId): void {
         this._messages.push(message);
     }
 
