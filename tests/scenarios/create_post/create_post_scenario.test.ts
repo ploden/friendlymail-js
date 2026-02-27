@@ -13,6 +13,7 @@ import { Daemon } from '../../../src/models/Daemon';
 import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../../src/models/EmailAddress';
 import { SimpleMessage } from '../../../src/models/SimpleMessage';
+import { SimpleMessageWithMessageId } from '../../../src/models/SimpleMessageWithMessageId';
 import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 import { ISocialNetwork } from '../../../src/models/SocialNetwork';
 
@@ -56,35 +57,35 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
     // ── Message factories ──────────────────────────────────────────────────────
 
-    function helpCommand(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ help');
+    function helpCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', '$ help');
     }
 
-    function adduserCommand(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ adduser');
+    function adduserCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', '$ adduser');
     }
 
-    function inviteAddfollowerCommand(): SimpleMessage {
-        return new SimpleMessage(
+    function inviteAddfollowerCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             hostAddress, [hostAddress], 'Fm',
             `$ invite --addfollower ${FOLLOWER_EMAIL}`
         );
     }
 
-    function createPostMessage(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', 'Hello, world');
+    function createPostMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', 'Hello, world');
     }
 
-    function likeMessage(): SimpleMessage {
-        return new SimpleMessage(
+    function likeMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             followerAddress, [hostAddress],
             'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             '❤️'
         );
     }
 
-    function commentMessage(): SimpleMessage {
-        return new SimpleMessage(
+    function commentMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             followerAddress, [hostAddress],
             'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             'hello, universe!'
@@ -125,6 +126,11 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     async function step7_commentOnPost(): Promise<void> {
         await provider.loadMessage(commentMessage());
         await runDaemon(1);
+    }
+
+    async function step8_createPostAgain(): Promise<void> {
+        await provider.loadMessage(createPostMessage());
+        await runDaemon(2); // sends new post notification to host + to follower
     }
 
     // ── Step 1: friendlymail is attached to a host ─────────────────────────────
@@ -314,7 +320,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
                 (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
             );
             expect(notifications).toHaveLength(2);
-            expect(notifications.every((m: SimpleMessage) => m.from.toString() === HOST_EMAIL)).toBe(true);
+            expect(notifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on the host notification', () => {
@@ -408,6 +414,92 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
     });
 
+    // ── Step 8: The user sends a second create post message ────────────────────
+
+    describe('Step 8: The user again sends a create post message', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+            await step6_likePost();
+            await step7_commentOnPost();
+            await step8_createPostAgain();
+        });
+
+        it('should send exactly ten messages total', () => {
+            expect(provider.sentMessages).toHaveLength(10);
+        });
+
+        it('should send a second new post notification to the host user', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect(notifications).toHaveLength(2);
+        });
+
+        it('should send a second new post notification to the follower', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notifications).toHaveLength(2);
+        });
+
+        it('should send both second notifications from the host address', () => {
+            const allNotifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
+            );
+            expect(allNotifications).toHaveLength(4);
+            expect(allNotifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should set the X-friendlymail header to the new_post_notification type on the second host notification', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect(notifications[1].xFriendlymail)
+                .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
+        });
+
+        it('should set the X-friendlymail header to the new_post_notification type on the second follower notification', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notifications[1].xFriendlymail)
+                .toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
+        });
+
+        it('should include the post content in the second host notification body', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect(notifications[1].body).toContain('Hello, world');
+        });
+
+        it('should include the post content in the second follower notification body', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notifications[1].body).toContain('Hello, world');
+        });
+
+        it('should include the signature in the second host notification body', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect(notifications[1].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
     // ── Output: write sent and received message files ──────────────────────────
 
     afterAll(async () => {
@@ -417,7 +509,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         const localFollower = new EmailAddress(FOLLOWER_EMAIL);
         const localProvider = new TestMessageProvider(localHost);
         const localDaemon = new Daemon(localHost, localProvider, localProvider, makeSocialNetwork());
-        const receivedMessages: SimpleMessage[] = [];
+        const receivedMessages: SimpleMessageWithMessageId[] = [];
 
         async function localRun(numDrafts = 1): Promise<void> {
             const p = localDaemon.run();
@@ -425,12 +517,12 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await p;
         }
 
-        async function receive(message: SimpleMessage): Promise<void> {
+        async function receive(message: SimpleMessageWithMessageId): Promise<void> {
             receivedMessages.push(message);
             await localProvider.loadMessage(message);
         }
 
-        function formatMessage(message: SimpleMessage): string {
+        function formatMessage(message: SimpleMessageWithMessageId): string {
             const lines: string[] = [];
             lines.push(`From: ${message.from.toString()}`);
             lines.push(`To: ${message.to.map((a: EmailAddress) => a.toString()).join(', ')}`);
@@ -447,31 +539,34 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         // Step 1
         await localRun(1);
         // Step 2
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ help'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', '$ help'));
         await localRun(1);
         // Step 3
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
         // Step 4
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite --addfollower ${FOLLOWER_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${FOLLOWER_EMAIL}`));
         await localRun(1);
         // Step 5
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', 'Hello, world'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world'));
         await localRun(2);
         // Step 6
-        await receive(new SimpleMessage(
+        await receive(new SimpleMessageWithMessageId(
             localFollower, [localHost],
             'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             '❤️'
         ));
         await localRun(1);
         // Step 7
-        await receive(new SimpleMessage(
+        await receive(new SimpleMessageWithMessageId(
             localFollower, [localHost],
             'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             'hello, universe!'
         ));
         await localRun(1);
+        // Step 8
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world'));
+        await localRun(2);
 
         jest.useRealTimers();
 
@@ -480,11 +575,11 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         fs.mkdirSync(sentDir, { recursive: true });
         fs.mkdirSync(receivedDir, { recursive: true });
 
-        localProvider.sentMessages.forEach((message: SimpleMessage, index: number) => {
+        localProvider.sentMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(sentDir, `${index + 1}.txt`), formatMessage(message));
         });
 
-        receivedMessages.forEach((message: SimpleMessage, index: number) => {
+        receivedMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(receivedDir, `${index + 1}.txt`), formatMessage(message));
         });
     });

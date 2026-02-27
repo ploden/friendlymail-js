@@ -1,6 +1,6 @@
 import { Daemon } from '../src/models/Daemon';
 import { EmailAddress } from '../src/models/EmailAddress';
-import { SimpleMessage } from '../src/models/SimpleMessage';
+import { SimpleMessageWithMessageId } from '../src/models/SimpleMessageWithMessageId';
 import { IMessageReceiver } from '../src/models/MessageReceiver';
 import { IMessageSender } from '../src/models/MessageSender';
 import { ISocialNetwork } from '../src/models/SocialNetwork';
@@ -12,7 +12,7 @@ const HOST_EMAIL = 'phil@test.com';
 const hostAddress = new EmailAddress(HOST_EMAIL);
 
 /** Create a mock IMessageReceiver that returns the given messages */
-function makeReceiver(messages: SimpleMessage[] = []): jest.Mocked<IMessageReceiver> {
+function makeReceiver(messages: SimpleMessageWithMessageId[] = []): jest.Mocked<IMessageReceiver> {
     return { getMessages: jest.fn().mockResolvedValue(messages) };
 }
 
@@ -97,7 +97,7 @@ describe('Daemon', () => {
         });
 
         it('should add messages fetched from the receiver to the messageStore', async () => {
-            const message = new SimpleMessage(
+            const message = new SimpleMessageWithMessageId(
                 new EmailAddress('kath@test.com'),
                 [hostAddress],
                 'Fm',
@@ -111,8 +111,8 @@ describe('Daemon', () => {
         });
 
         it('should accumulate messages in the messageStore across multiple runs', async () => {
-            const msg1 = new SimpleMessage(new EmailAddress('a@test.com'), [hostAddress], 'Fm', 'one', new Date());
-            const msg2 = new SimpleMessage(new EmailAddress('b@test.com'), [hostAddress], 'Fm', 'two', new Date());
+            const msg1 = new SimpleMessageWithMessageId(new EmailAddress('a@test.com'), [hostAddress], 'Fm', 'one', new Date());
+            const msg2 = new SimpleMessageWithMessageId(new EmailAddress('b@test.com'), [hostAddress], 'Fm', 'two', new Date());
 
             const receiver = makeReceiver();
             receiver.getMessages
@@ -152,7 +152,7 @@ describe('Daemon', () => {
             // After run 1 sends the welcome draft, the post-send getMessages() call must
             // return the sent welcome message so the MessageProcessor on run 2 sees it
             // and does not create another welcome draft.
-            const sentWelcome = new SimpleMessage(
+            const sentWelcome = new SimpleMessageWithMessageId(
                 hostAddress,
                 [hostAddress],
                 'Welcome to friendlymail',

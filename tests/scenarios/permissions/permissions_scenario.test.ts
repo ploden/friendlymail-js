@@ -19,7 +19,7 @@ import * as path from 'path';
 import { Daemon } from '../../../src/models/Daemon';
 import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../../src/models/EmailAddress';
-import { SimpleMessage } from '../../../src/models/SimpleMessage';
+import { SimpleMessageWithMessageId } from '../../../src/models/SimpleMessageWithMessageId';
 import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 import { ISocialNetwork } from '../../../src/models/SocialNetwork';
 
@@ -64,59 +64,59 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
     // ── Message factories ──────────────────────────────────────────────────────
 
-    function nonHostAdduserCommand(): SimpleMessage {
-        return new SimpleMessage(nonHostAddress, [hostAddress], 'Fm', '$ adduser');
+    function nonHostAdduserCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(nonHostAddress, [hostAddress], 'Fm', '$ adduser');
     }
 
-    function hostAdduserCommand(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', '$ adduser');
+    function hostAdduserCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', '$ adduser');
     }
 
-    function hostInviteAddfollowerCommand(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`);
+    function hostInviteAddfollowerCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`);
     }
 
-    function hostInviteCommand(): SimpleMessage {
-        return new SimpleMessage(hostAddress, [hostAddress], 'Fm', `$ invite ${NON_HOST_EMAIL}`);
+    function hostInviteCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', `$ invite ${NON_HOST_EMAIL}`);
     }
 
-    function nonHostInviteAddfollowerCommand(): SimpleMessage {
-        return new SimpleMessage(
+    function nonHostInviteAddfollowerCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             nonHostAddress, [hostAddress], 'Fm',
             `$ invite --addfollower ${THIRD_PARTY_EMAIL}`
         );
     }
 
-    function nonHostFollowShowCommand(): SimpleMessage {
-        return new SimpleMessage(nonHostAddress, [hostAddress], 'Fm', '$ follow --show');
+    function nonHostFollowShowCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(nonHostAddress, [hostAddress], 'Fm', '$ follow --show');
     }
 
-    function nonHostLikeMessage(): SimpleMessage {
-        return new SimpleMessage(
+    function nonHostLikeMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             nonHostAddress, [hostAddress],
             'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             '❤️'
         );
     }
 
-    function nonHostCommentMessage(): SimpleMessage {
-        return new SimpleMessage(
+    function nonHostCommentMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
             nonHostAddress, [hostAddress],
             'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             'hello, universe!'
         );
     }
 
-    function nonHostUnfollowCommand(): SimpleMessage {
-        return new SimpleMessage(nonHostAddress, [hostAddress], 'Fm', `$ unfollow ${THIRD_PARTY_EMAIL}`);
+    function nonHostUnfollowCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(nonHostAddress, [hostAddress], 'Fm', `$ unfollow ${THIRD_PARTY_EMAIL}`);
     }
 
-    function nonHostFollowCommand(): SimpleMessage {
-        return new SimpleMessage(nonHostAddress, [hostAddress], 'Fm', `$ follow ${THIRD_PARTY_EMAIL}`);
+    function nonHostFollowCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(nonHostAddress, [hostAddress], 'Fm', `$ follow ${THIRD_PARTY_EMAIL}`);
     }
 
-    function nonHostCreatePostMessage(): SimpleMessage {
-        return new SimpleMessage(nonHostAddress, [hostAddress], 'Fm', 'hello, world');
+    function nonHostCreatePostMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(nonHostAddress, [hostAddress], 'Fm', 'hello, world');
     }
 
     // ── Background setup helpers (not explicit scenario steps) ─────────────────
@@ -559,7 +559,7 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         const localNonHost = new EmailAddress(NON_HOST_EMAIL);
         const localProvider = new TestMessageProvider(localHost);
         const localDaemon = new Daemon(localHost, localProvider, localProvider, makeSocialNetwork());
-        const receivedMessages: SimpleMessage[] = [];
+        const receivedMessages: SimpleMessageWithMessageId[] = [];
 
         async function localRun(numDrafts = 1): Promise<void> {
             const p = localDaemon.run();
@@ -567,12 +567,12 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
             await p;
         }
 
-        async function receive(message: SimpleMessage): Promise<void> {
+        async function receive(message: SimpleMessageWithMessageId): Promise<void> {
             receivedMessages.push(message);
             await localProvider.loadMessage(message);
         }
 
-        function formatMessage(message: SimpleMessage): string {
+        function formatMessage(message: SimpleMessageWithMessageId): string {
             const lines: string[] = [];
             lines.push(`From: ${message.from.toString()}`);
             lines.push(`To: ${message.to.map((a: EmailAddress) => a.toString()).join(', ')}`);
@@ -589,48 +589,48 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         // setup_attachHost
         await localRun(1);
         // step1: non-host sends adduser
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', '$ adduser'));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
         // step2: host sends invite --addfollower before account
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${NON_HOST_EMAIL}`));
         await localRun(1);
         // step3: host sends invite before account
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', `$ invite ${NON_HOST_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite ${NON_HOST_EMAIL}`));
         await localRun(1);
         // setup_createAccount
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
         // step4: host sends second adduser
-        await receive(new SimpleMessage(localHost, [localHost], 'Fm', '$ adduser'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', '$ adduser'));
         await localRun(1);
         // step5: non-host sends invite --addfollower
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ invite --addfollower ${THIRD_PARTY_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', `$ invite --addfollower ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
         // step6: non-host, non-follower sends follow --show
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', '$ follow --show'));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', '$ follow --show'));
         await localRun(0);
         // step7: non-host, non-follower sends like
-        await receive(new SimpleMessage(
+        await receive(new SimpleMessageWithMessageId(
             localNonHost, [localHost],
             'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             '❤️'
         ));
         await localRun(0);
         // step8: non-host, non-follower sends comment
-        await receive(new SimpleMessage(
+        await receive(new SimpleMessageWithMessageId(
             localNonHost, [localHost],
             'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
             'hello, universe!'
         ));
         await localRun(0);
         // step9: non-host sends unfollow with third-party address
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ unfollow ${THIRD_PARTY_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', `$ unfollow ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
         // step10: non-host sends follow with third-party address
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', `$ follow ${THIRD_PARTY_EMAIL}`));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', `$ follow ${THIRD_PARTY_EMAIL}`));
         await localRun(1);
         // step11: non-host sends create post
-        await receive(new SimpleMessage(localNonHost, [localHost], 'Fm', 'hello, world'));
+        await receive(new SimpleMessageWithMessageId(localNonHost, [localHost], 'Fm', 'hello, world'));
         await localRun(0);
 
         jest.useRealTimers();
@@ -640,11 +640,11 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
         fs.mkdirSync(sentDir, { recursive: true });
         fs.mkdirSync(receivedDir, { recursive: true });
 
-        localProvider.sentMessages.forEach((message: SimpleMessage, index: number) => {
+        localProvider.sentMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(sentDir, `${index + 1}.txt`), formatMessage(message));
         });
 
-        receivedMessages.forEach((message: SimpleMessage, index: number) => {
+        receivedMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             fs.writeFileSync(path.join(receivedDir, `${index + 1}.txt`), formatMessage(message));
         });
     });
