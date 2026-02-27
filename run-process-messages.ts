@@ -26,7 +26,7 @@ import { ISocialNetwork } from './src/models/SocialNetwork';
 import { User } from './src/models/User';
 import { EmailAddress } from './src/models/EmailAddress';
 import { MessageDraft } from './src/models/MessageDraft';
-import { SimpleMessage } from './src/models/SimpleMessage';
+import { SimpleMessageWithMessageId } from './src/models/SimpleMessageWithMessageId';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -378,7 +378,7 @@ async function main() {
                     if (!toAddress) {
                         console.error(`Error: Invalid email address in mailto URL: ${parsed.to}`);
                     } else {
-                        const message = new SimpleMessage(
+                        const message = new SimpleMessageWithMessageId(
                             hostEmailAddress,
                             [toAddress],
                             parsed.subject,

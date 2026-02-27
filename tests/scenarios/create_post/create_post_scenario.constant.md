@@ -231,12 +231,22 @@ friendlymail, an open-source, email-based, alternative social network
 
 
 Step: The user again sends a create post message containing the text "Hello, world" as the post:
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+Message-Id: [message-id]
+
+Hello, world
+
+```
 
 Result: Message sent to host user (phil@test.com):
 ```
 From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
+Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification"}
 
 Phil L --> posted:
@@ -255,6 +265,7 @@ Result: Message sent to follower (kath@test.com):
 From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
+Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification"}
 
 Phil L --> posted:

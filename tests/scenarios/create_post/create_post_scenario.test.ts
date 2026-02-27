@@ -19,6 +19,8 @@ import { ISocialNetwork } from '../../../src/models/SocialNetwork';
 
 const HOST_EMAIL = 'phil@test.com';
 const FOLLOWER_EMAIL = 'kath@test.com';
+const FIRST_POST_MESSAGE_ID = '74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com';
+const FIRST_POST_BASE64_ID = 'PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+';
 
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
     return {
@@ -73,6 +75,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     }
 
     function createPostMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', 'Hello, world', undefined, undefined, undefined, FIRST_POST_MESSAGE_ID);
+    }
+
+    function createSecondPostMessage(): SimpleMessageWithMessageId {
         return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', 'Hello, world');
     }
 
@@ -129,7 +135,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     }
 
     async function step8_createPostAgain(): Promise<void> {
-        await provider.loadMessage(createPostMessage());
+        await provider.loadMessage(createSecondPostMessage());
         await runDaemon(2); // sends new post notification to host + to follower
     }
 
@@ -365,6 +371,22 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             expect(notification!.body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
+
+        it('should include the like link with the correct base64 message id in the host notification body', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect(notification!.body).toContain(FIRST_POST_BASE64_ID);
+        });
+
+        it('should include the like link with the correct base64 message id in the follower notification body', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect(notification!.body).toContain(FIRST_POST_BASE64_ID);
+        });
     });
 
     // ── Step 6: The follower likes the post ────────────────────────────────────
@@ -548,7 +570,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${FOLLOWER_EMAIL}`));
         await localRun(1);
         // Step 5
-        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world'));
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world', undefined, undefined, undefined, FIRST_POST_MESSAGE_ID));
         await localRun(2);
         // Step 6
         await receive(new SimpleMessageWithMessageId(
