@@ -1,0 +1,17 @@
+$ help
+friendlymail: friendlymail, version {{ version }}
+These shell commands are defined internally.  Type `$ help' to see this list.
+
+Type `$ adduser' to create an account and start using friendlymail.
+
+Type `$ help adduser' to find out more about the function `adduser'.
+
+$ help: mailto:{{ host_email }}?subject=Fm&body=%24%20help
+$ adduser: mailto:{{ host_email }}?subject=Fm&body=%24%20adduser
+$ help adduser: mailto:{{ host_email }}?subject=Fm&body=%24%20help%20adduser
+$ invite: mailto:{{ host_email }}?subject=Fm&body=%24%20invite
+$ help invite: mailto:{{ host_email }}?subject=Fm&body=%24%20help%20invite
+$ follow: mailto:{{ host_email }}?subject=Fm&body=%24%20follow
+$ help follow: mailto:{{ host_email }}?subject=Fm&body=%24%20help%20follow
+
+{{ signature }}

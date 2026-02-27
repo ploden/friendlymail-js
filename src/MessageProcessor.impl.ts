@@ -31,6 +31,20 @@ export class MessageProcessor implements IMessageProcessor {
         this._receivedMessages.forEach(message => this.processMessage(message));
     }
 
+    // ── Template loading ───────────────────────────────────────────────────────
+
+    /**
+     * Load a template from src/templates/<subdir>/ and substitute {{ key }} placeholders.
+     */
+    private _loadTemplate(subdir: string, filename: string, vars: Record<string, string>): string {
+        const templatePath = path.join(process.cwd(), 'src', 'templates', subdir, filename);
+        let content = fs.readFileSync(templatePath, 'utf8');
+        for (const [key, value] of Object.entries(vars)) {
+            content = content.split(`{{ ${key} }}`).join(value);
+        }
+        return content.trimEnd();
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
 
     /** Returns true if the subject identifies a friendlymail command message. */
@@ -310,13 +324,9 @@ export class MessageProcessor implements IMessageProcessor {
         const hostEmail = this._hostEmailAddress.toString();
 
         try {
-            const templatePath = path.join(process.cwd(), 'src', 'templates', 'welcome_template.txt');
-            const templateContent = fs.readFileSync(templatePath, 'utf8');
-
-            const body = templateContent
-                .replace('{{ version }}', VERSION)
-                .replace('{{ host_email }}', hostEmail)
-                .replace('{{ signature }}', SIGNATURE);
+            const vars = { version: VERSION, host_email: hostEmail, signature: SIGNATURE };
+            const body = this._loadTemplate('text', 'welcome.txt', vars);
+            const html = this._loadTemplate('html', 'welcome_template.html', vars);
 
             const draft = new MessageDraft(
                 this._hostEmailAddress,
@@ -324,6 +334,7 @@ export class MessageProcessor implements IMessageProcessor {
                 'Welcome to friendlymail!',
                 body,
                 {
+                    html,
                     isHtml: false,
                     priority: 'normal',
                     messageType: FriendlymailMessageType.WELCOME
@@ -347,23 +358,11 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         const hostEmail = this._hostEmailAddress.toString();
-        const helpBody = `$ help
-friendlymail: friendlymail, version ${VERSION}
-These shell commands are defined internally.  Type \`$ help' to see this list.
-
-Type \`$ adduser' to create an account and start using friendlymail.
-
-Type \`$ help adduser' to find out more about the function \`adduser'.
-
-$ help: mailto:${hostEmail}?subject=Fm&body=%24%20help
-$ adduser: mailto:${hostEmail}?subject=Fm&body=%24%20adduser
-$ help adduser: mailto:${hostEmail}?subject=Fm&body=%24%20help%20adduser
-$ invite: mailto:${hostEmail}?subject=Fm&body=%24%20invite
-$ help invite: mailto:${hostEmail}?subject=Fm&body=%24%20help%20invite
-$ follow: mailto:${hostEmail}?subject=Fm&body=%24%20follow
-$ help follow: mailto:${hostEmail}?subject=Fm&body=%24%20help%20follow
-
-${SIGNATURE}`;
+        const helpBody = this._loadTemplate('text', 'help.txt', {
+            version: VERSION,
+            host_email: hostEmail,
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -384,15 +383,11 @@ ${SIGNATURE}`;
      * Create an adduser confirmation reply draft.
      */
     private createAdduserDraft(message: SimpleMessage, username: string, email: string): void {
-        const body = `$ adduser
-Adding friendlymail user with name \`${username}' and email \`${email}' ...
-Done.
-
-To create your first post, reply to this message, or open the link below.
-
-Create post: mailto:${email}?subject=Fm&body=Hello%2C+world
-
-${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'adduser_response.txt', {
+            name: username,
+            email,
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -433,10 +428,10 @@ ${SIGNATURE}`;
      * Only called when no reply has been sent yet.
      */
     private _createInviteDraft(message: SimpleMessage, followerEmail: string): void {
-        const body = `$ invite --addfollower ${followerEmail}
-invite: ${followerEmail} is now following you.
-
-${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'invite_addfollower_response.txt', {
+            follower_email: followerEmail,
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -457,7 +452,7 @@ ${SIGNATURE}`;
      * Create a permission denied reply for an adduser command from a non-host sender.
      */
     private _createAdduserPermissionDeniedDraft(message: SimpleMessage): void {
-        const body = `$ adduser\nadduser: Permission denied\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'adduser_permission_denied.txt', { signature: SIGNATURE });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -472,8 +467,10 @@ ${SIGNATURE}`;
      * Create a fatal error reply when the host sends adduser but a user already exists.
      */
     private _createAdduserFatalDraft(message: SimpleMessage): void {
-        const hostEmail = this._hostEmailAddress.toString();
-        const body = `$ adduser\nadduser: Fatal: a friendlymail user already exists for ${hostEmail}\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'adduser_fatal.txt', {
+            host_email: this._hostEmailAddress.toString(),
+            signature: SIGNATURE,
+        });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -488,7 +485,10 @@ ${SIGNATURE}`;
      * Create a permission denied reply for an invite command from a non-host sender.
      */
     private _createInvitePermissionDeniedDraft(message: SimpleMessage): void {
-        const body = `${message.body.trim()}\ninvite: Permission denied\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'invite_permission_denied.txt', {
+            command: message.body.trim(),
+            signature: SIGNATURE,
+        });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -503,7 +503,10 @@ ${SIGNATURE}`;
      * Create a fatal error reply when the host sends invite without a user account.
      */
     private _createInviteFatalDraft(message: SimpleMessage): void {
-        const body = `${message.body.trim()}\ninvite: Fatal: a friendlymail user account is required for this command.\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'invite_fatal.txt', {
+            command: message.body.trim(),
+            signature: SIGNATURE,
+        });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -518,7 +521,10 @@ ${SIGNATURE}`;
      * Create a permission denied reply for a follow <email> command from a non-host sender.
      */
     private _createFollowPermissionDeniedDraft(message: SimpleMessage): void {
-        const body = `${message.body.trim()}\nfollow: Permission denied\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'follow_permission_denied.txt', {
+            command: message.body.trim(),
+            signature: SIGNATURE,
+        });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -533,7 +539,10 @@ ${SIGNATURE}`;
      * Create a permission denied reply for an unfollow <email> command from a non-host sender.
      */
     private _createUnfollowPermissionDeniedDraft(message: SimpleMessage): void {
-        const body = `${message.body.trim()}\nunfollow: Permission denied\n\n${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'unfollow_permission_denied.txt', {
+            command: message.body.trim(),
+            signature: SIGNATURE,
+        });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
@@ -561,14 +570,13 @@ ${SIGNATURE}`;
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
 
-        const notifBody = `${hostName} --> posted:
-
-"${postBody}"
-
-${likeLink}
-${commentLink}
-
-${SIGNATURE}`;
+        const notifBody = this._loadTemplate('text', 'post_notification.txt', {
+            host_name: hostName,
+            post_body: postBody,
+            like_link: likeLink,
+            comment_link: commentLink,
+            signature: SIGNATURE,
+        });
 
         const subject = `friendlymail: New post from ${hostName}`;
         const recipients: EmailAddress[] = [this._hostEmailAddress];
@@ -606,15 +614,13 @@ ${SIGNATURE}`;
         const hostName = this._displayName(this._hostEmailAddress);
         const postBody = originalPost.body.trim();
 
-        const body = `${senderName} --> liked your post.
-
-${hostName}:
-"${postBody}"
-
-${senderName}:
-"${likeMessage.body.trim()}"
-
-${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'like_notification.txt', {
+            sender_name: senderName,
+            host_name: hostName,
+            post_body: postBody,
+            like_body: likeMessage.body.trim(),
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -649,22 +655,15 @@ ${SIGNATURE}`;
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
 
-        const body = `${senderName} --> commented on your post:
-
-"${commentBody}"
-
-${likeLink}
-${commentLink}
-
-Comment thread:
-
-${hostName}:
-"${postBody}"
-
-${senderName}:
-"${commentBody}"
-
-${SIGNATURE}`;
+        const body = this._loadTemplate('text', 'comment_notification.txt', {
+            sender_name: senderName,
+            host_name: hostName,
+            post_body: postBody,
+            comment_body: commentBody,
+            like_link: likeLink,
+            comment_link: commentLink,
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,

@@ -1,0 +1,8 @@
+{{ host_name }} --> posted:
+
+"{{ post_body }}"
+
+{{ like_link }}
+{{ comment_link }}
+
+{{ signature }}

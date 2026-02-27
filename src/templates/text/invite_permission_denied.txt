@@ -1,0 +1,4 @@
+{{ command }}
+invite: Permission denied
+
+{{ signature }}

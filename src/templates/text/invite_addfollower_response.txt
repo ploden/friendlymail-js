@@ -1,0 +1,4 @@
+$ invite --addfollower {{ follower_email }}
+invite: {{ follower_email }} is now following you.
+
+{{ signature }}

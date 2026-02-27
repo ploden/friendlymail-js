@@ -1,0 +1,4 @@
+$ adduser
+adduser: Fatal: a friendlymail user already exists for {{ host_email }}
+
+{{ signature }}

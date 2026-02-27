@@ -1,0 +1,9 @@
+{{ sender_name }} --> liked your post.
+
+{{ host_name }}:
+"{{ post_body }}"
+
+{{ sender_name }}:
+"{{ like_body }}"
+
+{{ signature }}

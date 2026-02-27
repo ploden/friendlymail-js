@@ -12,6 +12,8 @@ export interface IMessageDraft {
     readonly bcc: EmailAddress[];
     readonly subject: string;
     readonly body: string;
+    /** Optional HTML part of the message (text/html alternative to body). */
+    readonly html?: string;
     readonly attachments: string[];
     readonly isHtml: boolean;
     readonly priority: 'high' | 'normal' | 'low';

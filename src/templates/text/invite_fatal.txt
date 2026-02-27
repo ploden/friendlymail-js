@@ -1,0 +1,4 @@
+{{ command }}
+invite: Fatal: a friendlymail user account is required for this command.
+
+{{ signature }}

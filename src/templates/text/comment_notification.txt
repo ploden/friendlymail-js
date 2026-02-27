@@ -1,0 +1,16 @@
+{{ sender_name }} --> commented on your post:
+
+"{{ comment_body }}"
+
+{{ like_link }}
+{{ comment_link }}
+
+Comment thread:
+
+{{ host_name }}:
+"{{ post_body }}"
+
+{{ sender_name }}:
+"{{ comment_body }}"
+
+{{ signature }}

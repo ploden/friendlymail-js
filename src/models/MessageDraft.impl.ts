@@ -15,6 +15,7 @@ export class MessageDraft implements IMessageDraft {
     private _bcc: EmailAddress[];
     private _subject: string;
     private _body: string;
+    private _html?: string;
     private _attachments: string[];
     private _isHtml: boolean;
     private _priority: 'high' | 'normal' | 'low';
@@ -30,6 +31,7 @@ export class MessageDraft implements IMessageDraft {
         options: {
             cc?: EmailAddress[];
             bcc?: EmailAddress[];
+            html?: string;
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
@@ -42,6 +44,7 @@ export class MessageDraft implements IMessageDraft {
         this._to = [...to];
         this._subject = subject;
         this._body = body;
+        this._html = options.html;
         this._cc = options.cc ? [...options.cc] : [];
         this._bcc = options.bcc ? [...options.bcc] : [];
         this._attachments = options.attachments ? [...options.attachments] : [];
@@ -74,6 +77,11 @@ export class MessageDraft implements IMessageDraft {
 
     get body(): string {
         return this._body;
+    }
+
+    /** Optional HTML part of the message (text/html alternative to body). */
+    get html(): string | undefined {
+        return this._html;
     }
 
     get attachments(): string[] {
