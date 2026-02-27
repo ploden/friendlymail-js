@@ -8,10 +8,9 @@ import { User } from './User.impl';
  */
 export interface IUser {
     readonly id: string;
-    readonly username: string;
+    readonly name: string;
     readonly email: EmailAddress;
-    readonly profilePicture: string;
-    readonly bio: string;
+
     readonly posts: Post[];
     readonly comments: Comment[];
     readonly followers: User[];
@@ -29,9 +28,8 @@ export interface IUser {
     getFollowersCount(): number;
     getFollowingCount(): number;
     updateProfile(updates: {
-        username?: string;
+        name?: string;
         email?: EmailAddress;
-        profilePicture?: string;
-        bio?: string;
+
     }): void;
 }

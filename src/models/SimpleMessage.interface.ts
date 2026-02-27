@@ -10,6 +10,8 @@ export interface ISimpleMessage {
     readonly to: EmailAddress[];
     readonly subject: string;
     readonly body: string;
+    /** Optional HTML part of the message (text/html alternative to body). */
+    readonly html?: string;
     readonly date: Date;
     readonly xFriendlymail?: string;
 }

@@ -225,7 +225,7 @@ export class MessageProcessor implements IMessageProcessor {
                 } else {
                     const account = this.createAccountFromMessage(message);
                     if (account && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, this._hostEmailAddress)) {
-                        this.createAdduserDraft(message, account.username, account.email.toString());
+                        this.createAdduserDraft(message, account.name, account.email.toString());
                     }
                 }
             }
@@ -561,7 +561,7 @@ ${SIGNATURE}`;
     private createPostNotifications(postMessage: SimpleMessage): void {
         const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
         const hostName = hostAccount
-            ? hostAccount.username
+            ? hostAccount.name
             : this._displayName(this._hostEmailAddress);
 
         const postBody = postMessage.body.trim();
