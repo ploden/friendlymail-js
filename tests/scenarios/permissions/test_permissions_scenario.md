@@ -215,3 +215,25 @@ hello, world
 
 ```
 Result: friendlymail does not process the message, does not create a post, and does not respond.
+
+
+Step: The host sends a create post message prior to creating a user account.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+hello, world
+
+```
+Result: friendlymail does does not create a post, and replies with a command not found error.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+friendlymail: command not found: hello, world
+
+friendlymail, an open-source, email-based, alternative social network
+
+```

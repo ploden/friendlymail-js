@@ -13,5 +13,6 @@ export enum FriendlymailMessageType {
     INVITE = 'invite',
     ADDUSER_RESPONSE = 'adduser_response',
     FOLLOW_RESPONSE = 'follow_response',
-    UNFOLLOW_RESPONSE = 'unfollow_response'
+    UNFOLLOW_RESPONSE = 'unfollow_response',
+    COMMAND_NOT_FOUND = 'command_not_found'
 }

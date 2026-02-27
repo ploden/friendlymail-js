@@ -1,4 +1,4 @@
-import { SimpleMessage } from './models/SimpleMessage';
+import { SimpleMessageWithMessageId } from './models/SimpleMessageWithMessageId';
 import { User } from './models/User';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
@@ -12,12 +12,12 @@ import { VERSION, SIGNATURE } from './constants';
 
 export class MessageProcessor implements IMessageProcessor {
     private _hostEmailAddress: EmailAddress;
-    private _receivedMessages: SimpleMessage[];
+    private _receivedMessages: SimpleMessageWithMessageId[];
     private _drafts: MessageDraft[];
-    private _sentMessages: SimpleMessage[];
+    private _sentMessages: SimpleMessageWithMessageId[];
     private socialNetworks: Map<string, SocialNetwork>;
 
-    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessage[] = []) {
+    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessageWithMessageId[] = []) {
         this._hostEmailAddress = hostEmailAddress;
         this._receivedMessages = [...receivedMessages];
         this._drafts = [];
@@ -80,15 +80,18 @@ export class MessageProcessor implements IMessageProcessor {
 
     /**
      * Returns true if a response of the given type has already been sent to the
-     * given recipient (prevents duplicate replies across Daemon run cycles).
+     * given recipient in reply to the specific triggering message (identified by
+     * inReplyTo). Prevents duplicate replies for the same incoming message across
+     * Daemon run cycles without blocking legitimate responses to new messages of
+     * the same type.
      */
-    private _hasResponseOfTypeToRecipient(type: FriendlymailMessageType, recipient: EmailAddress): boolean {
+    private _hasResponseOfTypeToRecipient(type: FriendlymailMessageType, recipient: EmailAddress, inReplyTo: string): boolean {
         return this._receivedMessages.some(msg => {
             if (!msg.xFriendlymail) return false;
             if (!msg.to.some(addr => addr.equals(recipient))) return false;
             try {
                 const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
-                return meta.messageType === type;
+                return meta.messageType === type && meta.inReplyTo === inReplyTo;
             } catch {
                 return false;
             }
@@ -151,26 +154,8 @@ export class MessageProcessor implements IMessageProcessor {
         return this.socialNetworks.get(this._hostEmailAddress.toString())?.isFollowedByEmail(email.toString()) ?? false;
     }
 
-    /**
-     * Returns true if a NEW_POST_NOTIFICATION already exists in the store
-     * whose body contains the given post content (used to prevent re-notifying
-     * for the same post on every run cycle).
-     */
-    private _hasPostNotificationForContent(content: string): boolean {
-        return this._receivedMessages.some(msg => {
-            if (!msg.xFriendlymail) return false;
-            try {
-                const meta = JSON.parse(decodeQuotedPrintable(msg.xFriendlymail));
-                return meta.messageType === FriendlymailMessageType.NEW_POST_NOTIFICATION
-                    && msg.body.includes(content);
-            } catch {
-                return false;
-            }
-        });
-    }
-
     /** Returns all create-post messages from the host (subject Fm, body not a command). */
-    private getCreatePostMessages(): SimpleMessage[] {
+    private getCreatePostMessages(): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(msg =>
             this._isFriendlymailSubject(msg.subject) &&
             msg.from.equals(this._hostEmailAddress) &&
@@ -184,7 +169,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Process a single received message and create at most one draft in response.
      */
-    private processMessage(message: SimpleMessage): void {
+    private processMessage(message: SimpleMessageWithMessageId): void {
         // Skip system-generated messages (replies from friendlymail itself)
         if (message.xFriendlymail) return;
 
@@ -195,7 +180,7 @@ export class MessageProcessor implements IMessageProcessor {
 
         // Like message: "Fm Like ❤️:<base64-message-id>" — followers only
         if (subject.startsWith('Fm Like')) {
-            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_LIKE_NOTIFICATION, this._hostEmailAddress)) {
+            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_LIKE_NOTIFICATION, this._hostEmailAddress, message.messageId)) {
                 this.createLikeNotification(message);
             }
             return;
@@ -203,7 +188,7 @@ export class MessageProcessor implements IMessageProcessor {
 
         // Comment message: "Fm Comment 💬:<base64-message-id>" — followers only
         if (subject.startsWith('Fm Comment')) {
-            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION, this._hostEmailAddress)) {
+            if (fromFollower && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION, this._hostEmailAddress, message.messageId)) {
                 this.createCommentNotification(message);
             }
             return;
@@ -214,14 +199,14 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         if (body === '$ help') {
-            if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.HELP, message.from)) {
+            if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.HELP, message.from, message.messageId)) {
                 this.createHelpMessageDraft(message);
             }
         } else if (body.startsWith('$ adduser')) {
             if (!fromHost) {
                 // Non-host: create account silently, then reply with permission denied
                 this.createAccountFromMessage(message);
-                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, message.from)) {
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, message.from, message.messageId)) {
                     this._createAdduserPermissionDeniedDraft(message);
                 }
             } else {
@@ -233,7 +218,7 @@ export class MessageProcessor implements IMessageProcessor {
                     }
                 } else {
                     const account = this.createAccountFromMessage(message);
-                    if (account && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, this._hostEmailAddress)) {
+                    if (account && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.ADDUSER_RESPONSE, this._hostEmailAddress, message.messageId)) {
                         this.createAdduserDraft(message, account.name, account.email.toString());
                     }
                 }
@@ -241,7 +226,7 @@ export class MessageProcessor implements IMessageProcessor {
         } else if (body.startsWith('$ invite --addfollower')) {
             if (!fromHost) {
                 // Host-only command: reply with permission denied
-                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, message.from)) {
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, message.from, message.messageId)) {
                     this._createInvitePermissionDeniedDraft(message);
                 }
             } else {
@@ -254,7 +239,7 @@ export class MessageProcessor implements IMessageProcessor {
                 } else {
                     // Always populate followers map (needed for post notification recipients)
                     const followerEmail = this._applyInviteFollowerState(message);
-                    if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress)) {
+                    if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress, message.messageId)) {
                         this._createInviteDraft(message, followerEmail);
                     }
                 }
@@ -269,16 +254,21 @@ export class MessageProcessor implements IMessageProcessor {
             }
         } else if (body.startsWith('$ follow ') && !body.startsWith('$ follow --show')) {
             // $ follow <email>: adding a specific follower is host-only
-            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.FOLLOW_RESPONSE, message.from)) {
+            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.FOLLOW_RESPONSE, message.from, message.messageId)) {
                 this._createFollowPermissionDeniedDraft(message);
             }
         } else if (body.startsWith('$ unfollow ')) {
             // $ unfollow <email>: removing a specific follower is host-only
-            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.UNFOLLOW_RESPONSE, message.from)) {
+            if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.UNFOLLOW_RESPONSE, message.from, message.messageId)) {
                 this._createUnfollowPermissionDeniedDraft(message);
             }
         } else if (fromHost && !body.startsWith('$')) {
-            if (!this._hasPostNotificationForContent(body)) {
+            const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+            if (!hostAccount) {
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.COMMAND_NOT_FOUND, this._hostEmailAddress, message.messageId)) {
+                    this._createCommandNotFoundDraft(message);
+                }
+            } else if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_POST_NOTIFICATION, this._hostEmailAddress, message.messageId)) {
                 this.createPostNotifications(message);
             }
         }
@@ -286,7 +276,7 @@ export class MessageProcessor implements IMessageProcessor {
 
     // ── Account management ─────────────────────────────────────────────────────
 
-    createAccountFromMessage(message: SimpleMessage): User | null {
+    createAccountFromMessage(message: SimpleMessageWithMessageId): User | null {
         const fromEmail = message.from;
         if (!fromEmail) {
             console.warn('Cannot create account: missing from email');
@@ -350,7 +340,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a help reply draft in response to a help command.
      */
-    private createHelpMessageDraft(message: SimpleMessage): void {
+    private createHelpMessageDraft(message: SimpleMessageWithMessageId): void {
         const sender = message.from;
         if (!sender) {
             console.warn('Cannot create help message: missing sender');
@@ -370,6 +360,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             helpBody,
             {
+                inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.HELP
@@ -382,7 +373,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create an adduser confirmation reply draft.
      */
-    private createAdduserDraft(message: SimpleMessage, username: string, email: string): void {
+    private createAdduserDraft(message: SimpleMessageWithMessageId, username: string, email: string): void {
         const body = this._loadTemplate('text', 'adduser_response.txt', {
             name: username,
             email,
@@ -395,6 +386,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             body,
             {
+                inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.ADDUSER_RESPONSE
@@ -410,7 +402,7 @@ export class MessageProcessor implements IMessageProcessor {
      * Always called (even when a reply has already been sent) so the followers map stays
      * up to date across Daemon run cycles.
      */
-    private _applyInviteFollowerState(message: SimpleMessage): string | null {
+    private _applyInviteFollowerState(message: SimpleMessageWithMessageId): string | null {
         const match = message.body.match(/\$\s*invite\s+--addfollower\s+(\S+)/);
         if (!match) {
             console.warn('No email found in invite --addfollower command');
@@ -427,7 +419,7 @@ export class MessageProcessor implements IMessageProcessor {
      * Create the confirmation draft reply for an "invite --addfollower" command.
      * Only called when no reply has been sent yet.
      */
-    private _createInviteDraft(message: SimpleMessage, followerEmail: string): void {
+    private _createInviteDraft(message: SimpleMessageWithMessageId, followerEmail: string): void {
         const body = this._loadTemplate('text', 'invite_addfollower_response.txt', {
             follower_email: followerEmail,
             signature: SIGNATURE,
@@ -439,6 +431,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             body,
             {
+                inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.INVITE
@@ -451,14 +444,14 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a permission denied reply for an adduser command from a non-host sender.
      */
-    private _createAdduserPermissionDeniedDraft(message: SimpleMessage): void {
+    private _createAdduserPermissionDeniedDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'adduser_permission_denied.txt', { signature: SIGNATURE });
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
         );
         this._drafts.push(draft);
     }
@@ -466,7 +459,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a fatal error reply when the host sends adduser but a user already exists.
      */
-    private _createAdduserFatalDraft(message: SimpleMessage): void {
+    private _createAdduserFatalDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'adduser_fatal.txt', {
             host_email: this._hostEmailAddress.toString(),
             signature: SIGNATURE,
@@ -476,7 +469,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
         );
         this._drafts.push(draft);
     }
@@ -484,7 +477,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a permission denied reply for an invite command from a non-host sender.
      */
-    private _createInvitePermissionDeniedDraft(message: SimpleMessage): void {
+    private _createInvitePermissionDeniedDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'invite_permission_denied.txt', {
             command: message.body.trim(),
             signature: SIGNATURE,
@@ -494,7 +487,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
         );
         this._drafts.push(draft);
     }
@@ -502,7 +495,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a fatal error reply when the host sends invite without a user account.
      */
-    private _createInviteFatalDraft(message: SimpleMessage): void {
+    private _createInviteFatalDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'invite_fatal.txt', {
             command: message.body.trim(),
             signature: SIGNATURE,
@@ -512,7 +505,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
         );
         this._drafts.push(draft);
     }
@@ -520,7 +513,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a permission denied reply for a follow <email> command from a non-host sender.
      */
-    private _createFollowPermissionDeniedDraft(message: SimpleMessage): void {
+    private _createFollowPermissionDeniedDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'follow_permission_denied.txt', {
             command: message.body.trim(),
             signature: SIGNATURE,
@@ -530,7 +523,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE }
         );
         this._drafts.push(draft);
     }
@@ -538,7 +531,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a permission denied reply for an unfollow <email> command from a non-host sender.
      */
-    private _createUnfollowPermissionDeniedDraft(message: SimpleMessage): void {
+    private _createUnfollowPermissionDeniedDraft(message: SimpleMessageWithMessageId): void {
         const body = this._loadTemplate('text', 'unfollow_permission_denied.txt', {
             command: message.body.trim(),
             signature: SIGNATURE,
@@ -548,7 +541,26 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a "command not found" reply when the host sends a non-command body
+     * without a user account existing.
+     */
+    private _createCommandNotFoundDraft(message: SimpleMessageWithMessageId): void {
+        const body = this._loadTemplate('text', 'command_not_found.txt', {
+            command: message.body.trim(),
+            signature: SIGNATURE,
+        });
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.COMMAND_NOT_FOUND }
         );
         this._drafts.push(draft);
     }
@@ -556,7 +568,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create new post notification drafts for the host user and each follower.
      */
-    private createPostNotifications(postMessage: SimpleMessage): void {
+    private createPostNotifications(postMessage: SimpleMessageWithMessageId): void {
         const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
         const hostName = hostAccount
             ? hostAccount.name
@@ -566,7 +578,7 @@ export class MessageProcessor implements IMessageProcessor {
         const hostEmail = this._hostEmailAddress.toString();
         const followerEmails = this.socialNetworks.get(hostEmail)?.getFollowerEmails() ?? [];
 
-        const base64Id = Buffer.from(`<post:${postBody.substring(0, 20)}>`).toString('base64');
+        const base64Id = Buffer.from(`<${postMessage.messageId}>`).toString('base64');
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
 
@@ -593,6 +605,7 @@ export class MessageProcessor implements IMessageProcessor {
                 subject,
                 notifBody,
                 {
+                    inReplyTo: postMessage.messageId,
                     isHtml: false,
                     priority: 'normal',
                     messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION
@@ -605,7 +618,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a new like notification draft for the host user.
      */
-    private createLikeNotification(likeMessage: SimpleMessage): void {
+    private createLikeNotification(likeMessage: SimpleMessageWithMessageId): void {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
@@ -628,6 +641,7 @@ export class MessageProcessor implements IMessageProcessor {
             `friendlymail: ${senderName} liked your post...`,
             body,
             {
+                inReplyTo: likeMessage.messageId,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.NEW_LIKE_NOTIFICATION
@@ -640,7 +654,7 @@ export class MessageProcessor implements IMessageProcessor {
     /**
      * Create a new comment notification draft for the host user.
      */
-    private createCommentNotification(commentMessage: SimpleMessage): void {
+    private createCommentNotification(commentMessage: SimpleMessageWithMessageId): void {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
@@ -671,6 +685,7 @@ export class MessageProcessor implements IMessageProcessor {
             `friendlymail: New comment from ${senderName}`,
             body,
             {
+                inReplyTo: commentMessage.messageId,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION
@@ -741,33 +756,33 @@ export class MessageProcessor implements IMessageProcessor {
 
     // ── Message accessors ──────────────────────────────────────────────────────
 
-    getAllMessages(): SimpleMessage[] {
+    getAllMessages(): SimpleMessageWithMessageId[] {
         return [...this._receivedMessages];
     }
 
-    getMessagesFrom(sender: EmailAddress): SimpleMessage[] {
+    getMessagesFrom(sender: EmailAddress): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(message => message.from.equals(sender));
     }
 
-    getMessagesTo(recipient: EmailAddress): SimpleMessage[] {
+    getMessagesTo(recipient: EmailAddress): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(message => message.to.some(addr => addr.equals(recipient)));
     }
 
-    getMessagesWithSubject(subject: string): SimpleMessage[] {
+    getMessagesWithSubject(subject: string): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(message => message.subject === subject);
     }
 
-    getMessagesContaining(text: string): SimpleMessage[] {
+    getMessagesContaining(text: string): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(message => message.body.includes(text));
     }
 
-    getMessagesInDateRange(startDate: Date, endDate: Date): SimpleMessage[] {
+    getMessagesInDateRange(startDate: Date, endDate: Date): SimpleMessageWithMessageId[] {
         return this._receivedMessages.filter(message =>
             message.date >= startDate && message.date <= endDate
         );
     }
 
-    removeMessage(message: SimpleMessage): void {
+    removeMessage(message: SimpleMessageWithMessageId): void {
         this._receivedMessages = this._receivedMessages.filter(m => m !== message);
     }
 
@@ -788,8 +803,8 @@ export class MessageProcessor implements IMessageProcessor {
         return Array.from(new Set(recipients));
     }
 
-    getMessagesGroupedBySender(): Map<EmailAddress, SimpleMessage[]> {
-        const grouped = new Map<EmailAddress, SimpleMessage[]>();
+    getMessagesGroupedBySender(): Map<EmailAddress, SimpleMessageWithMessageId[]> {
+        const grouped = new Map<EmailAddress, SimpleMessageWithMessageId[]>();
         for (const message of this._receivedMessages) {
             if (!grouped.has(message.from)) {
                 grouped.set(message.from, []);
@@ -842,7 +857,7 @@ export class MessageProcessor implements IMessageProcessor {
         return this._welcomeMessageExists();
     }
 
-    getSentMessages(): SimpleMessage[] {
+    getSentMessages(): SimpleMessageWithMessageId[] {
         return [...this._sentMessages];
     }
 }
