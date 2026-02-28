@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New post from {{ host_name }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#e9eaed;">
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         style="background-color:#e9eaed;">
+    <tr>
+      <td align="center" style="padding:0 0 30px 0;">
+
+        <!-- Blue nav bar -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="background-color:#3b5998;margin-bottom:18px;">
+          <tr>
+            <td align="center" style="padding:10px 16px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+                     style="width:100%;max-width:520px;">
+                <tr>
+                  <td>
+                    <span style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;letter-spacing:-0.5px;">friendlymail</span>
+                  </td>
+                  <td align="right">
+                    <span style="color:#c8d4e8;font-family:Arial,Helvetica,sans-serif;font-size:12px;">Notifications</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Card -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+               style="width:100%;max-width:520px;">
+          <tr>
+            <td style="padding:0 12px;">
+
+              <!-- News Feed container -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                     style="background-color:#ffffff;border:1px solid #b2b9c8;border-radius:3px;">
+
+                <!-- Section header -->
+                <tr>
+                  <td style="padding:8px 10px;border-bottom:1px solid #c4cad9;background-color:#f2f2f2;border-radius:3px 3px 0 0;">
+                    <p style="margin:0;color:#3b5998;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;">News Feed</p>
+                  </td>
+                </tr>
+
+                <!-- Post item -->
+                <tr>
+                  <td style="padding:10px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td width="50" valign="top">
+                          <!-- Square profile photo placeholder -->
+                          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                            <tr>
+                              <td style="width:50px;height:50px;background-color:#6d84b4;text-align:center;vertical-align:middle;border:1px solid #b2b9c8;">
+                                <span style="display:block;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;line-height:50px;">{{ host_initial }}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td style="padding-left:8px;" valign="top">
+                          <!-- Post bubble -->
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                                 style="background-color:#f2f2f2;border:1px solid #c4cad9;border-radius:3px;">
+                            <tr>
+                              <td style="padding:6px 8px 8px 8px;">
+                                <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.4;">
+                                  <a href="mailto:{{ host_email }}"
+                                     style="color:#3b5998;font-weight:bold;text-decoration:none;">{{ host_name }}</a>
+                                  <span style="color:#333333;"> wrote:</span>
+                                </p>
+                                <p style="margin:0;color:#333333;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;">{{ post_body }}</p>
+                              </td>
+                            </tr>
+                          </table>
+
+                          <!-- Timestamp -->
+                          <p style="margin:3px 0 0 0;color:#999999;font-family:Arial,Helvetica,sans-serif;font-size:11px;">
+                            a few seconds ago &middot;
+                            <a href="{{ like_href }}"
+                               style="color:#3b5998;font-family:Arial,Helvetica,sans-serif;font-size:11px;text-decoration:none;font-weight:bold;">Like</a>
+                            &middot;
+                            <a href="{{ comment_href }}"
+                               style="color:#3b5998;font-family:Arial,Helvetica,sans-serif;font-size:11px;text-decoration:none;font-weight:bold;">Comment</a>
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Signature -->
+                <tr>
+                  <td style="padding:8px 10px;border-top:1px solid #c4cad9;background-color:#f2f2f2;border-radius:0 0 3px 3px;">
+                    <p style="margin:0;color:#999999;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;">{{ signature }}</p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New post from {{ host_name }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#ffffff;">
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         style="background-color:#ffffff;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <!-- Post container -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+               style="width:100%;max-width:500px;">
+
+          <!-- Author row -->
+          <tr>
+            <td style="padding-bottom:10px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="40" valign="top">
+                    <!-- Circular avatar -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="width:40px;height:40px;border-radius:50%;background-color:#f97316;text-align:center;vertical-align:middle;">
+                          <span style="display:block;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:17px;font-weight:600;line-height:40px;">{{ host_initial }}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="padding-left:10px;" valign="top">
+                    <p style="margin:0 0 1px 0;">
+                      <a href="mailto:{{ host_email }}"
+                         style="color:#f97316;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;">{{ host_name }}</a>
+                    </p>
+                    <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">just now</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Post body -->
+          <tr>
+            <td style="padding:0 0 14px 50px;">
+              <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;">{{ post_body }}</p>
+            </td>
+          </tr>
+
+          <!-- Action row -->
+          <tr>
+            <td style="padding:0 0 24px 50px;">
+              <a href="{{ like_href }}"
+                 style="color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;text-decoration:none;">Like</a>
+              <span style="color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;">&nbsp;&middot;&nbsp;</span>
+              <a href="{{ comment_href }}"
+                 style="color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;text-decoration:none;">Reply</a>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="border-top:1px solid #f3f4f6;padding-top:16px;">
+              <p style="margin:0;color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;">{{ signature }}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

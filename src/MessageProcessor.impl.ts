@@ -348,11 +348,9 @@ export class MessageProcessor implements IMessageProcessor {
         }
 
         const hostEmail = this._hostEmailAddress.toString();
-        const helpBody = this._loadTemplate('text', 'help.txt', {
-            version: VERSION,
-            host_email: hostEmail,
-            signature: SIGNATURE,
-        });
+        const vars = { version: VERSION, host_email: hostEmail, signature: SIGNATURE };
+        const helpBody = this._loadTemplate('text', 'help.txt', vars);
+        const helpHtml = this._loadTemplate('html', 'help_template.html', vars);
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -360,6 +358,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             helpBody,
             {
+                html: helpHtml,
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
@@ -581,14 +580,22 @@ export class MessageProcessor implements IMessageProcessor {
         const base64Id = Buffer.from(`<${postMessage.messageId}>`).toString('base64');
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
+        const likeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
+        const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
 
-        const notifBody = this._loadTemplate('text', 'post_notification.txt', {
+        const templateVars = {
             host_name: hostName,
+            host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
             like_link: likeLink,
             comment_link: commentLink,
+            like_href: likeHref,
+            comment_href: commentHref,
             signature: SIGNATURE,
-        });
+        };
+
+        const notifBody = this._loadTemplate('text', 'post_notification.txt', templateVars);
+        const notifHtml = this._loadTemplate('html', 'post_notification_newspaper.html', templateVars);
 
         const subject = `friendlymail: New post from ${hostName}`;
         const recipients: EmailAddress[] = [this._hostEmailAddress];
@@ -605,6 +612,7 @@ export class MessageProcessor implements IMessageProcessor {
                 subject,
                 notifBody,
                 {
+                    html: notifHtml,
                     inReplyTo: postMessage.messageId,
                     isHtml: false,
                     priority: 'normal',
