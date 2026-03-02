@@ -6,4 +6,4 @@ Message-ID: [message-id]
 
 $ adduser
 
-ploden
+[host-name]

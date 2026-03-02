@@ -373,11 +373,9 @@ export class MessageProcessor implements IMessageProcessor {
      * Create an adduser confirmation reply draft.
      */
     private createAdduserDraft(message: SimpleMessageWithMessageId, username: string, email: string): void {
-        const body = this._loadTemplate('text', 'adduser_response.txt', {
-            name: username,
-            email,
-            signature: SIGNATURE,
-        });
+        const vars = { name: username, email, signature: SIGNATURE };
+        const body = this._loadTemplate('text', 'adduser_response.txt', vars);
+        const html = this._loadTemplate('html', 'adduser_template.html', vars);
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -385,6 +383,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             body,
             {
+                html,
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
@@ -585,6 +584,7 @@ export class MessageProcessor implements IMessageProcessor {
 
         const templateVars = {
             host_name: hostName,
+            host_email: hostEmail,
             host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
             like_link: likeLink,
@@ -595,7 +595,7 @@ export class MessageProcessor implements IMessageProcessor {
         };
 
         const notifBody = this._loadTemplate('text', 'post_notification.txt', templateVars);
-        const notifHtml = this._loadTemplate('html', 'post_notification_newspaper.html', templateVars);
+        const notifHtml = this._loadTemplate('html', 'post_notification_microblog.html', templateVars);
 
         const subject = `friendlymail: New post from ${hostName}`;
         const recipients: EmailAddress[] = [this._hostEmailAddress];

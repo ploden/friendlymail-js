@@ -6,4 +6,4 @@ Message-ID: [message-id]
 
 $ adduser
 
-Phil
+[host-name]

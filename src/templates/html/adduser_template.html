@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>friendlymail adduser</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0a0a0a;">
+
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         style="background-color:#0a0a0a;">
+    <tr>
+      <td align="center" style="padding:30px 12px;">
+
+        <!-- Terminal window -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+               style="width:100%;max-width:600px;background-color:#0d1117;border-radius:10px;border:1px solid #30363d;">
+
+          <!-- Title bar -->
+          <tr>
+            <td style="background-color:#161b22;padding:12px 16px;border-bottom:1px solid #30363d;border-radius:10px 10px 0 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="64" style="white-space:nowrap;">
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#ff5f57;border-radius:50%;vertical-align:middle;"></span>
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#febc2e;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>
+                    <span style="display:inline-block;width:13px;height:13px;background-color:#28c840;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>
+                  </td>
+                  <td align="center"
+                      style="color:#8b949e;font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1;">
+                    friendlymail &mdash; bash
+                  </td>
+                  <td width="64"></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Terminal body -->
+          <tr>
+            <td style="padding:28px 28px 24px 28px;">
+
+              <!-- Prompt line -->
+              <p style="color:#39d353;font-family:'Courier New',Courier,monospace;font-size:13px;margin:0 0 18px 0;">
+                $ adduser
+              </p>
+
+              <!-- Output -->
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.7;margin:0 0 4px 0;">
+                Adding friendlymail user with name &lsquo;<span style="color:#39d353;">{{ name }}</span>&rsquo; and email &lsquo;<span style="color:#39d353;">{{ email }}</span>&rsquo; ...
+              </p>
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.7;margin:0 0 20px 0;">
+                Done.
+              </p>
+
+              <!-- Call to action text -->
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.7;margin:0 0 16px 0;">
+                To create your first post, reply to this message, or open the link below.
+              </p>
+
+              <!-- Create post button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:32px;">
+                <tr>
+                  <td style="border-radius:5px;background-color:#0d1117;border:1px solid #39d353;">
+                    <a href="mailto:{{ email }}?subject=Fm&amp;body=Hello%2C+world"
+                       style="display:inline-block;padding:8px 20px;color:#39d353;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;text-decoration:none;white-space:nowrap;">Create post</a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                     style="margin-bottom:20px;">
+                <tr>
+                  <td style="border-top:1px solid #21262d;height:1px;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <!-- Signature -->
+              <p style="color:#484f58;font-family:'Courier New',Courier,monospace;font-size:11px;margin:0;line-height:1.5;">
+                {{ signature }}
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
