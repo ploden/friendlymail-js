@@ -278,3 +278,95 @@ Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1O
 friendlymail, an open-source, email-based, alternative social network
 
 ```
+
+
+Step: The host user sends a second invite command with the addfollower parameter:
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+$ invite --addfollower alice@test.com
+
+```
+
+Result: The address is added as a follower of the host user. friendlymail replies with the following message:
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+X-friendlymail: {"messageType":"invite"}
+
+$ invite --addfollower alice@test.com
+invite: alice@test.com is now following you.
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+
+Step: The user again sends a create post message containing the text "Hi Alice and Kath" as the post:
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+Message-Id: [message-id]
+
+Hi Alice and Kath
+
+```
+
+Result: Message sent to host user (phil@test.com):
+```
+From: Phil L <phil@test.com>
+Subject: friendlymail: New post from Phil L
+To: Phil L <phil@test.com>
+Message-Id: [message-id]
+X-friendlymail: {"messageType":"new_post_notification"}
+
+Phil L --> posted:
+
+"Hi Alice and Kath"
+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Result: Message sent to follower (kath@test.com):
+```
+From: Phil L <phil@test.com>
+Subject: friendlymail: New post from Phil L
+To: Kath L <kath@test.com>
+Message-Id: [message-id]
+X-friendlymail: {"messageType":"new_post_notification"}
+
+Phil L --> posted:
+
+"Hi Alice and Kath"
+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+Result: Message sent to follower (alice@test.com):
+```
+From: Phil L <phil@test.com>
+Subject: friendlymail: New post from Phil L
+To: Kath L <kath@test.com>
+Message-Id: [message-id]
+X-friendlymail: {"messageType":"new_post_notification"}
+
+Phil L --> posted:
+
+"Hi Alice and Kath"
+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+
+friendlymail, an open-source, email-based, alternative social network
