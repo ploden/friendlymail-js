@@ -1,18 +1,11 @@
-import { User } from './User.impl';
-import { Post } from './Post.impl';
+import { IPost } from './Post.interface';
 
 /**
- * Interface for Comment data type
+ * Interface for Comment data type. A Comment is a Post made in reply to another
+ * Post, identified by inReplyTo.
  */
-export interface IComment {
-    readonly id: string;
-    readonly author: User;
-    readonly content: string;
-    readonly post: Post;
-    readonly likes: User[];
-    readonly createdAt: Date;
+export interface IComment extends IPost {
+    readonly inReplyTo: string;
 
-    addLike(user: User): void;
-    removeLike(user: User): void;
     updateContent(newContent: string): void;
 }

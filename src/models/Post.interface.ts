@@ -1,5 +1,5 @@
 import { User } from './User.impl';
-import { Comment } from './Comment.impl';
+import { IComment } from './Comment.interface';
 import { PrivacySetting, PostType } from './types';
 
 /**
@@ -12,13 +12,13 @@ export interface IPost {
     readonly type: PostType;
     readonly mediaUrl: string | undefined;
     readonly likes: User[];
-    readonly comments: Comment[];
+    readonly comments: IComment[];
     readonly privacy: PrivacySetting;
     readonly createdAt: Date;
 
     addLike(user: User): void;
     removeLike(user: User): void;
-    addComment(comment: Comment): void;
+    addComment(comment: IComment): void;
     removeComment(commentId: string): void;
     updatePrivacy(privacy: PrivacySetting): void;
 }

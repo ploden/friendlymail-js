@@ -1,16 +1,16 @@
 import { User } from './User.impl';
-import { Comment } from './Comment.impl';
+import { IComment } from './Comment.interface';
 import { PrivacySetting, PostType } from './types';
 import { IPost } from './Post.interface';
 
 export class Post implements IPost {
     private _id: string;
     private _author: User;
-    private _content: string;
+    protected _content: string;
     private _type: PostType;
     private _mediaUrl?: string;
     private _likes: User[];
-    private _comments: Comment[];
+    private _comments: IComment[];
     private _privacy: PrivacySetting;
     private _createdAt: Date;
 
@@ -40,7 +40,7 @@ export class Post implements IPost {
     get type(): PostType { return this._type; }
     get mediaUrl(): string | undefined { return this._mediaUrl; }
     get likes(): User[] { return [...this._likes]; }
-    get comments(): Comment[] { return [...this._comments]; }
+    get comments(): IComment[] { return [...this._comments]; }
     get privacy(): PrivacySetting { return this._privacy; }
     get createdAt(): Date { return new Date(this._createdAt); }
 
@@ -54,7 +54,7 @@ export class Post implements IPost {
         this._likes = this._likes.filter(like => like.id !== user.id);
     }
 
-    addComment(comment: Comment): void {
+    addComment(comment: IComment): void {
         this._comments.push(comment);
     }
 

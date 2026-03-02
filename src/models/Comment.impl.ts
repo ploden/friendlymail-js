@@ -2,39 +2,25 @@ import { User } from './User.impl';
 import { Post } from './Post.impl';
 import { IComment } from './Comment.interface';
 
-export class Comment implements IComment {
-    private _id: string;
-    private _author: User;
-    private _content: string;
-    private _post: Post;
-    private _likes: User[];
-    private _createdAt: Date;
+/**
+ * A Comment is a Post made in reply to another Post, identified by inReplyTo.
+ * Comments do not support nested comments; addComment and removeComment are no-ops.
+ */
+export class Comment extends Post implements IComment {
+    private _inReplyTo: string;
 
-    constructor(author: User, content: string, post: Post) {
-        this._id = crypto.randomUUID();
-        this._author = author;
-        this._content = content;
-        this._post = post;
-        this._likes = [];
-        this._createdAt = new Date();
+    constructor(author: User, content: string, inReplyTo: string) {
+        super(author, content, 'text');
+        this._inReplyTo = inReplyTo;
     }
 
-    get id(): string { return this._id; }
-    get author(): User { return this._author; }
-    get content(): string { return this._content; }
-    get post(): Post { return this._post; }
-    get likes(): User[] { return [...this._likes]; }
-    get createdAt(): Date { return new Date(this._createdAt); }
+    get inReplyTo(): string { return this._inReplyTo; }
 
-    addLike(user: User): void {
-        if (!this._likes.some(like => like.id === user.id)) {
-            this._likes.push(user);
-        }
-    }
+    /** No-op: comments do not support nested comments. */
+    override addComment(_comment: IComment): void {}
 
-    removeLike(user: User): void {
-        this._likes = this._likes.filter(like => like.id !== user.id);
-    }
+    /** No-op: comments do not support nested comments. */
+    override removeComment(_commentId: string): void {}
 
     updateContent(newContent: string): void {
         this._content = newContent;
