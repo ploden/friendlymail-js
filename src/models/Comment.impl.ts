@@ -9,8 +9,8 @@ import { IComment } from './Comment.interface';
 export class Comment extends Post implements IComment {
     private _inReplyTo: string;
 
-    constructor(author: User, content: string, inReplyTo: string) {
-        super(author, content, 'text');
+    constructor(author: User, content: string, inReplyTo: string, refId: string = '') {
+        super(author, content, 'text', { refId });
         this._inReplyTo = inReplyTo;
     }
 

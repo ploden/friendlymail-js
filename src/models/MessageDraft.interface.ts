@@ -16,6 +16,8 @@ export interface IMessageDraft {
     readonly html?: string;
     /** messageId of the incoming message this draft is replying to. */
     readonly inReplyTo?: string;
+    /** Post or Comment model data to include in the X-friendlymail header. */
+    readonly postData?: Record<string, unknown>;
     readonly attachments: string[];
     readonly isHtml: boolean;
     readonly priority: 'high' | 'normal' | 'low';

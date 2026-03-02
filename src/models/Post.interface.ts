@@ -7,6 +7,7 @@ import { PrivacySetting, PostType } from './types';
  */
 export interface IPost {
     readonly id: string;
+    readonly refId: string;
     readonly author: User;
     readonly content: string;
     readonly type: PostType;

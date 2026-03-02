@@ -1,5 +1,7 @@
 import { SimpleMessageWithMessageId } from './models/SimpleMessageWithMessageId';
 import { User } from './models/User';
+import { Post } from './models/Post';
+import { Comment } from './models/Comment';
 import { SocialNetwork } from './models/SocialNetwork';
 import { EmailAddress } from './models/EmailAddress';
 import { MessageDraft } from './models/MessageDraft';
@@ -162,6 +164,23 @@ export class MessageProcessor implements IMessageProcessor {
             !msg.body.trim().startsWith('$') &&
             !msg.xFriendlymail
         );
+    }
+
+    /** Returns all incoming comment messages from followers. */
+    private _getCreateCommentMessages(): SimpleMessageWithMessageId[] {
+        return this._receivedMessages.filter(msg =>
+            msg.subject.startsWith('Fm Comment') &&
+            !msg.xFriendlymail
+        );
+    }
+
+    /**
+     * Generates a reference ID of the form <2-digit-year><hex-counter>.
+     * Counter is 1-based. Example: year 2026, counter 1 → "261"; counter 200 → "26C8".
+     */
+    private _generateRefId(date: Date, counter: number): string {
+        const year = String(date.getFullYear()).slice(-2);
+        return year + counter.toString(16).toUpperCase();
     }
 
     // ── Message processing ─────────────────────────────────────────────────────
@@ -576,6 +595,25 @@ export class MessageProcessor implements IMessageProcessor {
         const hostEmail = this._hostEmailAddress.toString();
         const followerEmails = this.socialNetworks.get(hostEmail)?.getFollowerEmails() ?? [];
 
+        // Generate refId: 1-based index of this post among all host post messages
+        const postMessages = this.getCreatePostMessages();
+        const postIndex = postMessages.indexOf(postMessage);
+        const counter = postIndex >= 0 ? postIndex + 1 : postMessages.length;
+        const refId = this._generateRefId(postMessage.date, counter);
+
+        // Build Post model and postData for X-friendlymail header
+        const postAuthor = hostAccount ?? new User(hostName, this._hostEmailAddress);
+        const post = new Post(postAuthor, postBody, 'text', { refId });
+        const postData: Record<string, unknown> = {
+            id: post.id,
+            refId: post.refId,
+            author: post.author.email.toString(),
+            content: post.content,
+            type: post.type,
+            privacy: post.privacy,
+            createdAt: post.createdAt.toISOString(),
+        };
+
         const base64Id = Buffer.from(`<${postMessage.messageId}>`).toString('base64');
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
@@ -614,6 +652,7 @@ export class MessageProcessor implements IMessageProcessor {
                 {
                     html: notifHtml,
                     inReplyTo: postMessage.messageId,
+                    postData,
                     isHtml: false,
                     priority: 'normal',
                     messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION
@@ -667,12 +706,37 @@ export class MessageProcessor implements IMessageProcessor {
         if (posts.length === 0) return;
 
         const originalPost = posts[posts.length - 1];
-        const senderName = this._displayName(commentMessage.from);
+        const senderEmail = commentMessage.from;
+        const senderAccount = this.getAccountByEmail(senderEmail.toString());
+        const senderName = senderAccount ? senderAccount.name : this._displayName(senderEmail);
         const hostName = this._displayName(this._hostEmailAddress);
         const postBody = originalPost.body.trim();
         const commentBody = commentMessage.body.trim();
 
+        // Generate refId: 1-based index of this comment among all comment messages
+        const commentMessages = this._getCreateCommentMessages();
+        const commentIndex = commentMessages.indexOf(commentMessage);
+        const counter = commentIndex >= 0 ? commentIndex + 1 : commentMessages.length;
+        const refId = this._generateRefId(commentMessage.date, counter);
+
+        // Decode original post's message ID from subject for inReplyTo
         const base64Id = commentMessage.subject.replace(/^Fm Comment 💬:/, '').trim();
+        const originalPostMessageId = Buffer.from(base64Id, 'base64').toString('utf8').replace(/^<|>$/g, '');
+
+        // Build Comment model and postData for X-friendlymail header
+        const commentAuthor = senderAccount ?? new User(senderName, senderEmail);
+        const comment = new Comment(commentAuthor, commentBody, originalPostMessageId, refId);
+        const postData: Record<string, unknown> = {
+            id: comment.id,
+            refId: comment.refId,
+            author: comment.author.email.toString(),
+            content: comment.content,
+            type: comment.type,
+            inReplyTo: comment.inReplyTo,
+            privacy: comment.privacy,
+            createdAt: comment.createdAt.toISOString(),
+        };
+
         const hostEmail = this._hostEmailAddress.toString();
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
@@ -694,6 +758,7 @@ export class MessageProcessor implements IMessageProcessor {
             body,
             {
                 inReplyTo: commentMessage.messageId,
+                postData,
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION

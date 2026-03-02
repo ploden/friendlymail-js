@@ -43,9 +43,10 @@ export class TestMessageProvider implements ITestMessageProvider {
         if (!draft.isReadyToSend()) {
             throw new Error('Draft is not ready to send');
         }
-        const meta: Record<string, string> = {};
+        const meta: Record<string, unknown> = {};
         if (draft.messageType !== null) meta.messageType = draft.messageType;
         if (draft.inReplyTo) meta.inReplyTo = draft.inReplyTo;
+        if (draft.postData) meta.postData = draft.postData;
         const xFriendlymail = Object.keys(meta).length > 0
             ? encodeQuotedPrintable(JSON.stringify(meta))
             : undefined;

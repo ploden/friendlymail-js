@@ -30,6 +30,7 @@ import { SimpleMessageWithMessageId } from './src/models/SimpleMessageWithMessag
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import { decodeQuotedPrintable } from './src/utils/quotedPrintable';
 
 const SIMULATOR_SENT_DIR = path.join(__dirname, 'simulator', 'sent');
 const SIMULATOR_RECEIVED_DIR = path.join(__dirname, 'simulator', 'received');
@@ -221,6 +222,14 @@ function printSentMessages(provider: TestMessageProvider, sentOffset: number): v
             console.log(`From: ${message.from.toString()}`);
             console.log(`To: ${message.to.map(addr => addr.toString()).join(', ')}`);
             console.log(`Subject: ${message.subject}`);
+            if (message.xFriendlymail !== undefined) {
+                try {
+                    const decoded = JSON.parse(decodeQuotedPrintable(message.xFriendlymail));
+                    console.log(`X-friendlymail:\n${JSON.stringify(decoded, null, 2)}`);
+                } catch {
+                    console.log(`X-friendlymail: ${message.xFriendlymail}`);
+                }
+            }
             console.log(`Body:`);
             console.log(message.body);
 

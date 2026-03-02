@@ -5,6 +5,7 @@ import { IPost } from './Post.interface';
 
 export class Post implements IPost {
     private _id: string;
+    private _refId: string;
     private _author: User;
     protected _content: string;
     private _type: PostType;
@@ -21,9 +22,11 @@ export class Post implements IPost {
         options: {
             mediaUrl?: string;
             privacy?: PrivacySetting;
+            refId?: string;
         } = {}
     ) {
         this._id = crypto.randomUUID();
+        this._refId = options.refId || '';
         this._author = author;
         this._content = content;
         this._type = type;
@@ -35,6 +38,7 @@ export class Post implements IPost {
     }
 
     get id(): string { return this._id; }
+    get refId(): string { return this._refId; }
     get author(): User { return this._author; }
     get content(): string { return this._content; }
     get type(): PostType { return this._type; }

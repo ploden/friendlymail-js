@@ -14,6 +14,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
     private _cc: EmailAddress[];
     private _bcc: EmailAddress[];
     private _inReplyTo?: string;
+    private _postData?: Record<string, unknown>;
     private _attachments: string[];
     private _isHtml: boolean;
     private _priority: 'high' | 'normal' | 'low';
@@ -31,6 +32,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
             bcc?: EmailAddress[];
             html?: string;
             inReplyTo?: string;
+            postData?: Record<string, unknown>;
             attachments?: string[];
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
@@ -41,6 +43,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
     ) {
         super(from, to, subject, body, new Date(), undefined, options.html);
         this._inReplyTo = options.inReplyTo;
+        this._postData = options.postData;
         this._cc = options.cc ? [...options.cc] : [];
         this._bcc = options.bcc ? [...options.bcc] : [];
         this._attachments = options.attachments ? [...options.attachments] : [];
@@ -86,6 +89,10 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
     /** messageId of the incoming message this draft is replying to. */
     get inReplyTo(): string | undefined {
         return this._inReplyTo;
+    }
+
+    get postData(): Record<string, unknown> | undefined {
+        return this._postData;
     }
 
     get attachments(): string[] {
