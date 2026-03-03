@@ -22,6 +22,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
     private _sentBuffer: SimpleMessageWithMessageId[] = [];
+    private _processedIds: Set<string> = new Set();
 
     constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig) {
         super();
@@ -102,11 +103,15 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         const lock = await client.getMailboxLock('INBOX');
 
         try {
-            const uids: number[] = [];
-
-            for await (const msg of client.fetch({ seen: false }, { source: true, uid: true })) {
+            // Fetch all messages; use _processedIds to skip ones we've already handled.
+            // This avoids competing with Thunderbird over the \Seen flag.
+            for await (const msg of client.fetch('1:*', { source: true, uid: true })) {
                 if (!msg.source) continue;
                 const parsed: ParsedMail = await (simpleParser(msg.source) as unknown as Promise<ParsedMail>);
+
+                const messageId = parsed.messageId ?? String(msg.uid);
+                if (this._processedIds.has(messageId)) continue;
+                this._processedIds.add(messageId);
 
                 const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
                 if (!from) continue;
@@ -124,19 +129,12 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
                 const body = parsed.text ?? '';
                 const date = parsed.date ?? new Date();
                 const xFriendlymail = parsed.headers.get('x-friendlymail') as string | undefined;
-                const messageId = parsed.messageId;
                 const inReplyTo = parsed.inReplyTo;
 
                 messages.push(new EmailMessage(
                     from, to, subject, body, date,
                     xFriendlymail, messageId, inReplyTo
                 ));
-                uids.push(msg.uid);
-            }
-
-            // Mark all fetched messages as \Seen so they aren't returned again next poll
-            if (uids.length > 0) {
-                await client.messageFlagsAdd(uids, ['\\Seen'], { uid: true });
             }
         } finally {
             lock.release();
