@@ -9,10 +9,13 @@ import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 
+const PROCESSED_KEYWORD = '$FriendlymailProcessed';
+
 /**
  * A MailProvider that sends messages via SMTP (nodemailer) and receives via IMAP (imapflow).
- * Fetches only UNSEEN messages from the INBOX on each call to getMessages(),
- * relying on the IMAP \Seen flag to avoid returning the same message twice.
+ * Fetches only messages not yet marked with the custom IMAP keyword $FriendlymailProcessed,
+ * then marks them after fetching. This survives daemon restarts and doesn't conflict with
+ * mail clients that only set \Seen.
  *
  * Sent messages are buffered in memory and merged into the next getMessages() result,
  * matching TestMessageProvider behaviour so that the MessageProcessor can track
@@ -22,7 +25,6 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
     private _sentBuffer: SimpleMessageWithMessageId[] = [];
-    private _processedIds: Set<string> = new Set();
 
     constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig) {
         super();
@@ -84,8 +86,10 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     }
 
     /**
-     * Fetch UNSEEN messages from the IMAP INBOX and merge with buffered sent messages.
-     * Fetched messages are marked \Seen so they aren't returned on subsequent polls.
+     * Fetch unprocessed messages from the IMAP INBOX and merge with buffered sent messages.
+     * "Unprocessed" means not yet tagged with the $FriendlymailProcessed keyword.
+     * Fetched messages are tagged immediately so they are skipped on the next poll,
+     * even after a daemon restart.
      */
     async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         const client = new ImapFlow({
@@ -103,38 +107,44 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         const lock = await client.getMailboxLock('INBOX');
 
         try {
-            // Fetch all messages; use _processedIds to skip ones we've already handled.
-            // This avoids competing with Thunderbird over the \Seen flag.
-            for await (const msg of client.fetch('1:*', { source: true, uid: true })) {
-                if (!msg.source) continue;
-                const parsed: ParsedMail = await (simpleParser(msg.source) as unknown as Promise<ParsedMail>);
+            // Find all messages not yet tagged as processed.
+            const searchResult = await client.search({ unKeyword: PROCESSED_KEYWORD }, { uid: true });
+            const unprocessedUids: number[] = searchResult === false ? [] : searchResult;
 
-                const messageId = parsed.messageId ?? String(msg.uid);
-                if (this._processedIds.has(messageId)) continue;
-                this._processedIds.add(messageId);
+            if (unprocessedUids.length > 0) {
+                const uidSet = unprocessedUids.join(',');
 
-                const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
-                if (!from) continue;
+                for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
+                    if (!msg.source) continue;
+                    const parsed: ParsedMail = await (simpleParser(msg.source) as unknown as Promise<ParsedMail>);
 
-                const toField = parsed.to;
-                const toArray = Array.isArray(toField) ? toField : toField ? [toField] : [];
-                const to: EmailAddress[] = toArray
-                    .flatMap(addrObj => addrObj.value)
-                    .map(addr => EmailAddress.fromString(addr.address ?? ''))
-                    .filter((a): a is EmailAddress => a !== null);
+                    const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
+                    if (!from) continue;
 
-                if (to.length === 0) continue;
+                    const toField = parsed.to;
+                    const toArray = Array.isArray(toField) ? toField : toField ? [toField] : [];
+                    const to: EmailAddress[] = toArray
+                        .flatMap(addrObj => addrObj.value)
+                        .map(addr => EmailAddress.fromString(addr.address ?? ''))
+                        .filter((a): a is EmailAddress => a !== null);
 
-                const subject = parsed.subject ?? '';
-                const body = parsed.text ?? '';
-                const date = parsed.date ?? new Date();
-                const xFriendlymail = parsed.headers.get('x-friendlymail') as string | undefined;
-                const inReplyTo = parsed.inReplyTo;
+                    if (to.length === 0) continue;
 
-                messages.push(new EmailMessage(
-                    from, to, subject, body, date,
-                    xFriendlymail, messageId, inReplyTo
-                ));
+                    const messageId = parsed.messageId ?? String(msg.uid);
+                    const subject = parsed.subject ?? '';
+                    const body = parsed.text ?? '';
+                    const date = parsed.date ?? new Date();
+                    const xFriendlymail = parsed.headers.get('x-friendlymail') as string | undefined;
+                    const inReplyTo = parsed.inReplyTo;
+
+                    messages.push(new EmailMessage(
+                        from, to, subject, body, date,
+                        xFriendlymail, messageId, inReplyTo
+                    ));
+                }
+
+                // Mark all fetched messages as processed so they are skipped on future polls.
+                await client.messageFlagsAdd(uidSet, [PROCESSED_KEYWORD], { uid: true });
             }
         } finally {
             lock.release();
