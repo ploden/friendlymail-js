@@ -13,10 +13,15 @@ import { encodeQuotedPrintable } from '../utils/quotedPrintable';
  * A MailProvider that sends messages via SMTP (nodemailer) and receives via IMAP (imapflow).
  * Fetches only UNSEEN messages from the INBOX on each call to getMessages(),
  * relying on the IMAP \Seen flag to avoid returning the same message twice.
+ *
+ * Sent messages are buffered in memory and merged into the next getMessages() result,
+ * matching TestMessageProvider behaviour so that the MessageProcessor can track
+ * the host's own sent messages (posts, notifications) via their X-friendlymail header.
  */
 export class EmailMailProvider extends MailProvider implements IEmailMailProvider {
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
+    private _sentBuffer: SimpleMessageWithMessageId[] = [];
 
     constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig) {
         super();
@@ -35,7 +40,8 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     /**
      * Send a draft message via SMTP.
      * Encodes the draft's messageType into the X-friendlymail header.
-     * @param draft The draft message to send
+     * Adds the sent message to the buffer so getMessages() returns it next poll,
+     * allowing MessageProcessor to track the host's own sent messages.
      */
     async sendDraft(draft: MessageDraft): Promise<void> {
         if (!draft.isReadyToSend()) {
@@ -63,13 +69,21 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             text: draft.body,
             headers
         });
+
+        // Buffer the sent message so it's included in the next getMessages() call
+        this._sentBuffer.push(new SimpleMessageWithMessageId(
+            draft.from!,
+            draft.to,
+            draft.subject,
+            draft.body,
+            new Date(),
+            xFriendlymail
+        ));
     }
 
     /**
-     * Fetch UNSEEN messages from the IMAP INBOX.
-     * Each fetched message is automatically marked \Seen by the IMAP server,
-     * so subsequent calls return only newly arrived messages.
-     * @returns Promise resolving to an array of EmailMessage objects
+     * Fetch UNSEEN messages from the IMAP INBOX and merge with buffered sent messages.
+     * Fetched messages are marked \Seen so they aren't returned on subsequent polls.
      */
     async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         const client = new ImapFlow({
@@ -128,6 +142,9 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         }
 
         await client.logout();
-        return messages;
+
+        // Drain the sent buffer and prepend to results (sent messages come before new inbound)
+        const sent = this._sentBuffer.splice(0);
+        return [...sent, ...messages];
     }
 }
