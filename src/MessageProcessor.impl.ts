@@ -650,6 +650,9 @@ export class MessageProcessor implements IMessageProcessor {
         const likeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
         const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${refId}`;
 
+        const d = postMessage.date;
+        const created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+
         const templateVars = {
             host_name: hostName,
             host_email: hostEmail,
@@ -659,6 +662,7 @@ export class MessageProcessor implements IMessageProcessor {
             comment_link: commentLink,
             like_href: likeHref,
             comment_href: commentHref,
+            created_at,
             signature: SIGNATURE,
         };
 
