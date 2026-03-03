@@ -67,6 +67,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             to: draft.to.map(a => a.toString()).join(', '),
             subject: draft.subject,
             text: draft.body,
+            ...(draft.html ? { html: draft.html } : {}),
             headers
         });
 
