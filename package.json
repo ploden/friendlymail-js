@@ -4,7 +4,7 @@
     "test:watch": "jest --watch",
     "process": "tsx run-process-messages.ts",
     "daemon": "tsx run-daemon.ts",
-    "daemon:local": "tsx run-daemon.ts --host-email phil@localhost --smtp-host localhost --smtp-port 587 --imap-host localhost --imap-port 143 --imap-user phil@localhost --imap-pass phil123 --interval 5"
+    "daemon:local": "tsx run-daemon.ts --host-email phil@localhost --smtp-host localhost --smtp-port 587 --imap-host localhost --imap-port 143 --imap-user phil@localhost --imap-pass phil123"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
