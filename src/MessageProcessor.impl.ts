@@ -773,6 +773,37 @@ export class MessageProcessor implements IMessageProcessor {
         const hostEmail = this._hostEmailAddress.toString();
         const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
         const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${postRefId}`;
+        const likeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
+        const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${postRefId}`;
+        const postLikeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${postRefId}&body=❤️`;
+
+        const pd = originalPost.date;
+        const post_created_at = `${pd.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${pd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        const cd = commentMessage.date;
+        const comment_created_at = `${cd.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${cd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+
+        // Build likes row for post
+        const likeMessages = this._receivedMessages.filter(msg =>
+            msg.subject === `Fm Like ❤️:${postRefId}` && !msg.xFriendlymail
+        );
+        let likes_row = '';
+        if (likeMessages.length > 0) {
+            const names = likeMessages.map(msg => {
+                const account = this.getAccountByEmail(msg.from.toString());
+                const name = account ? account.name : null;
+                const email = msg.from.toString();
+                return name ? `${name} &lt;${email}&gt;` : `&lt;${email}&gt;`;
+            });
+            let namesStr: string;
+            if (names.length === 1) {
+                namesStr = names[0];
+            } else if (names.length === 2) {
+                namesStr = `${names[0]} and ${names[1]}`;
+            } else {
+                namesStr = `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+            }
+            likes_row = `<tr><td style="border-top:1px solid #f3f4f6;padding-top:14px;padding-bottom:14px;padding-left:50px;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;">❤️ ${namesStr} liked this.</td></tr>`;
+        }
 
         const body = this._loadTemplate('text', 'comment_notification.txt', {
             sender_name: senderName,
@@ -784,12 +815,30 @@ export class MessageProcessor implements IMessageProcessor {
             signature: SIGNATURE,
         });
 
+        const html = this._loadTemplate('html', 'comment_notification.html', {
+            host_name: hostName,
+            host_email: hostEmail,
+            host_initial: hostName.charAt(0).toUpperCase(),
+            post_body: postBody,
+            post_created_at,
+            post_like_href: postLikeHref,
+            sender_name: senderName,
+            sender_initial: senderName.charAt(0).toUpperCase(),
+            comment_body: commentBody,
+            comment_created_at,
+            like_href: likeHref,
+            comment_href: commentHref,
+            likes_row,
+            signature: SIGNATURE,
+        });
+
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [this._hostEmailAddress],
             `friendlymail: New comment from ${senderName}`,
             body,
             {
+                html,
                 inReplyTo: commentMessage.messageId,
                 postData,
                 isHtml: false,
