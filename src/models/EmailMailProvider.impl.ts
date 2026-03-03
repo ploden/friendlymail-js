@@ -6,7 +6,7 @@ import { IEmailMailProvider, SmtpConfig, ImapConfig } from './EmailMailProvider.
 import { EmailAddress } from './EmailAddress.impl';
 import { EmailMessage } from './EmailMessage.impl';
 import { MessageDraft } from './MessageDraft.impl';
-import { SimpleMessage } from './SimpleMessage';
+import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 
 /**
@@ -71,7 +71,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
      * so subsequent calls return only newly arrived messages.
      * @returns Promise resolving to an array of EmailMessage objects
      */
-    async getMessages(): Promise<SimpleMessage[]> {
+    async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         const client = new ImapFlow({
             host: this._imapConfig.host,
             port: this._imapConfig.port,
@@ -83,7 +83,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
 
         await client.connect();
 
-        const messages: EmailMessage[] = [];
+        const messages: SimpleMessageWithMessageId[] = [];
         const lock = await client.getMailboxLock('INBOX');
 
         try {

@@ -1,14 +1,13 @@
 import { EmailAddress } from './EmailAddress.impl';
-import { SimpleMessage } from './SimpleMessage';
+import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { IEmailMessage } from './EmailMessage.interface';
 
 /**
  * Represents an email message received via IMAP.
- * Extends SimpleMessage with the Message-ID and In-Reply-To headers
- * needed for email threading and deduplication.
+ * Extends SimpleMessageWithMessageId with the In-Reply-To header
+ * needed for email threading.
  */
-export class EmailMessage extends SimpleMessage implements IEmailMessage {
-    private _messageId?: string;
+export class EmailMessage extends SimpleMessageWithMessageId implements IEmailMessage {
     private _inReplyTo?: string;
 
     constructor(
@@ -21,13 +20,8 @@ export class EmailMessage extends SimpleMessage implements IEmailMessage {
         messageId?: string,
         inReplyTo?: string
     ) {
-        super(from, to, subject, body, date, xFriendlymail);
-        this._messageId = messageId;
+        super(from, to, subject, body, date, xFriendlymail, undefined, messageId);
         this._inReplyTo = inReplyTo;
-    }
-
-    get messageId(): string | undefined {
-        return this._messageId;
     }
 
     get inReplyTo(): string | undefined {
