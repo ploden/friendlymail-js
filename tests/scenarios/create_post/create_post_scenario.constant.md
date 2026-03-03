@@ -131,14 +131,14 @@ Result: Message sent to host user (phil@test.com):
 From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hello, world"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:261&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:261
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -149,14 +149,14 @@ Result: Message sent to follower (kath@test.com):
 From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hello, world"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:261&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:261
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -166,7 +166,7 @@ friendlymail, an open-source, email-based, alternative social network
 Step: The follower likes the post by sending a create like message:
 ```
 From: Kath L <kath@test.com>
-Subject: Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Subject: Fm Like ❤️:261
 To: Phil L <phil@test.com>
 
 ❤️
@@ -196,7 +196,7 @@ friendlymail, an open-source, email-based, alternative social network
 Step: The follower comments on the post by sending a create comment message:
 ```
 From: Kath L <kath@test.com>
-Subject: Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Subject: Fm Comment 💬:261
 To: Phil L <phil@test.com>
 
 hello, universe!
@@ -208,14 +208,14 @@ Result: The user is notified via a New Comment notification message:
 From: Phil L <phil@test.com>
 Subject: friendlymail: New comment from Kath L
 To: Phil L <phil@test.com>
-X-friendlymail: {"messageType":"new_comment_notification"}
+X-friendlymail: {"messageType":"new_comment_notification","postData":{"id":"[uuid]","refId":"262","author":"kath@test.com","content":"hello, universe!","type":"text","privacy":"public","createdAt":"[ISO date string]","inReplyTo":"74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com"}}
 
 Kath L --> commented on your post:
 
 "hello, universe!"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:262&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:261
 
 Comment thread:
 
@@ -247,14 +247,14 @@ From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"263","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hello, world"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:263&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:263
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -266,14 +266,14 @@ From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"263","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hello, world"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:263&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:263
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -322,14 +322,14 @@ From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hi Alice and Kath"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:264&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:264
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -341,14 +341,14 @@ From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hi Alice and Kath"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:264&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:264
 
 friendlymail, an open-source, email-based, alternative social network
 
@@ -358,15 +358,17 @@ Result: Message sent to follower (alice@test.com):
 ```
 From: Phil L <phil@test.com>
 Subject: friendlymail: New post from Phil L
-To: Kath L <kath@test.com>
+To: <alice@test.com>
 Message-Id: [message-id]
-X-friendlymail: {"messageType":"new_post_notification"}
+X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
 Phil L --> posted:
 
 "Hi Alice and Kath"
 
-Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+&body=❤️
-Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb21+
+Like ❤️: mailto:phil@test.com?subject=Fm%20Like%20❤️:264&body=❤️
+Comment 💬: mailto:phil@test.com?subject=Fm%20Comment%20💬:264
 
 friendlymail, an open-source, email-based, alternative social network
+
+```

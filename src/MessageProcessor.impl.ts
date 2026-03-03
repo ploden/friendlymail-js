@@ -175,12 +175,43 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
+     * Returns all content-creating messages (posts and comments) in the order they
+     * appear in receivedMessages. Used to derive a shared refId counter across both
+     * posts and comments.
+     */
+    private _getCreateContentMessages(): SimpleMessageWithMessageId[] {
+        return this._receivedMessages.filter(msg =>
+            !msg.xFriendlymail && (
+                (this._isFriendlymailSubject(msg.subject) &&
+                    msg.from.equals(this._hostEmailAddress) &&
+                    !msg.body.trim().startsWith('$')) ||
+                msg.subject.startsWith('Fm Comment')
+            )
+        );
+    }
+
+    /**
      * Generates a reference ID of the form <2-digit-year><hex-counter>.
      * Counter is 1-based. Example: year 2026, counter 1 → "261"; counter 200 → "26C8".
      */
     private _generateRefId(date: Date, counter: number): string {
         const year = String(date.getFullYear()).slice(-2);
         return year + counter.toString(16).toUpperCase();
+    }
+
+    /**
+     * Returns the create-post message whose computed refId matches the given value, or null.
+     * Uses the shared content counter (posts + comments in received order).
+     */
+    private _findPostByRefId(refId: string): SimpleMessageWithMessageId | null {
+        const contentMessages = this._getCreateContentMessages();
+        for (const msg of this.getCreatePostMessages()) {
+            const index = contentMessages.indexOf(msg);
+            if (index >= 0 && this._generateRefId(msg.date, index + 1) === refId) {
+                return msg;
+            }
+        }
+        return null;
     }
 
     // ── Message processing ─────────────────────────────────────────────────────
@@ -595,10 +626,10 @@ export class MessageProcessor implements IMessageProcessor {
         const hostEmail = this._hostEmailAddress.toString();
         const followerEmails = this.socialNetworks.get(hostEmail)?.getFollowerEmails() ?? [];
 
-        // Generate refId: 1-based index of this post among all host post messages
-        const postMessages = this.getCreatePostMessages();
-        const postIndex = postMessages.indexOf(postMessage);
-        const counter = postIndex >= 0 ? postIndex + 1 : postMessages.length;
+        // Generate refId: 1-based index of this post in the shared content counter (posts + comments)
+        const contentMessages = this._getCreateContentMessages();
+        const postIndex = contentMessages.indexOf(postMessage);
+        const counter = postIndex >= 0 ? postIndex + 1 : contentMessages.length;
         const refId = this._generateRefId(postMessage.date, counter);
 
         // Build Post model and postData for X-friendlymail header
@@ -614,11 +645,10 @@ export class MessageProcessor implements IMessageProcessor {
             createdAt: post.createdAt.toISOString(),
         };
 
-        const base64Id = Buffer.from(`<${postMessage.messageId}>`).toString('base64');
-        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
-        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
-        const likeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
-        const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
+        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
+        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${refId}`;
+        const likeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
+        const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${refId}`;
 
         const templateVars = {
             host_name: hostName,
@@ -669,7 +699,8 @@ export class MessageProcessor implements IMessageProcessor {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
-        const originalPost = posts[posts.length - 1];
+        const likeRefId = likeMessage.subject.replace(/^Fm Like ❤️:/, '').trim();
+        const originalPost = this._findPostByRefId(likeRefId) ?? posts[posts.length - 1];
         const senderName = this._displayName(likeMessage.from);
         const hostName = this._displayName(this._hostEmailAddress);
         const postBody = originalPost.body.trim();
@@ -705,7 +736,8 @@ export class MessageProcessor implements IMessageProcessor {
         const posts = this.getCreatePostMessages();
         if (posts.length === 0) return;
 
-        const originalPost = posts[posts.length - 1];
+        const postRefId = commentMessage.subject.replace(/^Fm Comment 💬:/, '').trim();
+        const originalPost = this._findPostByRefId(postRefId) ?? posts[posts.length - 1];
         const senderEmail = commentMessage.from;
         const senderAccount = this.getAccountByEmail(senderEmail.toString());
         const senderName = senderAccount ? senderAccount.name : this._displayName(senderEmail);
@@ -713,17 +745,14 @@ export class MessageProcessor implements IMessageProcessor {
         const postBody = originalPost.body.trim();
         const commentBody = commentMessage.body.trim();
 
-        // Generate refId: 1-based index of this comment among all comment messages
-        const commentMessages = this._getCreateCommentMessages();
-        const commentIndex = commentMessages.indexOf(commentMessage);
-        const counter = commentIndex >= 0 ? commentIndex + 1 : commentMessages.length;
+        // Generate refId: 1-based index of this comment in the shared content counter (posts + comments)
+        const contentMessages = this._getCreateContentMessages();
+        const commentIndex = contentMessages.indexOf(commentMessage);
+        const counter = commentIndex >= 0 ? commentIndex + 1 : contentMessages.length;
         const refId = this._generateRefId(commentMessage.date, counter);
 
-        // Decode original post's message ID from subject for inReplyTo
-        const base64Id = commentMessage.subject.replace(/^Fm Comment 💬:/, '').trim();
-        const originalPostMessageId = Buffer.from(base64Id, 'base64').toString('utf8').replace(/^<|>$/g, '');
-
         // Build Comment model and postData for X-friendlymail header
+        const originalPostMessageId = originalPost.messageId;
         const commentAuthor = senderAccount ?? new User(senderName, senderEmail);
         const comment = new Comment(commentAuthor, commentBody, originalPostMessageId, refId);
         const postData: Record<string, unknown> = {
@@ -738,8 +767,8 @@ export class MessageProcessor implements IMessageProcessor {
         };
 
         const hostEmail = this._hostEmailAddress.toString();
-        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${base64Id}&body=❤️`;
-        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${base64Id}`;
+        const likeLink = `Like ❤️: mailto:${hostEmail}?subject=Fm%20Like%20❤️:${refId}&body=❤️`;
+        const commentLink = `Comment 💬: mailto:${hostEmail}?subject=Fm%20Comment%20💬:${postRefId}`;
 
         const body = this._loadTemplate('text', 'comment_notification.txt', {
             sender_name: senderName,

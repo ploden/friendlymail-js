@@ -23,7 +23,7 @@ const FIRST_POST_BODY = 'Hello, world';
 const SECOND_POST_BODY = 'Hello again, world';
 const COMMENT_BODY = 'hello, universe!';
 const FIRST_POST_MESSAGE_ID = '74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com';
-const FIRST_POST_BASE64_ID = 'PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+';
+const FIRST_POST_REF_ID = `${String(new Date().getFullYear()).slice(-2)}1`;
 const POST_NOTIFICATION_SUBJECT = 'friendlymail: New post from Phil L';
 
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
@@ -115,7 +115,7 @@ describe('refId and postData in notification messages', () => {
         await provider.loadMessage(
             new SimpleMessageWithMessageId(
                 followerAddress, [hostAddress],
-                `Fm Like ❤️:${FIRST_POST_BASE64_ID}`,
+                `Fm Like ❤️:${FIRST_POST_REF_ID}`,
                 '❤️'
             )
         );
@@ -126,7 +126,7 @@ describe('refId and postData in notification messages', () => {
         await provider.loadMessage(
             new SimpleMessageWithMessageId(
                 followerAddress, [hostAddress],
-                `Fm Comment 💬:${FIRST_POST_BASE64_ID}`,
+                `Fm Comment 💬:${FIRST_POST_REF_ID}`,
                 COMMENT_BODY
             )
         );
@@ -406,11 +406,11 @@ describe('refId and postData in notification messages', () => {
             expect(postData.refId).toBe(`${expectedYear}1`);
         });
 
-        it('second post host notification refId counter is 2', () => {
+        it('second post host notification refId counter is 3 (comment occupies counter 2)', () => {
             const expectedYear = String(new Date().getFullYear()).slice(-2);
             const notifications = findAllPostNotifications(HOST_EMAIL);
             const postData = extractPostData(notifications[1].xFriendlymail!);
-            expect(postData.refId).toBe(`${expectedYear}2`);
+            expect(postData.refId).toBe(`${expectedYear}3`);
         });
 
         it('first post follower notification refId counter is 1', () => {
@@ -420,11 +420,11 @@ describe('refId and postData in notification messages', () => {
             expect(postData.refId).toBe(`${expectedYear}1`);
         });
 
-        it('second post follower notification refId counter is 2', () => {
+        it('second post follower notification refId counter is 3 (comment occupies counter 2)', () => {
             const expectedYear = String(new Date().getFullYear()).slice(-2);
             const notifications = findAllPostNotifications(FOLLOWER_EMAIL);
             const postData = extractPostData(notifications[1].xFriendlymail!);
-            expect(postData.refId).toBe(`${expectedYear}2`);
+            expect(postData.refId).toBe(`${expectedYear}3`);
         });
 
         it('first and second post refIds differ', () => {
@@ -479,10 +479,10 @@ describe('refId and postData in notification messages', () => {
             expect(String(postData.refId).startsWith(expectedYear)).toBe(true);
         });
 
-        it('comment postData refId for the first comment has hex counter 1', () => {
+        it('comment postData refId for the first comment has hex counter 2 (shared counter with posts)', () => {
             const expectedYear = String(new Date().getFullYear()).slice(-2);
             const postData = extractPostData(findCommentNotification().xFriendlymail!);
-            expect(postData.refId).toBe(`${expectedYear}1`);
+            expect(postData.refId).toBe(`${expectedYear}2`);
         });
 
         it('comment postData author matches the commenter email', () => {

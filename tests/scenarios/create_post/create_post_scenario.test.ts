@@ -20,7 +20,10 @@ import { ISocialNetwork } from '../../../src/models/SocialNetwork';
 const HOST_EMAIL = 'phil@test.com';
 const FOLLOWER_EMAIL = 'kath@test.com';
 const FIRST_POST_MESSAGE_ID = '74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com';
-const FIRST_POST_BASE64_ID = 'PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+';
+const FIRST_POST_REF_ID = `${String(new Date().getFullYear()).slice(-2)}1`;
+const COMMENT_REF_ID = `${String(new Date().getFullYear()).slice(-2)}2`;
+const SECOND_FOLLOWER_EMAIL = 'alice@test.com';
+const THIRD_POST_REF_ID = `${String(new Date().getFullYear()).slice(-2)}4`;
 
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
     return {
@@ -85,7 +88,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     function likeMessage(): SimpleMessageWithMessageId {
         return new SimpleMessageWithMessageId(
             followerAddress, [hostAddress],
-            'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            `Fm Like ❤️:${FIRST_POST_REF_ID}`,
             '❤️'
         );
     }
@@ -93,9 +96,20 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     function commentMessage(): SimpleMessageWithMessageId {
         return new SimpleMessageWithMessageId(
             followerAddress, [hostAddress],
-            'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            `Fm Comment 💬:${FIRST_POST_REF_ID}`,
             'hello, universe!'
         );
+    }
+
+    function inviteSecondAddfollowerCommand(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(
+            hostAddress, [hostAddress], 'Fm',
+            `$ invite --addfollower ${SECOND_FOLLOWER_EMAIL}`
+        );
+    }
+
+    function createThirdPostMessage(): SimpleMessageWithMessageId {
+        return new SimpleMessageWithMessageId(hostAddress, [hostAddress], 'Fm', 'Hi Alice and Kath');
     }
 
     // ── Step helpers ───────────────────────────────────────────────────────────
@@ -137,6 +151,16 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
     async function step8_createPostAgain(): Promise<void> {
         await provider.loadMessage(createSecondPostMessage());
         await runDaemon(2); // sends new post notification to host + to follower
+    }
+
+    async function step9_inviteSecondFollower(): Promise<void> {
+        await provider.loadMessage(inviteSecondAddfollowerCommand());
+        await runDaemon(1);
+    }
+
+    async function step10_createThirdPost(): Promise<void> {
+        await provider.loadMessage(createThirdPostMessage());
+        await runDaemon(3); // sends new post notification to host + kath + alice
     }
 
     // ── Step 1: friendlymail is attached to a host ─────────────────────────────
@@ -372,20 +396,20 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
 
-        it('should include the like link with the correct base64 message id in the host notification body', () => {
+        it('should include the like link with the correct ref id in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
-            expect(notification!.body).toContain(FIRST_POST_BASE64_ID);
+            expect(notification!.body).toContain(FIRST_POST_REF_ID);
         });
 
-        it('should include the like link with the correct base64 message id in the follower notification body', () => {
+        it('should include the like link with the correct ref id in the follower notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
-            expect(notification!.body).toContain(FIRST_POST_BASE64_ID);
+            expect(notification!.body).toContain(FIRST_POST_REF_ID);
         });
     });
 
@@ -522,6 +546,159 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
     });
 
+    // ── Step 9: The host user sends a second invite --addfollower command ─────
+
+    describe('Step 9: The host user sends a second invite command with the addfollower parameter', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+            await step6_likePost();
+            await step7_commentOnPost();
+            await step8_createPostAgain();
+            await step9_inviteSecondFollower();
+        });
+
+        it('should send exactly eleven messages total', () => {
+            expect(provider.sentMessages).toHaveLength(11);
+        });
+
+        it('should send the invite reply to the host', () => {
+            expect(provider.sentMessages[10].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
+        });
+
+        it('should send the invite reply from the host address', () => {
+            expect(provider.sentMessages[10].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should set the X-friendlymail header to the invite type', () => {
+            expect(provider.sentMessages[10].xFriendlymail)
+                .toContain(FriendlymailMessageType.INVITE);
+        });
+
+        it('should confirm the second follower was added in the reply body', () => {
+            expect(provider.sentMessages[10].body).toContain(`${SECOND_FOLLOWER_EMAIL} is now following you`);
+        });
+
+        it('should include the signature in the invite reply body', () => {
+            expect(provider.sentMessages[10].body)
+                .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+    });
+
+    // ── Step 10: The user sends a post with two followers ─────────────────────
+
+    describe('Step 10: The user sends a create post message with two followers', () => {
+        beforeEach(async () => {
+            await step1_attachHost();
+            await step2_sendHelp();
+            await step3_createAccount();
+            await step4_inviteFollower();
+            await step5_createPost();
+            await step6_likePost();
+            await step7_commentOnPost();
+            await step8_createPostAgain();
+            await step9_inviteSecondFollower();
+            await step10_createThirdPost();
+        });
+
+        it('should send exactly fourteen messages total', () => {
+            expect(provider.sentMessages).toHaveLength(14);
+        });
+
+        it('should send a new post notification to the host user', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL) &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notification).toBeDefined();
+        });
+
+        it('should send a new post notification to the first follower (kath)', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL) &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notification).toBeDefined();
+        });
+
+        it('should send a new post notification to the second follower (alice)', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === SECOND_FOLLOWER_EMAIL)
+            );
+            expect(notification).toBeDefined();
+        });
+
+        it('should send all three notifications from the host address', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notifications).toHaveLength(3);
+            expect(notifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should set the X-friendlymail header to the new_post_notification type on all three notifications', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notifications.every((m: SimpleMessageWithMessageId) =>
+                m.xFriendlymail !== undefined &&
+                m.xFriendlymail.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION)
+            )).toBe(true);
+        });
+
+        it('should include the post content in all three notification bodies', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notifications).toHaveLength(3);
+        });
+
+        it('should include the ref id in the host notification body', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL) &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notification!.body).toContain(THIRD_POST_REF_ID);
+        });
+
+        it('should include the ref id in the first follower notification body', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL) &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notification!.body).toContain(THIRD_POST_REF_ID);
+        });
+
+        it('should include the ref id in the second follower notification body', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === SECOND_FOLLOWER_EMAIL)
+            );
+            expect(notification!.body).toContain(THIRD_POST_REF_ID);
+        });
+
+        it('should include the signature in all three notification bodies', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notifications.every((m: SimpleMessageWithMessageId) =>
+                m.body.includes('friendlymail, an open-source, email-based, alternative social network')
+            )).toBe(true);
+        });
+    });
+
     // ── Output: write sent and received message files ──────────────────────────
 
     afterAll(async () => {
@@ -575,20 +752,26 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         // Step 6
         await receive(new SimpleMessageWithMessageId(
             localFollower, [localHost],
-            'Fm Like ❤️:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            `Fm Like ❤️:${FIRST_POST_REF_ID}`,
             '❤️'
         ));
         await localRun(1);
         // Step 7
         await receive(new SimpleMessageWithMessageId(
             localFollower, [localHost],
-            'Fm Comment 💬:PDc0MjA2REI3LUQ1ODYtNEY3RC1BMjAzLTVDNUUxREFFNzExMkBnbWFpbC5jb20+',
+            `Fm Comment 💬:${FIRST_POST_REF_ID}`,
             'hello, universe!'
         ));
         await localRun(1);
         // Step 8
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world'));
         await localRun(2);
+        // Step 9
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${SECOND_FOLLOWER_EMAIL}`));
+        await localRun(1);
+        // Step 10
+        await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hi Alice and Kath'));
+        await localRun(3);
 
         jest.useRealTimers();
 
@@ -657,6 +840,14 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         it('should include the signature in the comment notification body', () => {
             expect(provider.sentMessages[7].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
+        });
+
+        it('should include the like link with the comment ref id in the comment notification body', () => {
+            expect(provider.sentMessages[7].body).toContain(COMMENT_REF_ID);
+        });
+
+        it('should include the comment link with the original post ref id in the comment notification body', () => {
+            expect(provider.sentMessages[7].body).toContain(FIRST_POST_REF_ID);
         });
     });
 });
