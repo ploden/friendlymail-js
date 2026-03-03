@@ -149,16 +149,16 @@ async function main(): Promise<void> {
     console.log(`SMTP  ${args.smtpHost}:${args.smtpPort}  IMAP  ${args.imapHost}:${args.imapPort}`);
     console.log(`Polling every ${args.intervalSec}s. Press Ctrl+C to stop.\n`);
 
-    const runCycle = async (): Promise<void> => {
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    while (true) {
         try {
             await daemon.run();
         } catch (err) {
             console.error('Error during daemon run:', err);
         }
-    };
-
-    await runCycle();
-    setInterval(runCycle, args.intervalSec * 1000);
+        await sleep(args.intervalSec * 1000);
+    }
 }
 
 main().catch(err => {
