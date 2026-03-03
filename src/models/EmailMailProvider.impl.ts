@@ -87,7 +87,9 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         const lock = await client.getMailboxLock('INBOX');
 
         try {
-            for await (const msg of client.fetch({ seen: false }, { source: true })) {
+            const uids: number[] = [];
+
+            for await (const msg of client.fetch({ seen: false }, { source: true, uid: true })) {
                 if (!msg.source) continue;
                 const parsed: ParsedMail = await (simpleParser(msg.source) as unknown as Promise<ParsedMail>);
 
@@ -114,6 +116,12 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
                     from, to, subject, body, date,
                     xFriendlymail, messageId, inReplyTo
                 ));
+                uids.push(msg.uid);
+            }
+
+            // Mark all fetched messages as \Seen so they aren't returned again next poll
+            if (uids.length > 0) {
+                await client.messageFlagsAdd(uids, ['\\Seen'], { uid: true });
             }
         } finally {
             lock.release();
