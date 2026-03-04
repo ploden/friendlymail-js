@@ -11,20 +11,72 @@ import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 
 const PROCESSED_KEYWORD = '$FriendlymailProcessed';
 
+/** Builds a minimal RFC 2822 message buffer suitable for IMAP APPEND. */
+function buildRawMessage(
+    from: string,
+    to: string,
+    subject: string,
+    body: string,
+    xFriendlymail?: string,
+    messageId?: string
+): Buffer {
+    const date = new Date().toUTCString();
+    const msgId = messageId ?? `<${Date.now()}.${Math.random().toString(36).slice(2)}@friendlymail>`;
+    const lines = [
+        `From: ${from}`,
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        `Date: ${date}`,
+        `Message-ID: ${msgId}`,
+        `Content-Type: text/plain; charset=utf-8`,
+    ];
+    if (xFriendlymail) lines.push(`X-friendlymail: ${xFriendlymail}`);
+    lines.push('', body);
+    return Buffer.from(lines.join('\r\n'));
+}
+
+/** Parses a raw IMAP message source into an EmailMessage, or null if unparseable. */
+async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<EmailMessage | null> {
+    const parsed: ParsedMail = await (simpleParser(source) as unknown as Promise<ParsedMail>);
+
+    const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
+    if (!from) return null;
+
+    const toField = parsed.to;
+    const toArray = Array.isArray(toField) ? toField : toField ? [toField] : [];
+    const to: EmailAddress[] = toArray
+        .flatMap(addrObj => addrObj.value)
+        .map(addr => EmailAddress.fromString(addr.address ?? ''))
+        .filter((a): a is EmailAddress => a !== null);
+
+    if (to.length === 0) return null;
+
+    return new EmailMessage(
+        from,
+        to,
+        parsed.subject ?? '',
+        parsed.text ?? '',
+        parsed.date ?? new Date(),
+        parsed.headers.get('x-friendlymail') as string | undefined,
+        parsed.messageId ?? String(fallbackUid),
+        parsed.inReplyTo
+    );
+}
+
 /**
  * A MailProvider that sends messages via SMTP (nodemailer) and receives via IMAP (imapflow).
- * Fetches only messages not yet marked with the custom IMAP keyword $FriendlymailProcessed,
- * then marks them after fetching. This survives daemon restarts and doesn't conflict with
- * mail clients that only set \Seen.
  *
- * Sent messages are buffered in memory and merged into the next getMessages() result,
- * matching TestMessageProvider behaviour so that the MessageProcessor can track
- * the host's own sent messages (posts, notifications) via their X-friendlymail header.
+ * Deduplication strategy:
+ * - INBOX: messages are tagged with $FriendlymailProcessed after fetching so they are
+ *   never returned again, even after a daemon restart.
+ * - Sent: after each sendDraft() the message is IMAP APPENDed to the Sent folder.
+ *   getMessages() fetches all Sent messages not yet seen in this session (_loadedSentIds),
+ *   giving MessageProcessor the full sent history on every run — including after restart.
  */
 export class EmailMailProvider extends MailProvider implements IEmailMailProvider {
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
-    private _sentBuffer: SimpleMessageWithMessageId[] = [];
+    private _loadedSentIds: Set<string> = new Set();
 
     constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig) {
         super();
@@ -40,11 +92,21 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         return this._imapConfig;
     }
 
+    private _makeImapClient(): ImapFlow {
+        return new ImapFlow({
+            host: this._imapConfig.host,
+            port: this._imapConfig.port,
+            secure: this._imapConfig.secure,
+            auth: this._imapConfig.auth,
+            logger: false,
+            tls: { rejectUnauthorized: !this._imapConfig.allowSelfSigned }
+        });
+    }
+
     /**
-     * Send a draft message via SMTP.
-     * Encodes the draft's messageType into the X-friendlymail header.
-     * Adds the sent message to the buffer so getMessages() returns it next poll,
-     * allowing MessageProcessor to track the host's own sent messages.
+     * Send a draft message via SMTP, then save a copy to the IMAP Sent folder.
+     * The Sent copy allows getMessages() to return it so MessageProcessor always
+     * has full sent history — including across daemon restarts.
      */
     async sendDraft(draft: MessageDraft): Promise<void> {
         if (!draft.isReadyToSend()) {
@@ -55,17 +117,15 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
             : undefined;
 
+        const headers: Record<string, string> = {};
+        if (xFriendlymail) headers['X-friendlymail'] = xFriendlymail;
+
         const transporter = nodemailer.createTransport({
             ...this._smtpConfig,
             tls: { rejectUnauthorized: !this._smtpConfig.allowSelfSigned }
         });
 
-        const headers: Record<string, string> = {};
-        if (xFriendlymail) {
-            headers['X-friendlymail'] = xFriendlymail;
-        }
-
-        await transporter.sendMail({
+        const info = await transporter.sendMail({
             from: draft.from!.toString(),
             to: draft.to.map(a => a.toString()).join(', '),
             subject: draft.subject,
@@ -74,86 +134,89 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             headers
         });
 
-        // Buffer the sent message so it's included in the next getMessages() call
-        this._sentBuffer.push(new SimpleMessageWithMessageId(
-            draft.from!,
-            draft.to,
+        // Append a copy to IMAP Sent so getMessages() can return it for MessageProcessor context.
+        const rawMessage = buildRawMessage(
+            draft.from!.toString(),
+            draft.to.map(a => a.toString()).join(', '),
             draft.subject,
             draft.body,
-            new Date(),
-            xFriendlymail
-        ));
+            xFriendlymail,
+            info.messageId
+        );
+
+        const client = this._makeImapClient();
+        await client.connect();
+        try {
+            await client.mailboxCreate('Sent');
+        } catch {
+            // Ignore — mailbox already exists on most runs.
+        }
+        await client.append('Sent', rawMessage, ['\\Seen']);
+        await client.logout();
     }
 
     /**
-     * Fetch unprocessed messages from the IMAP INBOX and merge with buffered sent messages.
-     * "Unprocessed" means not yet tagged with the $FriendlymailProcessed keyword.
-     * Fetched messages are tagged immediately so they are skipped on the next poll,
-     * even after a daemon restart.
+     * Fetch unprocessed INBOX messages and any new Sent messages.
+     *
+     * INBOX: only messages not yet tagged $FriendlymailProcessed are returned;
+     * they are tagged immediately so they won't be returned on future polls.
+     *
+     * Sent: all messages not yet seen in this session are returned so
+     * MessageProcessor has the full sent history. On restart _loadedSentIds
+     * is empty, so the entire Sent folder is returned — giving MessageProcessor
+     * enough context to avoid sending duplicate replies.
      */
     async getMessages(): Promise<SimpleMessageWithMessageId[]> {
-        const client = new ImapFlow({
-            host: this._imapConfig.host,
-            port: this._imapConfig.port,
-            secure: this._imapConfig.secure,
-            auth: this._imapConfig.auth,
-            logger: false,
-            tls: { rejectUnauthorized: !this._imapConfig.allowSelfSigned }
-        });
-
+        const client = this._makeImapClient();
         await client.connect();
 
         const messages: SimpleMessageWithMessageId[] = [];
-        const lock = await client.getMailboxLock('INBOX');
 
+        // — INBOX: new (unprocessed) messages —
+        const inboxLock = await client.getMailboxLock('INBOX');
         try {
-            // Find all messages not yet tagged as processed.
-            const searchResult = await client.search({ unKeyword: PROCESSED_KEYWORD }, { uid: true });
-            const unprocessedUids: number[] = searchResult === false ? [] : searchResult;
+            const result = await client.search({ unKeyword: PROCESSED_KEYWORD }, { uid: true });
+            const uids: number[] = result === false ? [] : result;
 
-            if (unprocessedUids.length > 0) {
-                const uidSet = unprocessedUids.join(',');
-
+            if (uids.length > 0) {
+                const uidSet = uids.join(',');
                 for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
                     if (!msg.source) continue;
-                    const parsed: ParsedMail = await (simpleParser(msg.source) as unknown as Promise<ParsedMail>);
-
-                    const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
-                    if (!from) continue;
-
-                    const toField = parsed.to;
-                    const toArray = Array.isArray(toField) ? toField : toField ? [toField] : [];
-                    const to: EmailAddress[] = toArray
-                        .flatMap(addrObj => addrObj.value)
-                        .map(addr => EmailAddress.fromString(addr.address ?? ''))
-                        .filter((a): a is EmailAddress => a !== null);
-
-                    if (to.length === 0) continue;
-
-                    const messageId = parsed.messageId ?? String(msg.uid);
-                    const subject = parsed.subject ?? '';
-                    const body = parsed.text ?? '';
-                    const date = parsed.date ?? new Date();
-                    const xFriendlymail = parsed.headers.get('x-friendlymail') as string | undefined;
-                    const inReplyTo = parsed.inReplyTo;
-
-                    messages.push(new EmailMessage(
-                        from, to, subject, body, date,
-                        xFriendlymail, messageId, inReplyTo
-                    ));
+                    const parsed = await parseImapMessage(msg.source, msg.uid);
+                    if (parsed) messages.push(parsed);
                 }
-
-                // Mark all fetched messages as processed so they are skipped on future polls.
                 await client.messageFlagsAdd(uidSet, [PROCESSED_KEYWORD], { uid: true });
             }
         } finally {
-            lock.release();
+            inboxLock.release();
+        }
+
+        // — Sent: full history, new-to-this-session only —
+        try {
+            const sentLock = await client.getMailboxLock('Sent');
+            try {
+                const result = await client.search({ all: true }, { uid: true });
+                const allUids: number[] = result === false ? [] : result;
+                const newUids = allUids.filter(uid => !this._loadedSentIds.has(String(uid)));
+
+                if (newUids.length > 0) {
+                    const uidSet = newUids.join(',');
+                    for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
+                        if (!msg.source) continue;
+                        this._loadedSentIds.add(String(msg.uid));
+                        const parsed = await parseImapMessage(msg.source, msg.uid);
+                        if (parsed) messages.push(parsed);
+                    }
+                }
+            } finally {
+                sentLock.release();
+            }
+        } catch {
+            // Sent folder doesn't exist yet (before any message has been sent).
         }
 
         await client.logout();
 
-        // Drain the sent buffer and prepend to results (sent messages come before new inbound)
-        const sent = this._sentBuffer.splice(0);
-        return [...sent, ...messages];
+        return messages;
     }
 }
