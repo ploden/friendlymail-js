@@ -21,7 +21,7 @@
  */
 
 import { Daemon } from './src/models/Daemon';
-import { TestMessageProvider } from './src/models/TestMessageProvider';
+import { SimMessageProvider } from './src/models/SimMessageProvider';
 import { ISocialNetwork } from './src/models/SocialNetwork';
 import { User } from './src/models/User';
 import { EmailAddress } from './src/models/EmailAddress';
@@ -36,48 +36,7 @@ const SIMULATOR_SENT_DIR = path.join(__dirname, 'simulator', 'sent');
 const SIMULATOR_RECEIVED_DIR = path.join(__dirname, 'simulator', 'received');
 
 /**
- * Clear and recreate the simulator output directories.
- */
-function clearSimulatorDirs(): void {
-    for (const dir of [SIMULATOR_SENT_DIR, SIMULATOR_RECEIVED_DIR]) {
-        if (fs.existsSync(dir)) {
-            for (const file of fs.readdirSync(dir)) {
-                fs.unlinkSync(path.join(dir, file));
-            }
-        } else {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-    }
-}
-
-/**
- * Write a message to a simulator directory.
- * Writes a .txt file with headers and plain text body.
- * If an HTML part is present, also writes a .html file.
- */
-function writeSimulatorMessage(
-    dir: string,
-    index: number,
-    msg: { from: EmailAddress | null; to: EmailAddress[]; subject: string; body: string; html?: string; date: Date; xFriendlymail?: string }
-): void {
-    const lines: string[] = [];
-    lines.push(`From: ${msg.from?.toString() ?? '(none)'}`);
-    lines.push(`To: ${msg.to.map(a => a.toString()).join(', ')}`);
-    lines.push(`Subject: ${msg.subject}`);
-    lines.push(`Date: ${msg.date.toUTCString()}`);
-    if (msg.xFriendlymail !== undefined) {
-        lines.push(`X-friendlymail: ${msg.xFriendlymail}`);
-    }
-    lines.push('');
-    lines.push(msg.body);
-    fs.writeFileSync(path.join(dir, `${index}.txt`), lines.join('\n'));
-    if (msg.html) {
-        fs.writeFileSync(path.join(dir, `${index}.html`), msg.html);
-    }
-}
-
-/**
- * Parse command-line arguments
+ * Parse command-line arguments.
  */
 function parseArgs(): { hostEmail: string; hostName: string; messageFiles: string[]; baseDir: string | undefined } {
     const args = process.argv.slice(2);
@@ -88,7 +47,6 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-
         if (arg === '--host-email' && i + 1 < args.length) {
             hostEmail = args[++i];
         } else if (arg === '--host-name' && i + 1 < args.length) {
@@ -118,7 +76,6 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
 
 /**
  * Recursively collect all .txt file paths under a directory.
- * Returns paths relative to the given root for display, with absolute paths for loading.
  */
 function getTxtFilesRecursive(dir: string): Array<{ display: string; absolute: string }> {
     const results: Array<{ display: string; absolute: string }> = [];
@@ -144,7 +101,7 @@ function getTxtFilesRecursive(dir: string): Array<{ display: string; absolute: s
 }
 
 /**
- * Get list of .txt files in the simulator directory (non-recursive)
+ * Get list of .txt files in a directory (non-recursive).
  */
 function getTxtFiles(baseDir?: string): Array<{ display: string; absolute: string }> {
     const dir = baseDir ?? __dirname;
@@ -164,12 +121,10 @@ function getTxtFiles(baseDir?: string): Array<{ display: string; absolute: strin
 }
 
 /**
- * Print numbered list of .txt files
+ * Print numbered list of .txt files.
  */
 function printTxtFiles(txtFiles: Array<{ display: string; absolute: string }>): void {
-    if (txtFiles.length === 0) {
-        return;
-    }
+    if (txtFiles.length === 0) return;
     console.log('\nAvailable .txt files:');
     txtFiles.forEach((file, index) => {
         console.log(`  ${index + 1}. ${file.display}`);
@@ -178,7 +133,7 @@ function printTxtFiles(txtFiles: Array<{ display: string; absolute: string }>): 
 }
 
 /**
- * Print a single draft message
+ * Print a single draft message.
  */
 function printDraft(draft: MessageDraft, index: number): void {
     console.log(`--- Draft ${index + 1} ---`);
@@ -194,11 +149,10 @@ function printDraft(draft: MessageDraft, index: number): void {
 }
 
 /**
- * Print all pending drafts from the daemon's current message processor
+ * Print all pending drafts from the daemon's current message processor.
  */
 function printDrafts(daemon: Daemon): void {
     const drafts = daemon.messageProcessor.getMessageDrafts();
-
     if (drafts.length === 0) {
         console.log('Drafts: (none)');
     } else {
@@ -208,16 +162,15 @@ function printDrafts(daemon: Daemon): void {
 }
 
 /**
- * Print sent messages from the provider starting at sentOffset
+ * Print sent messages from the provider starting at sentOffset.
  */
-function printSentMessages(provider: TestMessageProvider, sentOffset: number): void {
+function printSentMessages(provider: SimMessageProvider, sentOffset: number): void {
     const sentMessages = provider.sentMessages.slice(sentOffset);
-
     if (sentMessages.length === 0) {
         console.log('Sent: (none)');
     } else {
         console.log(`\nSent (${sentMessages.length}):\n`);
-        sentMessages.forEach((message, index) => {
+        sentMessages.forEach((message: SimpleMessageWithMessageId, index: number) => {
             console.log(`--- Sent ${sentOffset + index + 1} ---`);
             console.log(`From: ${message.from.toString()}`);
             console.log(`To: ${message.to.map(addr => addr.toString()).join(', ')}`);
@@ -232,101 +185,18 @@ function printSentMessages(provider: TestMessageProvider, sentOffset: number): v
             }
             console.log(`Body:`);
             console.log(message.body);
-
             console.log('');
         });
     }
 }
 
 /**
- * Built-in test users for use with [non-host-N], [non-host-name-N], [non-host-email-N] placeholders.
+ * Run the daemon and print any messages sent during the run.
  */
-const TEST_USERS: Array<{ name: string; email: string }> = [
-    { name: 'Alice Johnson',   email: 'alice@test.com'   },
-    { name: 'Bob Smith',       email: 'bob@test.com'     },
-    { name: 'Carol Williams',  email: 'carol@test.com'   },
-    { name: 'Dave Brown',      email: 'dave@test.com'    },
-    { name: 'Eve Davis',       email: 'eve@test.com'     },
-    { name: 'Frank Miller',    email: 'frank@test.com'   },
-    { name: 'Grace Wilson',    email: 'grace@test.com'   },
-    { name: 'Henry Moore',     email: 'henry@test.com'   },
-    { name: 'Iris Taylor',     email: 'iris@test.com'    },
-    { name: 'Jack Anderson',   email: 'jack@test.com'    },
-    { name: 'Kate Thomas',     email: 'kate@test.com'    },
-    { name: 'Liam Jackson',    email: 'liam@test.com'    },
-    { name: 'Mia White',       email: 'mia@test.com'     },
-    { name: 'Noah Harris',     email: 'noah@test.com'    },
-    { name: 'Olivia Martin',   email: 'olivia@test.com'  },
-    { name: 'Pete Garcia',     email: 'pete@test.com'    },
-    { name: 'Quinn Martinez',  email: 'quinn@test.com'   },
-    { name: 'Rose Robinson',   email: 'rose@test.com'    },
-    { name: 'Sam Clark',       email: 'sam@test.com'     },
-    { name: 'Tina Lewis',      email: 'tina@test.com'    },
-];
-
-/**
- * Parse a mailto: URL and return the to address, subject, and body.
- * Returns null if the URL is not a valid mailto: URL.
- * Example: mailto:phil@test.com?subject=Fm&body=%24%20help
- */
-function parseMailtoUrl(url: string): { to: string; subject: string; body: string } | null {
-    if (!url.startsWith('mailto:')) return null;
-    const rest = url.slice('mailto:'.length);
-    const qIndex = rest.indexOf('?');
-    const to = qIndex === -1 ? rest : rest.slice(0, qIndex);
-    if (!to || !EmailAddress.isValid(to)) return null;
-    const params = new URLSearchParams(qIndex === -1 ? '' : rest.slice(qIndex + 1));
-    const subject = params.get('subject') ?? '';
-    const body = params.get('body') ?? '';
-    return { to, subject, body };
-}
-
-/**
- * Replace placeholders in a message file's content.
- *
- * Host placeholders:
- *   [host]             → "Display Name <email@example.com>"
- *   [host-name]        → "Display Name"
- *   [host-email]       → "<email@example.com>"
- *
- * Non-host placeholders (N = 1–20):
- *   [non-host-N]       → "Name <email@test.com>"
- *   [non-host-name-N]  → "Name"
- *   [non-host-email-N] → "<email@test.com>"
- */
-function applyPlaceholders(content: string, hostEmailAddress: EmailAddress, hostName: string): string {
-    const email = hostEmailAddress.toString();
-    const hostFull = hostName ? `${hostName} <${email}>` : email;
-    const hostNameResolved = hostName || email;
-    let result = content
-        .replace(/\[host\]/g, hostFull)
-        .replace(/\[host-name\]/g, hostNameResolved)
-        .replace(/\[host-email\]/g, `<${email}>`);
-
-    for (let i = 0; i < TEST_USERS.length; i++) {
-        const n = i + 1;
-        const { name, email: userEmail } = TEST_USERS[i];
-        const full = `${name} <${userEmail}>`;
-        // Replace longer patterns first to avoid partial matches
-        result = result
-            .replace(new RegExp(`\\[non-host-name-${n}\\]`, 'g'), name)
-            .replace(new RegExp(`\\[non-host-email-${n}\\]`, 'g'), `<${userEmail}>`)
-            .replace(new RegExp(`\\[non-host-${n}\\]`, 'g'), full);
-    }
-
-    return result;
-}
-
-/**
- * Run the daemon, print any messages sent during the run, and write them to the simulator sent directory.
- */
-async function runDaemon(daemon: Daemon, provider: TestMessageProvider, simState: { sentIndex: number }): Promise<void> {
+async function runDaemon(daemon: Daemon, provider: SimMessageProvider): Promise<void> {
     const sentOffset = provider.sentMessages.length;
     await daemon.run();
     printSentMessages(provider, sentOffset);
-    provider.sentMessages.slice(sentOffset).forEach(msg => {
-        writeSimulatorMessage(SIMULATOR_SENT_DIR, simState.sentIndex++, msg);
-    });
 }
 
 async function main() {
@@ -339,10 +209,8 @@ async function main() {
 
     const hostEmailAddress = EmailAddress.fromString(hostEmail)!;
 
-    // TestMessageProvider acts as both sender and receiver for the Daemon
-    const provider = new TestMessageProvider(hostEmailAddress);
+    const provider = new SimMessageProvider(hostEmailAddress, hostName, SIMULATOR_SENT_DIR, SIMULATOR_RECEIVED_DIR);
 
-    // Minimal ISocialNetwork implementation; updated by the Daemon as accounts are created
     let _user: User | null = null;
     const socialNetwork: ISocialNetwork = {
         getUser: () => _user!,
@@ -354,10 +222,9 @@ async function main() {
         process.exit(1);
     }
 
-    clearSimulatorDirs();
+    provider.clearDirs();
 
     const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);
-    const simState = { sentIndex: 1, receivedIndex: 1 };
 
     if (messageFiles.length > 0) {
         // Non-interactive: load explicit files, run the daemon once, show results
@@ -366,16 +233,13 @@ async function main() {
                 console.error(`Warning: File not found: ${filePath}`);
                 continue;
             }
-            const raw = await fs.promises.readFile(filePath, 'utf8');
-            const content = applyPlaceholders(raw, hostEmailAddress, hostName);
-            await provider.loadFromString(content);
-            fs.writeFileSync(path.join(SIMULATOR_RECEIVED_DIR, `${simState.receivedIndex++}.txt`), content);
+            await provider.loadFile(filePath);
         }
-        await runDaemon(daemon, provider, simState);
+        await runDaemon(daemon, provider);
     } else {
         // Interactive mode
         // Initial run with empty store; the Daemon creates and sends the welcome message
-        await runDaemon(daemon, provider, simState);
+        await runDaemon(daemon, provider);
 
         const txtFiles = getTxtFiles(baseDir);
         printTxtFiles(txtFiles);
@@ -419,36 +283,19 @@ async function main() {
                     if (!fs.existsSync(filePath)) {
                         console.error(`Error: File not found: ${filePath}`);
                     } else {
-                        const raw = await fs.promises.readFile(filePath, 'utf8');
-                        const content = applyPlaceholders(raw, hostEmailAddress, hostName);
-                        await provider.loadFromString(content);
-                        fs.writeFileSync(path.join(SIMULATOR_RECEIVED_DIR, `${simState.receivedIndex++}.txt`), content);
-                        await runDaemon(daemon, provider, simState);
+                        await provider.loadFile(filePath);
+                        await runDaemon(daemon, provider);
                     }
                 }
             } else if (trimmed === 'run' || trimmed === 'send') {
-                await runDaemon(daemon, provider, simState);
+                await runDaemon(daemon, provider);
             } else if (trimmed.startsWith('send ')) {
-                // send "mailto:..." — simulate a message from the host via a mailto URL
                 const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
-                const parsed = parseMailtoUrl(arg);
-                if (!parsed) {
-                    console.error('Error: Invalid mailto: URL');
-                } else {
-                    const toAddress = EmailAddress.fromString(parsed.to);
-                    if (!toAddress) {
-                        console.error(`Error: Invalid email address in mailto URL: ${parsed.to}`);
-                    } else {
-                        const message = new SimpleMessageWithMessageId(
-                            hostEmailAddress,
-                            [toAddress],
-                            parsed.subject,
-                            parsed.body
-                        );
-                        await provider.loadMessage(message);
-                        writeSimulatorMessage(SIMULATOR_RECEIVED_DIR, simState.receivedIndex++, message);
-                        await runDaemon(daemon, provider, simState);
-                    }
+                try {
+                    await provider.loadFromMailto(arg);
+                    await runDaemon(daemon, provider);
+                } catch (err) {
+                    console.error(`Error: ${(err as Error).message}`);
                 }
             } else if (trimmed.startsWith('show ')) {
                 const showArg = trimmed.substring(5).trim();

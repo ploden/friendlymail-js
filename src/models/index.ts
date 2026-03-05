@@ -11,6 +11,7 @@ export * from './MessageReceiver';
 export * from './MailProvider';
 export * from './MessageStore';
 export * from './TestMessageProvider';
+export * from './SimMessageProvider';
 export * from './Daemon';
 export * from './EmailMessage';
 export * from './EmailMailProvider';
