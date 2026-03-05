@@ -510,7 +510,7 @@ The Daemon uses the main friendlymail data types to send and receive friendlymai
 friendlymail also includes a simulator for processing simulated messages and showing the resulting output.
 
 ```
-npm run process -- --host-email phil@test.com --host-name "Phil L"
+npm run process -- --host-email ploden@gmail.com --host-name "Peter L" --base-dir sim_messages
 ```
 
 After starting the simulator with an empty MessageStore, a Welcome Message should be added to drafts. The simulator user can send the draft using the send command:
