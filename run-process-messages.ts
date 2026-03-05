@@ -238,11 +238,7 @@ async function main() {
         await runDaemon(daemon, provider);
     } else {
         // Interactive mode
-        // Initial run with empty store; the Daemon creates and sends the welcome message
-        await runDaemon(daemon, provider);
-
         const txtFiles = getTxtFiles(baseDir);
-        printTxtFiles(txtFiles);
 
         const rl = readline.createInterface({
             input: process.stdin,
@@ -250,7 +246,27 @@ async function main() {
             prompt: '> '
         });
 
+        // resolveLoad is a helper used below to parse a "load <arg>" command
+        // and return the resolved file path, or null on error.
+        const resolveLoadArg = (fileArg: string): string | null => {
+            const numberMatch = fileArg.match(/^\$(\d+)$/);
+            if (numberMatch) {
+                const fileIndex = parseInt(numberMatch[1], 10) - 1;
+                if (fileIndex >= 0 && fileIndex < txtFiles.length) {
+                    return txtFiles[fileIndex].absolute;
+                }
+                console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
+                return null;
+            }
+            return fileArg;
+        };
+
+        // Pre-start phase: allow loading messages before the first daemon run.
+        console.log('Load messages before starting, or type "start" to run the daemon.');
+        printTxtFiles(txtFiles);
         rl.prompt();
+
+        let started = false;
 
         rl.on('line', async (line: string) => {
             const trimmed = line.trim();
@@ -260,63 +276,77 @@ async function main() {
                 return;
             }
 
-            if (trimmed.startsWith('load ')) {
-                const fileArg = trimmed.substring(5).trim();
-                if (!fileArg) {
-                    console.error('Error: No file path provided. Usage: load <file> or load $N');
-                } else {
-                    let filePath: string;
-                    const numberMatch = fileArg.match(/^\$(\d+)$/);
-                    if (numberMatch) {
-                        const fileIndex = parseInt(numberMatch[1], 10) - 1;
-                        if (fileIndex >= 0 && fileIndex < txtFiles.length) {
-                            filePath = txtFiles[fileIndex].absolute;
-                        } else {
-                            console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
-                            rl.prompt();
-                            return;
-                        }
-                    } else {
-                        filePath = fileArg;
-                    }
-
-                    if (!fs.existsSync(filePath)) {
-                        console.error(`Error: File not found: ${filePath}`);
-                    } else {
-                        await provider.loadFile(filePath);
-                        await runDaemon(daemon, provider);
-                    }
-                }
-            } else if (trimmed === 'run' || trimmed === 'send') {
-                await runDaemon(daemon, provider);
-            } else if (trimmed.startsWith('send ')) {
-                const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
-                try {
-                    await provider.loadFromMailto(arg);
+            if (!started) {
+                // Pre-start: accept load and start only.
+                if (trimmed === 'start') {
+                    started = true;
                     await runDaemon(daemon, provider);
-                } catch (err) {
-                    console.error(`Error: ${(err as Error).message}`);
+                } else if (trimmed.startsWith('load ')) {
+                    const fileArg = trimmed.substring(5).trim();
+                    if (!fileArg) {
+                        console.error('Error: No file path provided. Usage: load <file> or load $N');
+                    } else {
+                        const filePath = resolveLoadArg(fileArg);
+                        if (filePath !== null) {
+                            if (!fs.existsSync(filePath)) {
+                                console.error(`Error: File not found: ${filePath}`);
+                            } else {
+                                await provider.loadFile(filePath);
+                            }
+                        }
+                    }
+                } else if (trimmed.length > 0) {
+                    console.error('Type "load <file>" or "load $N" to queue messages, or "start" to run the daemon.');
                 }
-            } else if (trimmed.startsWith('show ')) {
-                const showArg = trimmed.substring(5).trim();
-                if (showArg === '--drafts') {
-                    printDrafts(daemon);
-                } else if (showArg === '--sent') {
-                    printSentMessages(provider, 0);
-                } else {
-                    console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
+            } else {
+                // Post-start: full command set.
+                if (trimmed.startsWith('load ')) {
+                    const fileArg = trimmed.substring(5).trim();
+                    if (!fileArg) {
+                        console.error('Error: No file path provided. Usage: load <file> or load $N');
+                    } else {
+                        const filePath = resolveLoadArg(fileArg);
+                        if (filePath !== null) {
+                            if (!fs.existsSync(filePath)) {
+                                console.error(`Error: File not found: ${filePath}`);
+                            } else {
+                                await provider.loadFile(filePath);
+                                await runDaemon(daemon, provider);
+                            }
+                        }
+                    }
+                } else if (trimmed === 'run' || trimmed === 'send' || trimmed === 'start') {
+                    await runDaemon(daemon, provider);
+                } else if (trimmed.startsWith('send ')) {
+                    const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
+                    try {
+                        await provider.loadFromMailto(arg);
+                        await runDaemon(daemon, provider);
+                    } catch (err) {
+                        console.error(`Error: ${(err as Error).message}`);
+                    }
+                } else if (trimmed.startsWith('show ')) {
+                    const showArg = trimmed.substring(5).trim();
+                    if (showArg === '--drafts') {
+                        printDrafts(daemon);
+                    } else if (showArg === '--sent') {
+                        printSentMessages(provider, 0);
+                    } else {
+                        console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
+                    }
+                } else if (trimmed.length > 0) {
+                    console.error(`Unknown command: ${trimmed}`);
+                    console.error('Commands:');
+                    console.error('  start         - Run the daemon (process and send pending messages)');
+                    console.error('  send "mailto:<email>?subject=<s>&body=<b>" - Send a message from the host');
+                    console.error('  send          - Run the daemon');
+                    console.error('  run           - Alias for send');
+                    console.error('  load <file>   - Load a message file and run the daemon');
+                    console.error('  load $N       - Load file by number from the list above');
+                    console.error('  show --drafts - List pending draft messages');
+                    console.error('  show --sent   - List all sent messages');
+                    console.error('  q             - Quit');
                 }
-            } else if (trimmed.length > 0) {
-                console.error(`Unknown command: ${trimmed}`);
-                console.error('Commands:');
-                console.error('  send "mailto:<email>?subject=<s>&body=<b>" - Send a message from the host');
-                console.error('  send          - Run the daemon (process and send pending messages)');
-                console.error('  run           - Alias for send');
-                console.error('  load <file>   - Load a message file and run the daemon');
-                console.error('  load $N       - Load file by number from the list above');
-                console.error('  show --drafts - List pending draft messages');
-                console.error('  show --sent   - List all sent messages');
-                console.error('  q             - Quit');
             }
 
             printTxtFiles(txtFiles);
