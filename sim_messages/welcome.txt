@@ -1,0 +1,22 @@
+From: [host]
+To: [host]
+Subject: Welcome to friendlymail!
+X-friendlymail:
+{
+  "messageType": "welcome"
+}
+Body:
+   __      _                _ _                       _ _
+  / _|    (_)              | | |                     (_) |
+ | |_ _ __ _  ___ _ __   __| | |_   _ _ __ ___   __ _ _| |
+ |  _| '__| |/ _ \ '_ \ / _` | | | | | '_ ` _ \ / _` | | |
+ | | | |  | |  __/ | | | (_| | | |_| | | | | | | (_| | | |
+ |_| |_|  |_|\___|_| |_|\__,_|_|\__, |_| |_| |_|\__,_|_|_|
+                                 __/ |
+                                |___/
+friendlymail 0.0.1
+Reply to this message with "$ help" for more information.
+
+help: mailto:[host-address]?subject=Fm&body=%24%20help
+
+friendlymail, an open-source, email-based, alternative social network

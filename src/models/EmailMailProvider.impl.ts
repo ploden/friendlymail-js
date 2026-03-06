@@ -113,8 +113,12 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             throw new Error('Draft is not ready to send');
         }
 
-        const xFriendlymail = draft.messageType !== null
-            ? encodeQuotedPrintable(JSON.stringify({ messageType: draft.messageType }))
+        const meta: Record<string, unknown> = {};
+        if (draft.messageType !== null) meta.messageType = draft.messageType;
+        if (draft.inReplyTo) meta.inReplyTo = draft.inReplyTo;
+        if (draft.postData) meta.postData = draft.postData;
+        const xFriendlymail = Object.keys(meta).length > 0
+            ? encodeQuotedPrintable(JSON.stringify(meta))
             : undefined;
 
         const headers: Record<string, string> = {};

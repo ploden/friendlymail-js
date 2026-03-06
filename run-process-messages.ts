@@ -7,16 +7,22 @@
  *   npm run process -- --host-email <email> --host-name <name> [options] [message-file...]
  *   npm run process -- --host-email phil@test.com --host-name "Phil L"
  *   npm run process -- --host-email phil@test.com --host-name "Phil L" --base-dir sim_messages
+ *   npm run process -- --host-email phil@test.com --host-name "Phil L" --script myscript.sim
  *
  * Options:
- *   --base-dir <dir>  Load all .txt files from this directory and subdirectories
+ *   --base-dir <dir>    Load all .txt files from this directory and subdirectories
+ *   --script <file>     Run commands from a script file instead of entering interactive mode
+ *
+ * Script file format:
+ *   Each line is a simulator command (load, start, send, show, run, q).
+ *   Blank lines and lines starting with # are ignored.
  *
  * Or with tsx directly:
  *   tsx run-process-messages.ts --host-email <email> --host-name <name> [options] [message-file...]
  *
  * Note: When using npm run, you must use -- to separate npm arguments from script arguments.
  *
- * If no message files are provided, the simulator enters interactive mode.
+ * If no message files or script are provided, the simulator enters interactive mode.
  * The Daemon is used to process messages and send drafts automatically.
  */
 
@@ -38,11 +44,12 @@ const SIMULATOR_RECEIVED_DIR = path.join(__dirname, 'simulator', 'received');
 /**
  * Parse command-line arguments.
  */
-function parseArgs(): { hostEmail: string; hostName: string; messageFiles: string[]; baseDir: string | undefined } {
+function parseArgs(): { hostEmail: string; hostName: string; messageFiles: string[]; baseDir: string | undefined; scriptFile: string | undefined } {
     const args = process.argv.slice(2);
     let hostEmail: string | undefined;
     let hostName: string | undefined;
     let baseDir: string | undefined;
+    let scriptFile: string | undefined;
     const messageFiles: string[] = [];
 
     for (let i = 0; i < args.length; i++) {
@@ -53,6 +60,8 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
             hostName = args[++i];
         } else if (arg === '--base-dir' && i + 1 < args.length) {
             baseDir = args[++i];
+        } else if (arg === '--script' && i + 1 < args.length) {
+            scriptFile = args[++i];
         } else if (arg.startsWith('--')) {
             console.error(`Error: Unknown option: ${arg}`);
             process.exit(1);
@@ -66,12 +75,13 @@ function parseArgs(): { hostEmail: string; hostName: string; messageFiles: strin
         console.error('  If no message files are provided, enters interactive mode');
         console.error('  Options:');
         console.error('    --base-dir <dir>  Load .txt files from this directory and subdirectories');
+        console.error('    --script <file>   Run commands from a script file');
         console.error('  Example: npm run process -- --host-email phil@test.com --host-name "Phil L"');
         console.error('\nNote: When using npm run, use -- to separate npm arguments from script arguments.');
         process.exit(1);
     }
 
-    return { hostEmail, hostName, messageFiles, baseDir };
+    return { hostEmail, hostName, messageFiles, baseDir, scriptFile };
 }
 
 /**
@@ -199,8 +209,119 @@ async function runDaemon(daemon: Daemon, provider: SimMessageProvider): Promise<
     printSentMessages(provider, sentOffset);
 }
 
+/**
+ * Resolve a "load" argument to an absolute file path.
+ * Accepts a $N shorthand (1-based index into txtFiles) or a literal path.
+ * Returns null and prints an error if the argument is invalid.
+ */
+function resolveLoadArg(
+    fileArg: string,
+    txtFiles: Array<{ display: string; absolute: string }>
+): string | null {
+    const numberMatch = fileArg.match(/^\$(\d+)$/);
+    if (numberMatch) {
+        const fileIndex = parseInt(numberMatch[1], 10) - 1;
+        if (fileIndex >= 0 && fileIndex < txtFiles.length) {
+            return txtFiles[fileIndex].absolute;
+        }
+        console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
+        return null;
+    }
+    return fileArg;
+}
+
+/**
+ * Process a single simulator command line.
+ * Returns the updated started state and whether the session should end.
+ * Used by both interactive mode and script mode.
+ */
+async function handleLine(
+    trimmed: string,
+    started: boolean,
+    daemon: Daemon,
+    provider: SimMessageProvider,
+    txtFiles: Array<{ display: string; absolute: string }>
+): Promise<{ started: boolean; quit: boolean }> {
+    if (trimmed === 'q') return { started, quit: true };
+
+    if (!started) {
+        // Pre-start: accept load and start only.
+        if (trimmed === 'start') {
+            await runDaemon(daemon, provider);
+            return { started: true, quit: false };
+        } else if (trimmed.startsWith('load ')) {
+            const fileArg = trimmed.substring(5).trim();
+            if (!fileArg) {
+                console.error('Error: No file path provided. Usage: load <file> or load $N');
+            } else {
+                const filePath = resolveLoadArg(fileArg, txtFiles);
+                if (filePath !== null) {
+                    if (!fs.existsSync(filePath)) {
+                        console.error(`Error: File not found: ${filePath}`);
+                    } else {
+                        await provider.loadFile(filePath);
+                    }
+                }
+            }
+        } else if (trimmed.length > 0) {
+            console.error('Type "load <file>" or "load $N" to queue messages, or "start" to run the daemon.');
+        }
+    } else {
+        // Post-start: full command set.
+        if (trimmed.startsWith('load ')) {
+            const fileArg = trimmed.substring(5).trim();
+            if (!fileArg) {
+                console.error('Error: No file path provided. Usage: load <file> or load $N');
+            } else {
+                const filePath = resolveLoadArg(fileArg, txtFiles);
+                if (filePath !== null) {
+                    if (!fs.existsSync(filePath)) {
+                        console.error(`Error: File not found: ${filePath}`);
+                    } else {
+                        await provider.loadFile(filePath);
+                        await runDaemon(daemon, provider);
+                    }
+                }
+            }
+        } else if (trimmed === 'run' || trimmed === 'send' || trimmed === 'start') {
+            await runDaemon(daemon, provider);
+        } else if (trimmed.startsWith('send ')) {
+            const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
+            try {
+                await provider.loadFromMailto(arg);
+                await runDaemon(daemon, provider);
+            } catch (err) {
+                console.error(`Error: ${(err as Error).message}`);
+            }
+        } else if (trimmed.startsWith('show ')) {
+            const showArg = trimmed.substring(5).trim();
+            if (showArg === '--drafts') {
+                printDrafts(daemon);
+            } else if (showArg === '--sent') {
+                printSentMessages(provider, 0);
+            } else {
+                console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
+            }
+        } else if (trimmed.length > 0) {
+            console.error(`Unknown command: ${trimmed}`);
+            console.error('Commands:');
+            console.error('  start         - Run the daemon (process and send pending messages)');
+            console.error('  send "mailto:<email>?subject=<s>&body=<b>" - Send a message from the host');
+            console.error('  send          - Run the daemon');
+            console.error('  run           - Alias for send');
+            console.error('  load <file>   - Load a message file and run the daemon');
+            console.error('  load $N       - Load file by number from the list above');
+            console.error('  show --drafts - List pending draft messages');
+            console.error('  show --sent   - List all sent messages');
+            console.error('  q             - Quit');
+        }
+    }
+
+    return { started, quit: false };
+}
+
 async function main() {
-    const { hostEmail, hostName, messageFiles, baseDir } = parseArgs();
+    const { hostEmail, hostName, messageFiles, baseDir, scriptFile } = parseArgs();
 
     if (!EmailAddress.isValid(hostEmail)) {
         console.error(`Error: Invalid host email address: ${hostEmail}`);
@@ -225,9 +346,10 @@ async function main() {
     provider.clearDirs();
 
     const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);
+    const txtFiles = getTxtFiles(baseDir);
 
     if (messageFiles.length > 0) {
-        // Non-interactive: load explicit files, run the daemon once, show results
+        // Non-interactive: load explicit files, run the daemon once, show results.
         for (const filePath of messageFiles) {
             if (!fs.existsSync(filePath)) {
                 console.error(`Warning: File not found: ${filePath}`);
@@ -236,32 +358,30 @@ async function main() {
             await provider.loadFile(filePath);
         }
         await runDaemon(daemon, provider);
+    } else if (scriptFile) {
+        // Script mode: execute commands from a file line by line.
+        if (!fs.existsSync(scriptFile)) {
+            console.error(`Error: Script file not found: ${scriptFile}`);
+            process.exit(1);
+        }
+        const lines = (await fs.promises.readFile(scriptFile, 'utf8')).split('\n');
+        let started = false;
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            console.log(`> ${trimmed}`);
+            const result = await handleLine(trimmed, started, daemon, provider, txtFiles);
+            started = result.started;
+            if (result.quit) break;
+        }
     } else {
-        // Interactive mode
-        const txtFiles = getTxtFiles(baseDir);
-
+        // Interactive mode.
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
             prompt: '> '
         });
 
-        // resolveLoad is a helper used below to parse a "load <arg>" command
-        // and return the resolved file path, or null on error.
-        const resolveLoadArg = (fileArg: string): string | null => {
-            const numberMatch = fileArg.match(/^\$(\d+)$/);
-            if (numberMatch) {
-                const fileIndex = parseInt(numberMatch[1], 10) - 1;
-                if (fileIndex >= 0 && fileIndex < txtFiles.length) {
-                    return txtFiles[fileIndex].absolute;
-                }
-                console.error(`Error: Invalid file number. Available files are 1-${txtFiles.length}`);
-                return null;
-            }
-            return fileArg;
-        };
-
-        // Pre-start phase: allow loading messages before the first daemon run.
         console.log('Load messages before starting, or type "start" to run the daemon.');
         printTxtFiles(txtFiles);
         rl.prompt();
@@ -269,86 +389,12 @@ async function main() {
         let started = false;
 
         rl.on('line', async (line: string) => {
-            const trimmed = line.trim();
-
-            if (trimmed === 'q') {
+            const result = await handleLine(line.trim(), started, daemon, provider, txtFiles);
+            started = result.started;
+            if (result.quit) {
                 rl.close();
                 return;
             }
-
-            if (!started) {
-                // Pre-start: accept load and start only.
-                if (trimmed === 'start') {
-                    started = true;
-                    await runDaemon(daemon, provider);
-                } else if (trimmed.startsWith('load ')) {
-                    const fileArg = trimmed.substring(5).trim();
-                    if (!fileArg) {
-                        console.error('Error: No file path provided. Usage: load <file> or load $N');
-                    } else {
-                        const filePath = resolveLoadArg(fileArg);
-                        if (filePath !== null) {
-                            if (!fs.existsSync(filePath)) {
-                                console.error(`Error: File not found: ${filePath}`);
-                            } else {
-                                await provider.loadFile(filePath);
-                            }
-                        }
-                    }
-                } else if (trimmed.length > 0) {
-                    console.error('Type "load <file>" or "load $N" to queue messages, or "start" to run the daemon.');
-                }
-            } else {
-                // Post-start: full command set.
-                if (trimmed.startsWith('load ')) {
-                    const fileArg = trimmed.substring(5).trim();
-                    if (!fileArg) {
-                        console.error('Error: No file path provided. Usage: load <file> or load $N');
-                    } else {
-                        const filePath = resolveLoadArg(fileArg);
-                        if (filePath !== null) {
-                            if (!fs.existsSync(filePath)) {
-                                console.error(`Error: File not found: ${filePath}`);
-                            } else {
-                                await provider.loadFile(filePath);
-                                await runDaemon(daemon, provider);
-                            }
-                        }
-                    }
-                } else if (trimmed === 'run' || trimmed === 'send' || trimmed === 'start') {
-                    await runDaemon(daemon, provider);
-                } else if (trimmed.startsWith('send ')) {
-                    const arg = trimmed.slice(5).trim().replace(/^["']|["']$/g, '');
-                    try {
-                        await provider.loadFromMailto(arg);
-                        await runDaemon(daemon, provider);
-                    } catch (err) {
-                        console.error(`Error: ${(err as Error).message}`);
-                    }
-                } else if (trimmed.startsWith('show ')) {
-                    const showArg = trimmed.substring(5).trim();
-                    if (showArg === '--drafts') {
-                        printDrafts(daemon);
-                    } else if (showArg === '--sent') {
-                        printSentMessages(provider, 0);
-                    } else {
-                        console.error('Error: Invalid show command. Usage: show --drafts or show --sent');
-                    }
-                } else if (trimmed.length > 0) {
-                    console.error(`Unknown command: ${trimmed}`);
-                    console.error('Commands:');
-                    console.error('  start         - Run the daemon (process and send pending messages)');
-                    console.error('  send "mailto:<email>?subject=<s>&body=<b>" - Send a message from the host');
-                    console.error('  send          - Run the daemon');
-                    console.error('  run           - Alias for send');
-                    console.error('  load <file>   - Load a message file and run the daemon');
-                    console.error('  load $N       - Load file by number from the list above');
-                    console.error('  show --drafts - List pending draft messages');
-                    console.error('  show --sent   - List all sent messages');
-                    console.error('  q             - Quit');
-                }
-            }
-
             printTxtFiles(txtFiles);
             rl.prompt();
         });

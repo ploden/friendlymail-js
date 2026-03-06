@@ -1,0 +1,13 @@
+# Basic friendlymail flow: welcome, create account, invite follower, create post
+
+# Run the daemon — sends the welcome message
+start
+
+# Create a user account
+load sim_messages/create_command_create_account.txt
+
+# Invite a follower
+load sim_messages/invite_add_follower.txt
+
+# Create a post
+load sim_messages/create_post.txt

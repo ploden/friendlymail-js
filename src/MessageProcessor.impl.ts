@@ -457,7 +457,7 @@ export class MessageProcessor implements IMessageProcessor {
             return null;
         }
 
-        const followerEmail = match[1].trim();
+        const followerEmail = match[1].trim().replace(/^<|>$/g, '');
         this.socialNetworks.get(this._hostEmailAddress.toString())?.addFollowerEmail(followerEmail);
 
         return followerEmail;

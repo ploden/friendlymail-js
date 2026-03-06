@@ -1,5 +1,5 @@
-reset the context for this session, read README.md, and read README_for_sdev_agent.md and use as the prompt for this session.
-reset the context for this session, read README.md, and read README_for_sdet_agent.md and use as the prompt for this session.
+reset the context for this session, read README.md, read create_post_scenario.constant.md, read test_permissions_scenario.md, and read README_for_sdev_agent.md and use as the prompt for this session.
+reset the context for this session, read README.md, read create_post_scenario.constant.md, read test_permissions_scenario.md, and read README_for_sdet_agent.md and use as the prompt for this session.
 
 add the messages to test_permissions_scenario.md that should be sent and received as part of each step and result. reference README.md for examples.
 create tests based on the scenario in create_post_scenario.constant.md
