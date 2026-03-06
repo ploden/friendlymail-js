@@ -1,0 +1,136 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXFileReference section */
+		8D8F56DF2F5B82160097741C /* frequent_prompts.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = frequent_prompts.txt; sourceTree = "<group>"; };
+		8D8F56E02F5B82160097741C /* jest.config.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = jest.config.js; sourceTree = "<group>"; };
+		8D8F56E12F5B82160097741C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		8D8F794F2F5B82160097741C /* package.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
+		8D8F79502F5B82160097741C /* package-lock.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "package-lock.json"; sourceTree = "<group>"; };
+		8D8F79512F5B82160097741C /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
+		8D8F79522F5B82160097741C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		8D8F79532F5B82160097741C /* README_for_sdet_agent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README_for_sdet_agent.md; sourceTree = "<group>"; };
+		8D8F79542F5B82160097741C /* README_for_sdev_agent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README_for_sdev_agent.md; sourceTree = "<group>"; };
+		8D8F79552F5B82160097741C /* run-daemon.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = "run-daemon.ts"; sourceTree = "<group>"; };
+		8D8F79562F5B82160097741C /* run-process-messages.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = "run-process-messages.ts"; sourceTree = "<group>"; };
+		8D8F7A1B2F5B82160097741C /* tsconfig.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tsconfig.json; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		8D8F794E2F5B82160097741C /* node_modules */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = node_modules;
+			sourceTree = "<group>";
+		};
+		8D8F795D2F5B82160097741C /* sim_messages */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = sim_messages;
+			sourceTree = "<group>";
+		};
+		8D8F79602F5B82160097741C /* sim_scripts */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = sim_scripts;
+			sourceTree = "<group>";
+		};
+		8D8F796F2F5B82160097741C /* simulator */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = simulator;
+			sourceTree = "<group>";
+		};
+		8D8F79C32F5B82160097741C /* src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = src;
+			sourceTree = "<group>";
+		};
+		8D8F7A1A2F5B82160097741C /* tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = tests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXGroup section */
+		8D55AAD02F5B81B70070C8E2 = {
+			isa = PBXGroup;
+			children = (
+				8D8F56DF2F5B82160097741C /* frequent_prompts.txt */,
+				8D8F56E02F5B82160097741C /* jest.config.js */,
+				8D8F56E12F5B82160097741C /* LICENSE */,
+				8D8F794E2F5B82160097741C /* node_modules */,
+				8D8F794F2F5B82160097741C /* package.json */,
+				8D8F79502F5B82160097741C /* package-lock.json */,
+				8D8F79512F5B82160097741C /* plan.md */,
+				8D8F79522F5B82160097741C /* README.md */,
+				8D8F79532F5B82160097741C /* README_for_sdet_agent.md */,
+				8D8F79542F5B82160097741C /* README_for_sdev_agent.md */,
+				8D8F79552F5B82160097741C /* run-daemon.ts */,
+				8D8F79562F5B82160097741C /* run-process-messages.ts */,
+				8D8F795D2F5B82160097741C /* sim_messages */,
+				8D8F79602F5B82160097741C /* sim_scripts */,
+				8D8F796F2F5B82160097741C /* simulator */,
+				8D8F79C32F5B82160097741C /* src */,
+				8D8F7A1A2F5B82160097741C /* tests */,
+				8D8F7A1B2F5B82160097741C /* tsconfig.json */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		8D55AAD12F5B81B70070C8E2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1620;
+			};
+			buildConfigurationList = 8D55AAD42F5B81B70070C8E2 /* Build configuration list for PBXProject "friendlymail-js" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8D55AAD02F5B81B70070C8E2;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		8D55AAD52F5B81B70070C8E2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		8D55AAD62F5B81B70070C8E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8D55AAD42F5B81B70070C8E2 /* Build configuration list for PBXProject "friendlymail-js" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8D55AAD52F5B81B70070C8E2 /* Debug */,
+				8D55AAD62F5B81B70070C8E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8D55AAD12F5B81B70070C8E2 /* Project object */;
+}
