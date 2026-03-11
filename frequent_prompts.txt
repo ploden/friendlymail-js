@@ -18,3 +18,5 @@ npm run daemon -- --host-email phil@test.com --smtp-port 587 --smtp-user phil --
 Thunderbird settings:
 - Incoming: IMAP, localhost, port 143, no TLS, username phil, password friendlymail
 - Outgoing: SMTP, localhost, port 587, no TLS, username phil, password friendlymail
+
+run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs.
