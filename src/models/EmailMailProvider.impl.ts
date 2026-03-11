@@ -9,8 +9,6 @@ import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 
-const PROCESSED_KEYWORD = '$FriendlymailProcessed';
-
 /** Builds a minimal RFC 2822 message buffer suitable for IMAP APPEND. */
 function buildRawMessage(
     from: string,
@@ -66,22 +64,27 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
 /**
  * A MailProvider that sends messages via SMTP (nodemailer) and receives via IMAP (imapflow).
  *
- * Deduplication strategy:
- * - INBOX: messages are tagged with $FriendlymailProcessed after fetching so they are
- *   never returned again, even after a daemon restart.
- * - Sent: after each sendDraft() the message is IMAP APPENDed to the Sent folder.
- *   getMessages() fetches all Sent messages not yet seen in this session (_loadedSentIds),
- *   giving MessageProcessor the full sent history on every run — including after restart.
+ * getMessages() returns all INBOX messages and all Sent messages on every call.
+ * MessageStore deduplicates by messageId so MessageProcessor sees each message once.
+ * MessageProcessor is responsible for all logic to avoid sending duplicate replies.
+ * sendDraft() appends a copy to the IMAP Sent folder so MessageProcessor has full
+ * sent history on every run, including after a daemon restart.
  */
 export class EmailMailProvider extends MailProvider implements IEmailMailProvider {
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
-    private _loadedSentIds: Set<string> = new Set();
+    private _verbose: boolean;
 
-    constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig) {
+    /**
+     * @param smtpConfig SMTP connection settings
+     * @param imapConfig IMAP connection settings
+     * @param verbose When true, logs each fetched and sent message to stdout
+     */
+    constructor(smtpConfig: SmtpConfig, imapConfig: ImapConfig, verbose: boolean = false) {
         super();
         this._smtpConfig = smtpConfig;
         this._imapConfig = imapConfig;
+        this._verbose = verbose;
     }
 
     get smtpConfig(): SmtpConfig {
@@ -129,6 +132,10 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             tls: { rejectUnauthorized: !this._smtpConfig.allowSelfSigned }
         });
 
+        if (this._verbose) {
+            console.log(`[EmailMailProvider] sendDraft  to=${draft.to.map(a => a.toString()).join(', ')}  subject="${draft.subject}"  xFriendlymail=${xFriendlymail ?? '(none)'}`);
+        }
+
         const info = await transporter.sendMail({
             from: draft.from!.toString(),
             to: draft.to.map(a => a.toString()).join(', '),
@@ -137,6 +144,10 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             ...(draft.html ? { html: draft.html } : {}),
             headers
         });
+
+        if (this._verbose) {
+            console.log(`[EmailMailProvider] sendDraft complete  messageId=${info.messageId}`);
+        }
 
         // Append a copy to IMAP Sent so getMessages() can return it for MessageProcessor context.
         const rawMessage = buildRawMessage(
@@ -160,15 +171,9 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     }
 
     /**
-     * Fetch unprocessed INBOX messages and any new Sent messages.
-     *
-     * INBOX: only messages not yet tagged $FriendlymailProcessed are returned;
-     * they are tagged immediately so they won't be returned on future polls.
-     *
-     * Sent: all messages not yet seen in this session are returned so
-     * MessageProcessor has the full sent history. On restart _loadedSentIds
-     * is empty, so the entire Sent folder is returned — giving MessageProcessor
-     * enough context to avoid sending duplicate replies.
+     * Fetch all INBOX messages and all Sent messages.
+     * MessageStore deduplicates by messageId so repeated calls do not cause
+     * MessageProcessor to process the same message more than once.
      */
     async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         const client = this._makeImapClient();
@@ -176,10 +181,10 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
 
         const messages: SimpleMessageWithMessageId[] = [];
 
-        // — INBOX: new (unprocessed) messages —
+        // — INBOX: all messages —
         const inboxLock = await client.getMailboxLock('INBOX');
         try {
-            const result = await client.search({ unKeyword: PROCESSED_KEYWORD }, { uid: true });
+            const result = await client.search({ all: true }, { uid: true });
             const uids: number[] = result === false ? [] : result;
 
             if (uids.length > 0) {
@@ -187,29 +192,40 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
                 for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
                     if (!msg.source) continue;
                     const parsed = await parseImapMessage(msg.source, msg.uid);
-                    if (parsed) messages.push(parsed);
+                    if (parsed) {
+                        messages.push(parsed);
+                        if (this._verbose) {
+                            console.log(`[EmailMailProvider] INBOX  uid=${msg.uid}  id=${parsed.messageId}  from=${parsed.from}  subject="${parsed.subject}"  xFriendlymail=${parsed.xFriendlymail ?? '(none)'}`);
+                        }
+                    }
                 }
-                await client.messageFlagsAdd(uidSet, [PROCESSED_KEYWORD], { uid: true });
             }
         } finally {
             inboxLock.release();
         }
+        if (this._verbose) {
+            console.log(`[EmailMailProvider] INBOX fetch complete  count=${messages.length}`);
+        }
 
-        // — Sent: full history, new-to-this-session only —
+        // — Sent: all messages —
+        const sentCountBefore = messages.length;
         try {
             const sentLock = await client.getMailboxLock('Sent');
             try {
                 const result = await client.search({ all: true }, { uid: true });
-                const allUids: number[] = result === false ? [] : result;
-                const newUids = allUids.filter(uid => !this._loadedSentIds.has(String(uid)));
+                const uids: number[] = result === false ? [] : result;
 
-                if (newUids.length > 0) {
-                    const uidSet = newUids.join(',');
+                if (uids.length > 0) {
+                    const uidSet = uids.join(',');
                     for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
                         if (!msg.source) continue;
-                        this._loadedSentIds.add(String(msg.uid));
                         const parsed = await parseImapMessage(msg.source, msg.uid);
-                        if (parsed) messages.push(parsed);
+                        if (parsed) {
+                            messages.push(parsed);
+                            if (this._verbose) {
+                                console.log(`[EmailMailProvider] Sent  uid=${msg.uid}  id=${parsed.messageId}  from=${parsed.from}  subject="${parsed.subject}"  xFriendlymail=${parsed.xFriendlymail ?? '(none)'}`);
+                            }
+                        }
                     }
                 }
             } finally {
@@ -217,6 +233,9 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             }
         } catch {
             // Sent folder doesn't exist yet (before any message has been sent).
+        }
+        if (this._verbose) {
+            console.log(`[EmailMailProvider] Sent fetch complete  count=${messages.length - sentCountBefore}`);
         }
 
         await client.logout();

@@ -21,6 +21,8 @@ export class Daemon implements IDaemon {
     private _messageProcessor: IMessageProcessor;
     private _socialNetwork: ISocialNetwork;
     private _hostEmailAddress: EmailAddress;
+    private _verbose: boolean;
+    private _runCount: number = 0;
 
     /**
      * Creates a new Daemon instance.
@@ -28,12 +30,14 @@ export class Daemon implements IDaemon {
      * @param messageReceiver Used to fetch incoming messages
      * @param messageSender Used to dispatch draft messages
      * @param socialNetwork Used to persist social network state across runs
+     * @param verbose When true, logs detailed run-cycle information to stdout
      */
     constructor(
         hostEmailAddress: EmailAddress,
         messageReceiver: IMessageReceiver,
         messageSender: IMessageSender,
-        socialNetwork: ISocialNetwork
+        socialNetwork: ISocialNetwork,
+        verbose: boolean = false
     ) {
         this._hostEmailAddress = hostEmailAddress;
         this._messageStore = new MessageStore();
@@ -41,6 +45,7 @@ export class Daemon implements IDaemon {
         this._messageSender = messageSender;
         this._socialNetwork = socialNetwork;
         this._messageProcessor = new MessageProcessor(hostEmailAddress);
+        this._verbose = verbose;
     }
 
     /** The store holding all received and pending draft messages */
@@ -73,9 +78,26 @@ export class Daemon implements IDaemon {
      * send any resulting drafts, and update the social network.
      */
     async run(): Promise<void> {
+        this._runCount++;
+        const log = this._verbose
+            ? (...args: unknown[]) => console.log(`[daemon run=${this._runCount}]`, ...args)
+            : () => {};
+
+        log(`--- cycle start ---`);
+
         // Populate the store with messages from the receiver
         const newMessages = await this._messageReceiver.getMessages();
+        log(`getMessages() returned ${newMessages.length} message(s)`);
+        if (this._verbose) {
+            for (const m of newMessages) {
+                console.log(`  [daemon run=${this._runCount}] message  id=${m.messageId}  from=${m.from}  subject="${m.subject}"  xFriendlymail=${m.xFriendlymail ?? '(none)'}`);
+            }
+        }
+
+        const storeSizeBefore = this._messageStore.allMessages.length;
         this._messageStore.addMessages(newMessages);
+        const storeSizeAfter = this._messageStore.allMessages.length;
+        log(`store size: ${storeSizeBefore} → ${storeSizeAfter} (${storeSizeAfter - storeSizeBefore} added after dedup)`);
 
         // Build a processor from the accumulated store messages
         this._messageProcessor = new MessageProcessor(
@@ -85,20 +107,34 @@ export class Daemon implements IDaemon {
 
         // Send each draft produced by the processor
         const drafts = this._messageProcessor.getMessageDrafts();
+        log(`processor produced ${drafts.length} draft(s)`);
+        if (this._verbose) {
+            for (const d of drafts) {
+                console.log(`  [daemon run=${this._runCount}] draft  to=${d.to.map(a => a.toString()).join(',')}  subject="${d.subject}"  messageType=${(d as { messageType?: string }).messageType ?? '(none)'}`);
+            }
+        }
+
         for (const draft of drafts) {
+            log(`sending draft  to=${draft.to.map(a => a.toString()).join(',')}  subject="${draft.subject}"`);
             await this._messageSender.sendDraft(draft);
             this._messageProcessor.removeDraft(draft);
         }
 
         // Fetch any messages produced by sending drafts and add them to the store
         const sentMessages = await this._messageReceiver.getMessages();
+        log(`post-send getMessages() returned ${sentMessages.length} message(s)`);
+        const storeSizeBeforePost = this._messageStore.allMessages.length;
         this._messageStore.addMessages(sentMessages);
+        const storeSizeAfterPost = this._messageStore.allMessages.length;
+        log(`store size after post-send fetch: ${storeSizeBeforePost} → ${storeSizeAfterPost}`);
 
         // Update the social network from processor state
         const hostSocialNetwork = this._messageProcessor.getHostSocialNetwork();
         if (hostSocialNetwork) {
             this._socialNetwork.setUser(hostSocialNetwork.getUser());
         }
+
+        log(`--- cycle end ---`);
     }
 
 }

@@ -23,11 +23,15 @@ export class MessageStore implements IMessageStore {
     }
 
     addMessage(message: SimpleMessageWithMessageId): void {
-        this._allMessages.push(message);
+        if (!this._allMessages.some(m => m.messageId === message.messageId)) {
+            this._allMessages.push(message);
+        }
     }
 
     addMessages(messages: SimpleMessageWithMessageId[]): void {
-        this._allMessages.push(...messages);
+        for (const message of messages) {
+            this.addMessage(message);
+        }
     }
 
     addDraft(draft: MessageDraft): void {

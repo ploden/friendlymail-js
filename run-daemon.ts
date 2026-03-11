@@ -28,6 +28,7 @@
  * Other options:
  *   --interval <seconds>      Poll interval in seconds (default: 10)
  *   --allow-self-signed       Skip TLS certificate verification (for local dev)
+ *   --verbose                 Log each fetched/sent message and cycle details
  */
 
 import { Daemon } from './src/models/Daemon';
@@ -50,6 +51,7 @@ interface Args {
     imapPass: string;
     intervalSec: number;
     allowSelfSigned: boolean;
+    verbose: boolean;
 }
 
 function parseArgs(): Args {
@@ -67,6 +69,7 @@ function parseArgs(): Args {
     let imapPass = '';
     let intervalSec = 10;
     let allowSelfSigned = false;
+    let verbose = false;
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -86,6 +89,7 @@ function parseArgs(): Args {
             case '--imap-pass':    imapPass   = next; i++; break;
             case '--interval':          intervalSec    = parseInt(next, 10); i++; break;
             case '--allow-self-signed': allowSelfSigned = true; break;
+            case '--verbose':           verbose = true; break;
             default:
                 if (arg.startsWith('--')) {
                     console.error(`Unknown option: ${arg}`);
@@ -113,6 +117,7 @@ function parseArgs(): Args {
         imapPass,
         intervalSec,
         allowSelfSigned,
+        verbose,
     };
 }
 
@@ -134,7 +139,8 @@ async function main(): Promise<void> {
             secure: args.imapSecure,
             auth: { user: args.imapUser, pass: args.imapPass },
             allowSelfSigned: args.allowSelfSigned,
-        }
+        },
+        args.verbose
     );
 
     let _user: User | null = null;
@@ -143,7 +149,7 @@ async function main(): Promise<void> {
         setUser: (user: User) => { _user = user; },
     };
 
-    const daemon = new Daemon(hostAddress, provider, provider, socialNetwork);
+    const daemon = new Daemon(hostAddress, provider, provider, socialNetwork, args.verbose);
 
     console.log(`friendlymail daemon starting for ${args.hostEmail}`);
     console.log(`SMTP  ${args.smtpHost}:${args.smtpPort}  IMAP  ${args.imapHost}:${args.imapPort}`);
