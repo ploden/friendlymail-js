@@ -20,6 +20,7 @@ friendlymail is an open-source, email-based, alternative social network. It supp
     - [Create Post Message](###create-post-message)
     - [Create Like Message](###create-like-message)
     - [Create Comment Message](###create-comment-message)
+    - [Create Post with Photo Message](###create-post-with-photo-message)
   - [Notification Messages](##notification-messages)
     - [New Post Notification](###new-post-notification)
     - [New Like Notification](###new-like-notification)
@@ -372,13 +373,25 @@ friendlymail, an open-source, email-based, alternative social network
 ## Create Messages
 The create message is sent by the user to create new content on friendlymail. After a create message is received, friendlymail will send messages containing the new content to the user's followers.
 
-Here is an example of the create message. The friendlymail user is attached to the host phil@test.com, and the new content is a post containing the text "hello, world".
+### Create Post Message
+Here is an example of the create post message. The friendlymail user is attached to the host phil@test.com, and the new content is a post containing the text "hello, world".
 ```
 From: Phil L <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
 hello, world
+
+```
+
+### Create Post with Photo Message
+Here is an example of the create post with photo message. The friendlymail user is attached to the host phil@test.com, and the new content is a post containing the photo. This example does not contain an real attachment containing a photo. The text "// attachment containing photo" is used as a placeholder. 
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+// attachment containing photo
 
 ```
 
