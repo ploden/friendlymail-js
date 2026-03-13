@@ -1,6 +1,7 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { IEmailMessage } from './EmailMessage.interface';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * Represents an email message received via IMAP.
@@ -18,9 +19,10 @@ export class EmailMessage extends SimpleMessageWithMessageId implements IEmailMe
         date: Date = new Date(),
         xFriendlymail?: string,
         messageId?: string,
-        inReplyTo?: string
+        inReplyTo?: string,
+        photoAttachment?: PhotoAttachment
     ) {
-        super(from, to, subject, body, date, xFriendlymail, undefined, messageId);
+        super(from, to, subject, body, date, xFriendlymail, undefined, messageId, photoAttachment);
         this._inReplyTo = inReplyTo;
     }
 

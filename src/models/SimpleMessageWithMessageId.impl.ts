@@ -1,6 +1,7 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { SimpleMessage } from './SimpleMessage.impl';
 import { ISimpleMessageWithMessageId } from './SimpleMessageWithMessageId.interface';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * A SimpleMessage that carries a unique message identifier.
@@ -18,9 +19,10 @@ export class SimpleMessageWithMessageId extends SimpleMessage implements ISimple
         date: Date = new Date(),
         xFriendlymail?: string,
         html?: string,
-        messageId: string = crypto.randomUUID()
+        messageId: string = crypto.randomUUID(),
+        photoAttachment?: PhotoAttachment
     ) {
-        super(from, to, subject, body, date, xFriendlymail, html);
+        super(from, to, subject, body, date, xFriendlymail, html, photoAttachment);
         this._messageId = messageId;
     }
 

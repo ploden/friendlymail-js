@@ -634,7 +634,8 @@ export class MessageProcessor implements IMessageProcessor {
 
         // Build Post model and postData for X-friendlymail header
         const postAuthor = hostAccount ?? new User(hostName, this._hostEmailAddress);
-        const post = new Post(postAuthor, postBody, 'text', { refId });
+        const postType = postMessage.photoAttachment ? 'image' : 'text';
+        const post = new Post(postAuthor, postBody, postType, { refId });
         const postData: Record<string, unknown> = {
             id: post.id,
             refId: post.refId,
@@ -653,11 +654,18 @@ export class MessageProcessor implements IMessageProcessor {
         const d = postMessage.date;
         const created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 
+        const post_photo_line = postMessage.photoAttachment ? '\n[Photo attached]' : '';
+        const post_photo_row = postMessage.photoAttachment
+            ? `<tr><td style="padding:0 0 14px 50px;"><img src="cid:post_photo" alt="Photo" style="display:block;max-width:100%;height:auto;border-radius:8px;"></td></tr>`
+            : '';
+
         const templateVars = {
             host_name: hostName,
             host_email: hostEmail,
             host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
+            post_photo_line,
+            post_photo_row,
             like_link: likeLink,
             comment_link: commentLink,
             like_href: likeHref,
@@ -687,6 +695,7 @@ export class MessageProcessor implements IMessageProcessor {
                     html: notifHtml,
                     inReplyTo: postMessage.messageId,
                     postData,
+                    photoAttachment: postMessage.photoAttachment,
                     isHtml: false,
                     priority: 'normal',
                     messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION

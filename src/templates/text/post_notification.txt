@@ -1,6 +1,6 @@
 {{ host_name }} --> posted:
 
-"{{ post_body }}"
+"{{ post_body }}"{{ post_photo_line }}
 
 {{ like_link }}
 {{ comment_link }}

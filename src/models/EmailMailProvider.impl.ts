@@ -1,6 +1,7 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser, ParsedMail } from 'mailparser';
 import * as nodemailer from 'nodemailer';
+import sharp from 'sharp';
 import { MailProvider } from './MailProvider.impl';
 import { IEmailMailProvider, SmtpConfig, ImapConfig } from './EmailMailProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
@@ -8,6 +9,7 @@ import { EmailMessage } from './EmailMessage.impl';
 import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /** Builds a minimal RFC 2822 message buffer suitable for IMAP APPEND. */
 function buildRawMessage(
@@ -49,6 +51,23 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
 
     if (to.length === 0) return null;
 
+    // Extract and resize the first image attachment, if present.
+    let photoAttachment: PhotoAttachment | undefined;
+    const imageAtt = parsed.attachments?.find(
+        att => att.contentType.startsWith('image/') && Buffer.isBuffer(att.content)
+    );
+    if (imageAtt) {
+        const resized = await sharp(imageAtt.content as Buffer)
+            .resize(1080, 1080, { fit: 'cover' })
+            .jpeg({ quality: 85 })
+            .toBuffer();
+        photoAttachment = {
+            data: resized,
+            contentType: 'image/jpeg',
+            filename: imageAtt.filename ?? 'photo.jpg',
+        };
+    }
+
     return new EmailMessage(
         from,
         to,
@@ -57,7 +76,8 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
         parsed.date ?? new Date(),
         parsed.headers.get('x-friendlymail') as string | undefined,
         parsed.messageId ?? String(fallbackUid),
-        parsed.inReplyTo
+        parsed.inReplyTo,
+        photoAttachment
     );
 }
 
@@ -136,13 +156,23 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             console.log(`[EmailMailProvider] sendDraft  to=${draft.to.map(a => a.toString()).join(', ')}  subject="${draft.subject}"  xFriendlymail=${xFriendlymail ?? '(none)'}`);
         }
 
+        const inlineAttachments = draft.photoAttachment
+            ? [{
+                filename: draft.photoAttachment.filename,
+                content: draft.photoAttachment.data,
+                contentType: draft.photoAttachment.contentType,
+                cid: 'post_photo',
+            }]
+            : [];
+
         const info = await transporter.sendMail({
             from: draft.from!.toString(),
             to: draft.to.map(a => a.toString()).join(', '),
             subject: draft.subject,
             text: draft.body,
             ...(draft.html ? { html: draft.html } : {}),
-            headers
+            headers,
+            attachments: inlineAttachments,
         });
 
         if (this._verbose) {

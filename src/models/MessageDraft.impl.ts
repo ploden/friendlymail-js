@@ -3,6 +3,7 @@ import { SimpleMessage } from './SimpleMessage.impl';
 import { IMessageDraft, IMessageDraftStatic } from './MessageDraft.interface';
 import { FriendlymailMessageType } from './FriendlymailMessageType';
 import { decodeQuotedPrintable } from '../utils/quotedPrintable';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * Represents a draft email message that may be incomplete or unsent.
@@ -34,6 +35,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
             inReplyTo?: string;
             postData?: Record<string, unknown>;
             attachments?: string[];
+            photoAttachment?: PhotoAttachment;
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
             messageType?: FriendlymailMessageType | null;
@@ -41,7 +43,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
             updatedAt?: Date;
         } = {}
     ) {
-        super(from, to, subject, body, new Date(), undefined, options.html);
+        super(from, to, subject, body, new Date(), undefined, options.html, options.photoAttachment);
         this._inReplyTo = options.inReplyTo;
         this._postData = options.postData;
         this._cc = options.cc ? [...options.cc] : [];

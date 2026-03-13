@@ -1,5 +1,6 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { ISimpleMessage } from './SimpleMessage.interface';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * Implementation of the most basic message type.
@@ -15,6 +16,8 @@ export class SimpleMessage implements ISimpleMessage {
     protected _html?: string;
     protected _date: Date;
     protected _xFriendlymail?: string;
+    /** Optional photo attachment carried by this message. */
+    readonly photoAttachment?: PhotoAttachment;
 
     constructor(
         from: EmailAddress | null,
@@ -23,7 +26,8 @@ export class SimpleMessage implements ISimpleMessage {
         body: string,
         date: Date = new Date(),
         xFriendlymail?: string,
-        html?: string
+        html?: string,
+        photoAttachment?: PhotoAttachment
     ) {
         this._from = from;
         this._to = [...to];
@@ -32,6 +36,7 @@ export class SimpleMessage implements ISimpleMessage {
         this._html = html;
         this._date = date;
         this._xFriendlymail = xFriendlymail;
+        this.photoAttachment = photoAttachment;
     }
 
     get from(): EmailAddress | null {
