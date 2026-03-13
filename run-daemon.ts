@@ -26,11 +26,20 @@
  *   --imap-pass <pass>        IMAP password         (default: "")
  *
  * Other options:
+ *   --config <path>           Path to a key=value config file (CLI args override file)
  *   --interval <seconds>      Poll interval in seconds (default: 10)
+ *   --since <YYYY-MM-DD>      Only fetch IMAP messages on or after this date
  *   --allow-self-signed       Skip TLS certificate verification (for local dev)
  *   --verbose                 Log each fetched/sent message and cycle details
+ *
+ * Config file format (one option per line, # for comments):
+ *   host-email=phil@example.com
+ *   smtp-host=smtp.gmail.com
+ *   smtp-secure=true
+ *   verbose=true
  */
 
+import * as fs from 'fs';
 import { Daemon } from './src/models/Daemon';
 import { EmailMailProvider } from './src/models/EmailMailProvider';
 import { EmailAddress } from './src/models/EmailAddress.impl';
@@ -50,12 +59,64 @@ interface Args {
     imapUser: string;
     imapPass: string;
     intervalSec: number;
+    sinceDate: Date | undefined;
     allowSelfSigned: boolean;
     verbose: boolean;
 }
 
+/** Option names that act as boolean flags (no value argument on the CLI). */
+const BOOLEAN_OPTIONS = new Set(['smtp-secure', 'imap-secure', 'allow-self-signed', 'verbose']);
+
+/**
+ * Parse a key=value config file and return a synthetic argv array.
+ * Boolean options with value "true" become --flag entries.
+ * Boolean options with value "false" are omitted.
+ * Lines starting with # and blank lines are ignored.
+ */
+function loadConfigFile(filePath: string): string[] {
+    let content: string;
+    try {
+        content = fs.readFileSync(filePath, 'utf8');
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Cannot read config file "${filePath}": ${msg}`);
+        process.exit(1);
+    }
+
+    const syntheticArgv: string[] = [];
+    for (const rawLine of content.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#')) continue;
+
+        const eqIndex = line.indexOf('=');
+        const key   = (eqIndex === -1 ? line : line.slice(0, eqIndex)).trim();
+        const value = (eqIndex === -1 ? ''  : line.slice(eqIndex + 1)).trim();
+
+        if (BOOLEAN_OPTIONS.has(key)) {
+            if (value.toLowerCase() !== 'false') syntheticArgv.push(`--${key}`);
+        } else {
+            syntheticArgv.push(`--${key}`, value);
+        }
+    }
+    return syntheticArgv;
+}
+
 function parseArgs(): Args {
-    const argv = process.argv.slice(2);
+    // Pre-scan for --config and strip it from argv before the main parse loop.
+    const rawArgv = process.argv.slice(2);
+    let configArgv: string[] = [];
+    const filteredArgv: string[] = [];
+    for (let i = 0; i < rawArgv.length; i++) {
+        if (rawArgv[i] === '--config' && i + 1 < rawArgv.length) {
+            configArgv = loadConfigFile(rawArgv[i + 1]);
+            i++;
+        } else {
+            filteredArgv.push(rawArgv[i]);
+        }
+    }
+
+    // Config file entries come first so CLI args (filteredArgv) override them.
+    const argv = [...configArgv, ...filteredArgv];
     let hostEmail: string | undefined;
     let smtpHost = 'localhost';
     let smtpPort = 1025;
@@ -68,6 +129,7 @@ function parseArgs(): Args {
     let imapUser: string | undefined;
     let imapPass = '';
     let intervalSec = 10;
+    let sinceDate: Date | undefined;
     let allowSelfSigned = false;
     let verbose = false;
 
@@ -88,6 +150,7 @@ function parseArgs(): Args {
             case '--imap-user':    imapUser   = next; i++; break;
             case '--imap-pass':    imapPass   = next; i++; break;
             case '--interval':          intervalSec    = parseInt(next, 10); i++; break;
+            case '--since':             sinceDate      = new Date(next); i++; break;
             case '--allow-self-signed': allowSelfSigned = true; break;
             case '--verbose':           verbose = true; break;
             default:
@@ -116,6 +179,7 @@ function parseArgs(): Args {
         imapUser: imapUser ?? hostEmail,
         imapPass,
         intervalSec,
+        sinceDate,
         allowSelfSigned,
         verbose,
     };
@@ -139,6 +203,7 @@ async function main(): Promise<void> {
             secure: args.imapSecure,
             auth: { user: args.imapUser, pass: args.imapPass },
             allowSelfSigned: args.allowSelfSigned,
+            sinceDate: args.sinceDate,
         },
         args.verbose
     );

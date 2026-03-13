@@ -1,0 +1,16 @@
+# friendlymail daemon config — ploden@gmail.com
+host-email=ploden@gmail.com
+
+# SMTP (Gmail — SSL/TLS)
+smtp-host=smtp.gmail.com
+smtp-port=465
+smtp-secure=true
+smtp-user=ploden@gmail.com
+smtp-pass=YOUR_APP_PASSWORD
+
+# IMAP (Gmail — SSL/TLS)
+imap-host=imap.gmail.com
+imap-port=993
+imap-secure=true
+imap-user=ploden@gmail.com
+imap-pass=YOUR_APP_PASSWORD

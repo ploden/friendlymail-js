@@ -30,6 +30,8 @@ export interface ImapConfig {
     };
     /** Skip TLS certificate verification. Use for local dev with self-signed certs. */
     allowSelfSigned?: boolean;
+    /** Only fetch messages on or after this date. When omitted, all messages are fetched. */
+    sinceDate?: Date;
 }
 
 /**

@@ -181,10 +181,11 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
 
         const messages: SimpleMessageWithMessageId[] = [];
 
-        // — INBOX: all messages —
+        // — INBOX: all messages (or since sinceDate if configured) —
         const inboxLock = await client.getMailboxLock('INBOX');
         try {
-            const result = await client.search({ all: true }, { uid: true });
+            const searchCriteria = this._imapConfig.sinceDate ? { since: this._imapConfig.sinceDate } : { all: true as const };
+            const result = await client.search(searchCriteria, { uid: true });
             const uids: number[] = result === false ? [] : result;
 
             if (uids.length > 0) {
@@ -212,7 +213,8 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         try {
             const sentLock = await client.getMailboxLock('Sent');
             try {
-                const result = await client.search({ all: true }, { uid: true });
+                const searchCriteria = this._imapConfig.sinceDate ? { since: this._imapConfig.sinceDate } : { all: true as const };
+                const result = await client.search(searchCriteria, { uid: true });
                 const uids: number[] = result === false ? [] : result;
 
                 if (uids.length > 0) {
