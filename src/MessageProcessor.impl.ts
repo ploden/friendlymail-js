@@ -8,6 +8,7 @@ import { MessageDraft } from './models/MessageDraft';
 import { FriendlymailMessageType } from './models/FriendlymailMessageType';
 import { IMessageProcessor } from './MessageProcessor.interface';
 import { encodeQuotedPrintable, decodeQuotedPrintable } from './utils/quotedPrintable';
+import { PhotoEmbedMode } from './models/PhotoEmbedMode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { VERSION, SIGNATURE } from './constants';
@@ -18,13 +19,15 @@ export class MessageProcessor implements IMessageProcessor {
     private _drafts: MessageDraft[];
     private _sentMessages: SimpleMessageWithMessageId[];
     private socialNetworks: Map<string, SocialNetwork>;
+    private _photoEmbedMode: PhotoEmbedMode;
 
-    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessageWithMessageId[] = []) {
+    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessageWithMessageId[] = [], photoEmbedMode: PhotoEmbedMode = 'cid') {
         this._hostEmailAddress = hostEmailAddress;
         this._receivedMessages = [...receivedMessages];
         this._drafts = [];
         this._sentMessages = [];
         this.socialNetworks = new Map();
+        this._photoEmbedMode = photoEmbedMode;
 
         if (this.shouldCreateWelcomeMessageDraft()) {
             this.createWelcomeMessageDraftForHost();
@@ -655,8 +658,11 @@ export class MessageProcessor implements IMessageProcessor {
         const created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 
         const post_photo_line = postMessage.photoAttachment ? '\n[Photo attached]' : '';
-        const post_photo_row = postMessage.photoAttachment
-            ? `<tr><td style="padding:0 0 14px 50px;"><img src="cid:post_photo" alt="Photo" style="display:block;max-width:100%;height:auto;border-radius:8px;"></td></tr>`
+        const post_photo_display = postMessage.photoAttachment ? 'table-row' : 'none';
+        const post_photo_src = postMessage.photoAttachment
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${postMessage.photoAttachment.contentType};base64,${postMessage.photoAttachment.data.toString('base64')}`
+                : 'cid:post_photo')
             : '';
 
         const templateVars = {
@@ -665,7 +671,8 @@ export class MessageProcessor implements IMessageProcessor {
             host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
             post_photo_line,
-            post_photo_row,
+            post_photo_display,
+            post_photo_src,
             like_link: likeLink,
             comment_link: commentLink,
             like_href: likeHref,

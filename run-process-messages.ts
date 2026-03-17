@@ -37,6 +37,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { decodeQuotedPrintable } from './src/utils/quotedPrintable';
+import { PhotoEmbedMode } from './src/models/PhotoEmbedMode';
 
 const SIMULATOR_SENT_DIR = path.join(__dirname, 'simulator', 'sent');
 const SIMULATOR_RECEIVED_DIR = path.join(__dirname, 'simulator', 'received');
@@ -345,7 +346,7 @@ async function main() {
 
     provider.clearDirs();
 
-    const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork);
+    const daemon = new Daemon(hostEmailAddress, provider, provider, socialNetwork, false, 'base64');
     const txtFiles = getTxtFiles(baseDir);
 
     if (messageFiles.length > 0) {

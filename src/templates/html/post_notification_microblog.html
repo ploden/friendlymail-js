@@ -51,7 +51,12 @@
           </tr>
 
           <!-- Post photo (present only for photo posts) -->
-          {{ post_photo_row }}
+          <tr style="display:{{ post_photo_display }};">
+            <td style="padding:0 0 14px 50px;">
+              <img src="{{ post_photo_src }}" alt="Photo"
+                   style="display:block;max-width:100%;height:auto;border-radius:6px;">
+            </td>
+          </tr>
 
           <!-- Action row -->
           <tr>

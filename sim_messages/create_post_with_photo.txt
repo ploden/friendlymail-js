@@ -1,0 +1,7 @@
+From: [host]
+Subject: Fm
+To: [host]
+Message-ID: [message-id]
+Attachment: les_horribles.jpg
+
+Hello from CERN!

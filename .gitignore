@@ -6,3 +6,5 @@ simulator/sent/*
 !simulator/sent/.gitkeep
 simulator/received/*
 !simulator/received/.gitkeep
+gmail_config.txt
+**/.xcodeproj/project.xcworkspace/xcuserdata/*

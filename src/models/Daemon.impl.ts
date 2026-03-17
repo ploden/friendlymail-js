@@ -7,6 +7,7 @@ import { IMessageProcessor } from '../MessageProcessor.interface';
 import { MessageStore } from './MessageStore.impl';
 import { MessageProcessor } from '../MessageProcessor';
 import { EmailAddress } from './EmailAddress.impl';
+import { PhotoEmbedMode } from './PhotoEmbedMode';
 
 /**
  * Daemon coordinates the core friendlymail components to send and receive
@@ -22,6 +23,7 @@ export class Daemon implements IDaemon {
     private _socialNetwork: ISocialNetwork;
     private _hostEmailAddress: EmailAddress;
     private _verbose: boolean;
+    private _photoEmbedMode: PhotoEmbedMode;
     private _runCount: number = 0;
 
     /**
@@ -31,20 +33,23 @@ export class Daemon implements IDaemon {
      * @param messageSender Used to dispatch draft messages
      * @param socialNetwork Used to persist social network state across runs
      * @param verbose When true, logs detailed run-cycle information to stdout
+     * @param photoEmbedMode Controls how photo attachments are embedded in HTML notifications
      */
     constructor(
         hostEmailAddress: EmailAddress,
         messageReceiver: IMessageReceiver,
         messageSender: IMessageSender,
         socialNetwork: ISocialNetwork,
-        verbose: boolean = false
+        verbose: boolean = false,
+        photoEmbedMode: PhotoEmbedMode = 'cid'
     ) {
         this._hostEmailAddress = hostEmailAddress;
         this._messageStore = new MessageStore();
         this._messageReceiver = messageReceiver;
         this._messageSender = messageSender;
         this._socialNetwork = socialNetwork;
-        this._messageProcessor = new MessageProcessor(hostEmailAddress);
+        this._photoEmbedMode = photoEmbedMode;
+        this._messageProcessor = new MessageProcessor(hostEmailAddress, [], photoEmbedMode);
         this._verbose = verbose;
     }
 
@@ -102,7 +107,8 @@ export class Daemon implements IDaemon {
         // Build a processor from the accumulated store messages
         this._messageProcessor = new MessageProcessor(
             this._hostEmailAddress,
-            [...this._messageStore.allMessages]
+            [...this._messageStore.allMessages],
+            this._photoEmbedMode
         );
 
         // Send each draft produced by the processor

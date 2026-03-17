@@ -297,13 +297,13 @@ describe('Scenario: Create post with photo', () => {
             expect(notification!.body).not.toContain('[Photo attached]');
         });
 
-        it('should NOT include "cid:post_photo" in the host notification HTML', () => {
+        it('should hide the photo row with display:none in the host notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
                     m.subject === 'friendlymail: New post from Phil L' &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
-            expect(notification!.html).not.toContain('cid:post_photo');
+            expect(notification!.html).toContain('display:none');
         });
 
         it('should record post type as "text" in the X-friendlymail postData', () => {
@@ -315,13 +315,13 @@ describe('Scenario: Create post with photo', () => {
             expect(notification!.xFriendlymail).toContain('"type":"text"');
         });
 
-        it('should NOT include "cid:post_photo" in the follower notification HTML', () => {
+        it('should hide the photo row with display:none in the follower notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
                     m.subject === 'friendlymail: New post from Phil L' &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
-            expect(notification!.html).not.toContain('cid:post_photo');
+            expect(notification!.html).toContain('display:none');
         });
     });
 });

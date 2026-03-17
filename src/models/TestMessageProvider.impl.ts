@@ -3,7 +3,9 @@ import { EmailAddress } from './EmailAddress.impl';
 import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
+import { PhotoAttachment } from './PhotoAttachment';
 import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Implementation of TestMessageProvider for testing and simulation.
@@ -109,12 +111,14 @@ export class TestMessageProvider implements ITestMessageProvider {
     }
 
     private async _parseAndLoad(content: string, source: string): Promise<void> {
+        const sourceDir = source === '<string>' ? null : path.dirname(source);
         const lines = content.split('\n');
         let from: EmailAddress | null = null;
         let to: EmailAddress[] = [];
         let subject = '';
         let xFriendlymail: string | undefined;
         let messageId: string | undefined;
+        let attachmentPath: string | undefined;
         let inBody = false;
         let body = '';
         let currentHeader = '';
@@ -140,6 +144,9 @@ export class TestMessageProvider implements ITestMessageProvider {
                     messageId = value === '[message-id]'
                         ? crypto.randomUUID()
                         : value.replace(/^<|>$/g, '');
+                    break;
+                case 'attachment':
+                    attachmentPath = value;
                     break;
             }
         };
@@ -178,7 +185,29 @@ export class TestMessageProvider implements ITestMessageProvider {
             throw new Error(`Missing required email fields in ${source}`);
         }
 
-        this._messages.push(new SimpleMessageWithMessageId(from, to, subject, body, new Date(), xFriendlymail, undefined, messageId));
+        let photoAttachment: PhotoAttachment | undefined;
+        if (attachmentPath) {
+            if (!sourceDir) {
+                throw new Error(`Attachment header requires a file source, not a string (in ${source})`);
+            }
+            const fullPath = path.resolve(sourceDir, attachmentPath);
+            const ext = path.extname(attachmentPath).toLowerCase();
+            const contentTypeMap: Record<string, string> = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+            };
+            const contentType = contentTypeMap[ext];
+            if (!contentType) {
+                throw new Error(`Unsupported attachment type '${ext}' in ${source}`);
+            }
+            const data = await fs.promises.readFile(fullPath);
+            photoAttachment = { data, contentType, filename: path.basename(attachmentPath) };
+        }
+
+        this._messages.push(new SimpleMessageWithMessageId(from, to, subject, body, new Date(), xFriendlymail, undefined, messageId, photoAttachment));
     }
 
     /**

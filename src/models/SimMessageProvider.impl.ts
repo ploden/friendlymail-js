@@ -2,6 +2,7 @@ import { ISimMessageProvider } from './SimMessageProvider.interface';
 import { EmailAddress } from './EmailAddress.impl';
 import { MessageDraft } from './MessageDraft.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId';
+import { PhotoAttachment } from './PhotoAttachment';
 import { encodeQuotedPrintable } from '../utils/quotedPrintable';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -220,6 +221,7 @@ export class SimMessageProvider implements ISimMessageProvider {
         let subject = '';
         let xFriendlymail: string | undefined;
         let messageId: string | undefined;
+        let attachmentPath: string | undefined;
         let inBody = false;
         let body = '';
         let currentHeader = '';
@@ -245,6 +247,9 @@ export class SimMessageProvider implements ISimMessageProvider {
                     messageId = value === '[message-id]'
                         ? crypto.randomUUID()
                         : value.replace(/^<|>$/g, '');
+                    break;
+                case 'attachment':
+                    attachmentPath = value;
                     break;
             }
         };
@@ -283,6 +288,26 @@ export class SimMessageProvider implements ISimMessageProvider {
             throw new Error(`Missing required email fields in ${source}`);
         }
 
-        return new SimpleMessageWithMessageId(from, to, subject, body, new Date(), xFriendlymail, undefined, messageId);
+        let photoAttachment: PhotoAttachment | undefined;
+        if (attachmentPath) {
+            const sourceDir = path.dirname(source);
+            const fullPath = path.resolve(sourceDir, attachmentPath);
+            const ext = path.extname(attachmentPath).toLowerCase();
+            const contentTypeMap: Record<string, string> = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+            };
+            const contentType = contentTypeMap[ext];
+            if (!contentType) {
+                throw new Error(`Unsupported attachment type '${ext}' in ${source}`);
+            }
+            const data = await fs.promises.readFile(fullPath);
+            photoAttachment = { data, contentType, filename: path.basename(attachmentPath) };
+        }
+
+        return new SimpleMessageWithMessageId(from, to, subject, body, new Date(), xFriendlymail, undefined, messageId, photoAttachment);
     }
 }
