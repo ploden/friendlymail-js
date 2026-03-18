@@ -14,5 +14,6 @@ export enum FriendlymailMessageType {
     ADDUSER_RESPONSE = 'adduser_response',
     FOLLOW_RESPONSE = 'follow_response',
     UNFOLLOW_RESPONSE = 'unfollow_response',
-    COMMAND_NOT_FOUND = 'command_not_found'
+    COMMAND_NOT_FOUND = 'command_not_found',
+    USERMOD_RESPONSE = 'usermod_response'
 }

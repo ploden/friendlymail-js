@@ -1,0 +1,4 @@
+$ usermod --profile-pic
+usermod: Profile pic has been changed.
+
+{{ signature }}

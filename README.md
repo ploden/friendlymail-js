@@ -16,6 +16,7 @@ friendlymail is an open-source, email-based, alternative social network. It supp
     - [follow](###follow)
     - [follow --show](###follow-show)
     - [unfollow](###unfollow)
+    - [usermod --profile-pic](###usermod-profile-pic)
   - [Create Messages](##create-messages)
     - [Create Post Message](###create-post-message)
     - [Create Like Message](###create-like-message)
@@ -365,6 +366,33 @@ To: Kath L <kath@test.com>
 
 $ unfollow
 unfollow: You are no longer following phil@test.com.
+
+friendlymail, an open-source, email-based, alternative social network
+
+```
+
+### usermod --profile-pic
+The usermod command with the --profile-pic parameter is used to add a profile pic for the host user. If the usermod command with the --profile-pic parameter message includes an attachment with a photo, then the photo is resized to 128px by 128px and used as the profile pic for the host user in HTML messages.  
+
+Here is an example message containing the usermod command. In this example, the friendlymail host is phil@test.com.
+```
+From: Phil L <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+Attachment: linus.jpeg 
+
+$ usermod --profile-pic
+
+```
+
+Here is an example message sent in reply to the above message containing the usermod command with the --profile-pic parameter.
+```
+From: friendlymail <phil@test.com>
+Subject: Fm
+To: Phil L <phil@test.com>
+
+$ usermod --profile-pic
+usermod: Profile pic has been changed.
 
 friendlymail, an open-source, email-based, alternative social network
 

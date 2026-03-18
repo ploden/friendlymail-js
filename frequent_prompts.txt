@@ -21,3 +21,5 @@ Thunderbird settings:
 - Outgoing: SMTP, localhost, port 587, no TLS, username phil, password friendlymail
 
 run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs.
+
+npm run daemon -- --config gmail_config.txt

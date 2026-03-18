@@ -22,6 +22,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
     private _messageType: FriendlymailMessageType | null;
     private _createdAt: Date;
     private _updatedAt: Date;
+    private _profilePicAttachment?: PhotoAttachment;
 
     constructor(
         from: EmailAddress | null = null,
@@ -36,6 +37,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
             postData?: Record<string, unknown>;
             attachments?: string[];
             photoAttachment?: PhotoAttachment;
+            profilePicAttachment?: PhotoAttachment;
             isHtml?: boolean;
             priority?: 'high' | 'normal' | 'low';
             messageType?: FriendlymailMessageType | null;
@@ -55,6 +57,7 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
         this._messageType = options.messageType !== undefined ? options.messageType : null;
         this._createdAt = options.createdAt || new Date();
         this._updatedAt = options.updatedAt || new Date();
+        this._profilePicAttachment = options.profilePicAttachment;
     }
 
     // Re-declare getters for properties that also have setters, so TypeScript
@@ -92,6 +95,11 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
     /** Optional HTML part of the message (text/html alternative to body). */
     override get html(): string | undefined {
         return this._html;
+    }
+
+    /** Optional profile pic attachment to include in post notification emails. */
+    get profilePicAttachment(): PhotoAttachment | undefined {
+        return this._profilePicAttachment;
     }
 
     /** messageId of the incoming message this draft is replying to. */

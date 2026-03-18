@@ -229,7 +229,7 @@ export class MessageProcessor implements IMessageProcessor {
         if (message.xFriendlymail) return;
 
         const subject = message.subject;
-        const body = message.body.trim();
+        const body = message.body.trim().replace(/\u2014/g, '--');
         const fromHost = message.from.equals(this._hostEmailAddress);
         const fromFollower = this._isFollower(message.from);
 
@@ -316,6 +316,13 @@ export class MessageProcessor implements IMessageProcessor {
             // $ unfollow <email>: removing a specific follower is host-only
             if (!fromHost && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.UNFOLLOW_RESPONSE, message.from, message.messageId)) {
                 this._createUnfollowPermissionDeniedDraft(message);
+            }
+        } else if (body.startsWith('$ usermod --profile-pic')) {
+            if (fromHost) {
+                this._applyUsermodProfilePicState(message);
+                if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.USERMOD_RESPONSE, this._hostEmailAddress, message.messageId)) {
+                    this._createUsermodProfilePicDraft(message);
+                }
             }
         } else if (fromHost && !body.startsWith('$')) {
             const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
@@ -462,7 +469,7 @@ export class MessageProcessor implements IMessageProcessor {
      * up to date across Daemon run cycles.
      */
     private _applyInviteFollowerState(message: SimpleMessageWithMessageId): string | null {
-        const match = message.body.match(/\$\s*invite\s+--addfollower\s+(\S+)/);
+        const match = message.body.replace(/\u2014/g, '--').match(/\$\s*invite\s+--addfollower\s+(\S+)/);
         if (!match) {
             console.warn('No email found in invite --addfollower command');
             return null;
@@ -607,6 +614,53 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
+     * Apply the profile pic from a usermod --profile-pic command to the host account.
+     */
+    private _applyUsermodProfilePicState(message: SimpleMessageWithMessageId): void {
+        const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+        if (hostAccount && message.photoAttachment) {
+            hostAccount.updateProfile({ profilePic: message.photoAttachment });
+        }
+    }
+
+    /**
+     * Create a confirmation reply for a usermod --profile-pic command.
+     */
+    private _createUsermodProfilePicDraft(message: SimpleMessageWithMessageId): void {
+        const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+        const profilePic = hostAccount?.profilePic;
+        const profile_pic_src = profilePic
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${profilePic.contentType};base64,${profilePic.data.toString('base64')}`
+                : 'cid:profile_pic')
+            : '';
+
+        const body = this._loadTemplate('text', 'usermod_profile_pic_response.txt', {
+            signature: SIGNATURE,
+        });
+        const html = this._loadTemplate('html', 'usermod_profile_pic_response.html', {
+            profile_pic_src,
+            signature: SIGNATURE,
+        });
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            {
+                html,
+                inReplyTo: message.messageId,
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.USERMOD_RESPONSE,
+                fromName: 'friendlymail',
+                profilePicAttachment: profilePic,
+            }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
      * Create a "command not found" reply when the host sends a non-command body
      * without a user account existing.
      */
@@ -674,6 +728,15 @@ export class MessageProcessor implements IMessageProcessor {
                 : 'cid:post_photo')
             : '';
 
+        const profilePic = hostAccount?.profilePic;
+        const profile_pic_src = profilePic
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${profilePic.contentType};base64,${profilePic.data.toString('base64')}`
+                : 'cid:profile_pic')
+            : '';
+        const profile_pic_img_display = profilePic ? 'block' : 'none';
+        const profile_pic_initial_display = profilePic ? 'none' : 'table';
+
         const templateVars = {
             host_name: hostName,
             host_email: hostEmail,
@@ -682,6 +745,9 @@ export class MessageProcessor implements IMessageProcessor {
             post_photo_line,
             post_photo_display,
             post_photo_src,
+            profile_pic_src,
+            profile_pic_img_display,
+            profile_pic_initial_display,
             like_link: likeLink,
             comment_link: commentLink,
             like_href: likeHref,
@@ -712,6 +778,7 @@ export class MessageProcessor implements IMessageProcessor {
                     inReplyTo: postMessage.messageId,
                     postData,
                     photoAttachment: postMessage.photoAttachment,
+                    profilePicAttachment: profilePic,
                     isHtml: false,
                     priority: 'normal',
                     messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION,

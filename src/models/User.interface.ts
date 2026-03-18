@@ -2,6 +2,7 @@ import { Post } from './Post.impl';
 import { Comment } from './Comment.impl';
 import { EmailAddress } from './EmailAddress.impl';
 import { User } from './User.impl';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * Interface for User data type
@@ -10,6 +11,7 @@ export interface IUser {
     readonly id: string;
     readonly name: string;
     readonly email: EmailAddress;
+    readonly profilePic?: PhotoAttachment;
 
     readonly posts: Post[];
     readonly comments: Comment[];
@@ -30,6 +32,6 @@ export interface IUser {
     updateProfile(updates: {
         name?: string;
         email?: EmailAddress;
-
+        profilePic?: PhotoAttachment;
     }): void;
 }

@@ -2,6 +2,7 @@ import { Post } from './Post.impl';
 import { Comment } from './Comment.impl';
 import { EmailAddress } from './EmailAddress.impl';
 import { IUser } from './User.interface';
+import { PhotoAttachment } from './PhotoAttachment';
 
 export class User implements IUser {
     private _id: string;
@@ -13,6 +14,7 @@ export class User implements IUser {
     private _followers: Set<User>;
     private _following: Set<User>;
     private _createdAt: Date;
+    private _profilePic?: PhotoAttachment;
 
     constructor(
         name: string,
@@ -31,6 +33,7 @@ export class User implements IUser {
     get id(): string { return this._id; }
     get name(): string { return this._name; }
     get email(): EmailAddress { return this._email; }
+    get profilePic(): PhotoAttachment | undefined { return this._profilePic; }
 
     get posts(): Post[] { return [...this._posts]; }
     get comments(): Comment[] { return [...this._comments]; }
@@ -86,9 +89,11 @@ export class User implements IUser {
     updateProfile(updates: {
         name?: string;
         email?: EmailAddress;
+        profilePic?: PhotoAttachment;
     }): void {
         if (updates.name) this._name = updates.name;
         if (updates.email) this._email = updates.email;
+        if (updates.profilePic) this._profilePic = updates.profilePic;
     }
 
 }

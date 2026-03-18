@@ -1,0 +1,13 @@
+# Basic friendlymail flow: welcome, create account, set profile pic, create post with photo
+
+# Run the daemon — sends the welcome message
+start
+
+# Create a user account
+load sim_messages/create_command_create_account.txt
+
+# Set profile pic
+load sim_messages/usermod_profile_pic.txt
+
+# Create a post
+load sim_messages/create_post_with_photo.txt

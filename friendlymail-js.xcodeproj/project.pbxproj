@@ -19,22 +19,13 @@
 		8D8F79552F5B82160097741C /* run-daemon.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = "run-daemon.ts"; sourceTree = "<group>"; };
 		8D8F79562F5B82160097741C /* run-process-messages.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = "run-process-messages.ts"; sourceTree = "<group>"; };
 		8D8F7A1B2F5B82160097741C /* tsconfig.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tsconfig.json; sourceTree = "<group>"; };
+		8D8FE5192F6AE27C0097741C /* gmail_config.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = gmail_config.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8D8F794E2F5B82160097741C /* node_modules */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = node_modules;
-			sourceTree = "<group>";
-		};
 		8D8F795D2F5B82160097741C /* sim_messages */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = sim_messages;
-			sourceTree = "<group>";
-		};
-		8D8F79602F5B82160097741C /* sim_scripts */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = sim_scripts;
 			sourceTree = "<group>";
 		};
 		8D8F796F2F5B82160097741C /* simulator */ = {
@@ -52,16 +43,21 @@
 			path = tests;
 			sourceTree = "<group>";
 		};
+		8D8FE5152F6ADE7A0097741C /* sim_scripts */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = sim_scripts;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXGroup section */
 		8D55AAD02F5B81B70070C8E2 = {
 			isa = PBXGroup;
 			children = (
+				8D8FE5192F6AE27C0097741C /* gmail_config.txt */,
 				8D8F56DF2F5B82160097741C /* frequent_prompts.txt */,
 				8D8F56E02F5B82160097741C /* jest.config.js */,
 				8D8F56E12F5B82160097741C /* LICENSE */,
-				8D8F794E2F5B82160097741C /* node_modules */,
 				8D8F794F2F5B82160097741C /* package.json */,
 				8D8F79502F5B82160097741C /* package-lock.json */,
 				8D8F79512F5B82160097741C /* plan.md */,
@@ -71,7 +67,7 @@
 				8D8F79552F5B82160097741C /* run-daemon.ts */,
 				8D8F79562F5B82160097741C /* run-process-messages.ts */,
 				8D8F795D2F5B82160097741C /* sim_messages */,
-				8D8F79602F5B82160097741C /* sim_scripts */,
+				8D8FE5152F6ADE7A0097741C /* sim_scripts */,
 				8D8F796F2F5B82160097741C /* simulator */,
 				8D8F79C32F5B82160097741C /* src */,
 				8D8F7A1A2F5B82160097741C /* tests */,

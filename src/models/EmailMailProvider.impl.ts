@@ -53,13 +53,16 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
     if (to.length === 0) return null;
 
     // Extract and resize the first image attachment, if present.
+    // Profile pic commands are resized to 128×128; all other photos to 1080×1080.
     let photoAttachment: PhotoAttachment | undefined;
     const imageAtt = parsed.attachments?.find(
         att => att.contentType.startsWith('image/') && Buffer.isBuffer(att.content)
     );
     if (imageAtt) {
+        const isProfilePicCommand = (parsed.text ?? '').trim().startsWith('$ usermod --profile-pic');
+        const [imgWidth, imgHeight] = isProfilePicCommand ? [128, 128] : [1080, 1080];
         const resized = await sharp(imageAtt.content as Buffer)
-            .resize(1080, 1080, { fit: 'cover' })
+            .resize(imgWidth, imgHeight, { fit: 'cover' })
             .jpeg({ quality: 85 })
             .toBuffer();
         photoAttachment = {
@@ -164,14 +167,23 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             console.log(`[EmailMailProvider] sendDraft  to=${draft.to.map(a => a.toString()).join(', ')}  subject="${draft.subject}"  xFriendlymail=${xFriendlymail ?? '(none)'}`);
         }
 
-        const inlineAttachments = draft.photoAttachment
-            ? [{
+        const inlineAttachments: { filename: string; content: Buffer; contentType: string; cid: string }[] = [];
+        if (draft.photoAttachment) {
+            inlineAttachments.push({
                 filename: draft.photoAttachment.filename,
                 content: draft.photoAttachment.data,
                 contentType: draft.photoAttachment.contentType,
                 cid: 'post_photo',
-            }]
-            : [];
+            });
+        }
+        if (draft.profilePicAttachment) {
+            inlineAttachments.push({
+                filename: draft.profilePicAttachment.filename,
+                content: draft.profilePicAttachment.data,
+                contentType: draft.profilePicAttachment.contentType,
+                cid: 'profile_pic',
+            });
+        }
 
         const fromAddr = draft.fromName
             ? `"${draft.fromName}" <${draft.from!.toString()}>`
