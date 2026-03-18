@@ -32,11 +32,11 @@
                     </table>
                   </td>
                   <td style="padding-left:10px;" valign="top">
-                    <p style="margin:0 0 1px 0;">
+                    <p style="margin:0 0 2px 0;">
                       <a href="mailto:{{ host_email }}"
-                         style="color:#f97316;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;">{{ host_name }} &lt;{{ host_email }}&gt;</a>
+                         style="color:#f97316;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;">{{ host_name }}</a>
                     </p>
-                    <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">{{ created_at }}</p>
+                    <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.4;">{{ host_email }}</p>
                   </td>
                 </tr>
               </table>
@@ -45,16 +45,23 @@
 
           <!-- Post body -->
           <tr>
-            <td style="padding:0 0 14px 50px;">
+            <td style="padding:0 0 6px 50px;">
               <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;">{{ post_body }}</p>
             </td>
           </tr>
 
           <!-- Post photo (present only for photo posts) -->
           <tr style="display:{{ post_photo_display }};">
-            <td style="padding:0 0 14px 50px;">
+            <td style="padding:0 0 6px 50px;">
               <img src="{{ post_photo_src }}" alt="Photo"
                    style="display:block;max-width:100%;height:auto;border-radius:6px;">
+            </td>
+          </tr>
+
+          <!-- Date row -->
+          <tr>
+            <td style="padding:0 0 14px 50px;">
+              <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">{{ created_at }}</p>
             </td>
           </tr>
 

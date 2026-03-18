@@ -14,6 +14,7 @@ Stalwart ports:
 
 Run the daemon:
 npm run daemon -- --host-email phil@test.com --smtp-port 587 --smtp-user phil --smtp-pass friendlymail --imap-user phil --imap-pass friendlymail
+npm run daemon:local -- --interval 5
 
 Thunderbird settings:
 - Incoming: IMAP, localhost, port 143, no TLS, username phil, password friendlymail
