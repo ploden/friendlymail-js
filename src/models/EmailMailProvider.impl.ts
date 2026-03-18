@@ -41,6 +41,7 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
 
     const from = EmailAddress.fromDisplayString(parsed.from?.text ?? '');
     if (!from) return null;
+    const senderName = parsed.from?.value?.[0]?.name || undefined;
 
     const toField = parsed.to;
     const toArray = Array.isArray(toField) ? toField : toField ? [toField] : [];
@@ -77,7 +78,8 @@ async function parseImapMessage(source: Buffer, fallbackUid: number): Promise<Em
         parsed.headers.get('x-friendlymail') as string | undefined,
         parsed.messageId ?? String(fallbackUid),
         parsed.inReplyTo,
-        photoAttachment
+        photoAttachment,
+        senderName
     );
 }
 
@@ -94,6 +96,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
     private _smtpConfig: SmtpConfig;
     private _imapConfig: ImapConfig;
     private _verbose: boolean;
+    private _hostDisplayName?: string;
 
     /**
      * @param smtpConfig SMTP connection settings
@@ -113,6 +116,11 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
 
     get imapConfig(): ImapConfig {
         return this._imapConfig;
+    }
+
+    /** Display name of the host user, discovered from Sent folder messages. */
+    get hostDisplayName(): string | undefined {
+        return this._hostDisplayName;
     }
 
     private _makeImapClient(): ImapFlow {
@@ -165,8 +173,12 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             }]
             : [];
 
+        const fromAddr = draft.fromName
+            ? `"${draft.fromName}" <${draft.from!.toString()}>`
+            : draft.from!.toString();
+
         const info = await transporter.sendMail({
-            from: draft.from!.toString(),
+            from: fromAddr,
             to: draft.to.map(a => a.toString()).join(', '),
             subject: draft.subject,
             text: draft.body,
@@ -181,7 +193,7 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
 
         // Append a copy to IMAP Sent so getMessages() can return it for MessageProcessor context.
         const rawMessage = buildRawMessage(
-            draft.from!.toString(),
+            fromAddr,
             draft.to.map(a => a.toString()).join(', '),
             draft.subject,
             draft.body,
@@ -254,6 +266,13 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
                         const parsed = await parseImapMessage(msg.source, msg.uid);
                         if (parsed) {
                             messages.push(parsed);
+                            // Detect host display name from user-sent messages (no X-friendlymail header)
+                            if (!this._hostDisplayName
+                                && parsed.fromName
+                                && !parsed.xFriendlymail
+                                && parsed.from.toString() === this._imapConfig.auth.user) {
+                                this._hostDisplayName = parsed.fromName;
+                            }
                             if (this._verbose) {
                                 console.log(`[EmailMailProvider] Sent  uid=${msg.uid}  id=${parsed.messageId}  from=${parsed.from}  subject="${parsed.subject}"  xFriendlymail=${parsed.xFriendlymail ?? '(none)'}`);
                             }

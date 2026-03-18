@@ -214,7 +214,7 @@ async function main(): Promise<void> {
         setUser: (user: User) => { _user = user; },
     };
 
-    const daemon = new Daemon(hostAddress, provider, provider, socialNetwork, args.verbose);
+    const daemon = new Daemon(hostAddress, provider, provider, socialNetwork, args.verbose, 'cid', () => provider.hostDisplayName);
 
     console.log(`friendlymail daemon starting for ${args.hostEmail}`);
     console.log(`SMTP  ${args.smtpHost}:${args.smtpPort}  IMAP  ${args.imapHost}:${args.imapPort}`);

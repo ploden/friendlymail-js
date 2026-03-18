@@ -19,6 +19,7 @@ import * as path from 'path';
 import { Daemon } from '../../../src/models/Daemon';
 import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../../src/models/EmailAddress';
+import { ISimpleMessage } from '../../../src/models/SimpleMessage';
 import { SimpleMessageWithMessageId } from '../../../src/models/SimpleMessageWithMessageId';
 import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 import { ISocialNetwork } from '../../../src/models/SocialNetwork';
@@ -216,6 +217,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
             expect(provider.sentMessages[1].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the adduser reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[1] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should set the X-friendlymail header to the adduser_response type', () => {
             expect(provider.sentMessages[1].xFriendlymail)
                 .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
@@ -250,6 +255,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
         it('should send the invite reply from the host address', () => {
             expect(provider.sentMessages[2].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the invite reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[2] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
@@ -288,6 +297,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
         it('should send the invite reply from the host address', () => {
             expect(provider.sentMessages[3].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the invite reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[3] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
@@ -331,6 +344,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
             expect(provider.sentMessages[6].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the adduser reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[6] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should set the X-friendlymail header to the adduser_response type', () => {
             expect(provider.sentMessages[6].xFriendlymail)
                 .toContain(FriendlymailMessageType.ADDUSER_RESPONSE);
@@ -371,6 +388,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
         it('should send the invite reply from the host address', () => {
             expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the invite reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[7] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
@@ -481,6 +502,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
             expect(provider.sentMessages[8].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the unfollow reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[8] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should set the X-friendlymail header to the unfollow_response type', () => {
             expect(provider.sentMessages[8].xFriendlymail)
                 .toContain(FriendlymailMessageType.UNFOLLOW_RESPONSE);
@@ -525,6 +550,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
         it('should send the follow reply from the host address', () => {
             expect(provider.sentMessages[9].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the follow reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[9] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the follow_response type', () => {
@@ -590,6 +619,10 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
             expect(provider.sentMessages[4].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the error reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[4] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should include "command not found" in the reply body', () => {
             expect(provider.sentMessages[4].body).toContain('command not found: hello, world');
         });
@@ -624,7 +657,12 @@ describe('Scenario: Permissions are enforced for friendlymail commands', () => {
 
         function formatMessage(message: SimpleMessageWithMessageId): string {
             const lines: string[] = [];
-            lines.push(`From: ${message.from.toString()}`);
+            const msg = message as ISimpleMessage;
+            if (msg.fromName) {
+                lines.push(`From: ${msg.fromName} <${message.from.toString()}>`);
+            } else {
+                lines.push(`From: ${message.from.toString()}`);
+            }
             lines.push(`To: ${message.to.map((a: EmailAddress) => a.toString()).join(', ')}`);
             lines.push(`Subject: ${message.subject}`);
             lines.push(`Date: ${message.date.toUTCString()}`);

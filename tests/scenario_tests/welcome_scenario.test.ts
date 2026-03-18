@@ -13,6 +13,7 @@
 import { Daemon } from '../../src/models/Daemon';
 import { TestMessageProvider } from '../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../src/models/EmailAddress';
+import { ISimpleMessage } from '../../src/models/SimpleMessage';
 import { ISocialNetwork } from '../../src/models/SocialNetwork';
 
 const HOST_EMAIL = 'phil@test.com';
@@ -67,6 +68,12 @@ describe('Scenario: friendlymail is run for the first time', () => {
             await runDaemon();
             const msg = daemon.messageStore.allMessages[0];
             expect(msg.from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the welcome message with fromName "friendlymail"', async () => {
+            await runDaemon();
+            const msg = daemon.messageStore.allMessages[0];
+            expect((msg as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should send the welcome message with the correct subject', async () => {

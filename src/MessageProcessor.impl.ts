@@ -20,14 +20,16 @@ export class MessageProcessor implements IMessageProcessor {
     private _sentMessages: SimpleMessageWithMessageId[];
     private socialNetworks: Map<string, SocialNetwork>;
     private _photoEmbedMode: PhotoEmbedMode;
+    private _hostDisplayName?: string;
 
-    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessageWithMessageId[] = [], photoEmbedMode: PhotoEmbedMode = 'cid') {
+    constructor(hostEmailAddress: EmailAddress, receivedMessages: SimpleMessageWithMessageId[] = [], photoEmbedMode: PhotoEmbedMode = 'cid', hostDisplayName?: string) {
         this._hostEmailAddress = hostEmailAddress;
         this._receivedMessages = [...receivedMessages];
         this._drafts = [];
         this._sentMessages = [];
         this.socialNetworks = new Map();
         this._photoEmbedMode = photoEmbedMode;
+        this._hostDisplayName = hostDisplayName;
 
         if (this.shouldCreateWelcomeMessageDraft()) {
             this.createWelcomeMessageDraftForHost();
@@ -349,7 +351,10 @@ export class MessageProcessor implements IMessageProcessor {
             username = inlineMatch[1].trim();
         } else {
             const nameLine = message.body.split('\n').slice(1).find(l => l.trim() && !l.trim().startsWith('$'));
-            username = nameLine ? nameLine.trim() : this._displayName(fromEmail);
+            const defaultName = (this._hostDisplayName && fromEmail.equals(this._hostEmailAddress))
+                ? this._hostDisplayName
+                : this._displayName(fromEmail);
+            username = nameLine ? nameLine.trim() : defaultName;
         }
 
         const user = new User(username, fromEmail);
@@ -380,7 +385,8 @@ export class MessageProcessor implements IMessageProcessor {
                     html,
                     isHtml: false,
                     priority: 'normal',
-                    messageType: FriendlymailMessageType.WELCOME
+                    messageType: FriendlymailMessageType.WELCOME,
+                    fromName: 'friendlymail'
                 }
             );
 
@@ -415,7 +421,8 @@ export class MessageProcessor implements IMessageProcessor {
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
-                messageType: FriendlymailMessageType.HELP
+                messageType: FriendlymailMessageType.HELP,
+                fromName: 'friendlymail'
             }
         );
 
@@ -440,7 +447,8 @@ export class MessageProcessor implements IMessageProcessor {
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
-                messageType: FriendlymailMessageType.ADDUSER_RESPONSE
+                messageType: FriendlymailMessageType.ADDUSER_RESPONSE,
+                fromName: 'friendlymail'
             }
         );
 
@@ -485,7 +493,8 @@ export class MessageProcessor implements IMessageProcessor {
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',
-                messageType: FriendlymailMessageType.INVITE
+                messageType: FriendlymailMessageType.INVITE,
+                fromName: 'friendlymail'
             }
         );
 
@@ -502,7 +511,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -520,7 +529,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.ADDUSER_RESPONSE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -538,7 +547,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -556,7 +565,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -574,7 +583,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -592,7 +601,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -611,7 +620,7 @@ export class MessageProcessor implements IMessageProcessor {
             [message.from],
             'Fm',
             body,
-            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.COMMAND_NOT_FOUND }
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.COMMAND_NOT_FOUND, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -621,9 +630,9 @@ export class MessageProcessor implements IMessageProcessor {
      */
     private createPostNotifications(postMessage: SimpleMessageWithMessageId): void {
         const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
-        const hostName = hostAccount
-            ? hostAccount.name
-            : this._displayName(this._hostEmailAddress);
+        const hostName = this._hostDisplayName
+            ?? hostAccount?.name
+            ?? this._displayName(this._hostEmailAddress);
 
         const postBody = postMessage.body.trim();
         const hostEmail = this._hostEmailAddress.toString();
@@ -705,7 +714,8 @@ export class MessageProcessor implements IMessageProcessor {
                     photoAttachment: postMessage.photoAttachment,
                     isHtml: false,
                     priority: 'normal',
-                    messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION
+                    messageType: FriendlymailMessageType.NEW_POST_NOTIFICATION,
+                    fromName: `${hostName} (via friendlymail)`
                 }
             );
             this._drafts.push(draft);
@@ -742,7 +752,8 @@ export class MessageProcessor implements IMessageProcessor {
                 inReplyTo: likeMessage.messageId,
                 isHtml: false,
                 priority: 'normal',
-                messageType: FriendlymailMessageType.NEW_LIKE_NOTIFICATION
+                messageType: FriendlymailMessageType.NEW_LIKE_NOTIFICATION,
+                fromName: `${senderName} (via friendlymail)`
             }
         );
 
@@ -859,7 +870,8 @@ export class MessageProcessor implements IMessageProcessor {
                 postData,
                 isHtml: false,
                 priority: 'normal',
-                messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION
+                messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION,
+                fromName: `${senderName} (via friendlymail)`
             }
         );
 

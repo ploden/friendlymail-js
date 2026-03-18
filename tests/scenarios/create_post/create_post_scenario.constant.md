@@ -37,7 +37,7 @@ $ help
 
 Result: friendlymail replies to the help command:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"help"}
@@ -72,7 +72,7 @@ $ adduser
 
 Result: friendlymail replies and creates an account:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"adduser_response"}
@@ -102,7 +102,7 @@ $ invite --addfollower kath@test.com
 
 Result: The address is added as a follower of the host user. friendlymail replies with the following message:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"invite"}
@@ -128,7 +128,7 @@ Hello, world
 
 Result: Message sent to host user (phil@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -146,7 +146,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Result: Message sent to follower (kath@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -175,7 +175,7 @@ To: Phil L <phil@test.com>
 
 Result: The user is notified via a New Like notification message.
 ```
-From: Phil L <phil@test.com>
+From: Kath L (via friendlymail) <phil@test.com>
 Subject: friendlymail: Kath L liked your post...
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_like_notification"}
@@ -205,7 +205,7 @@ hello, universe!
 
 Result: The user is notified via a New Comment notification message:
 ```
-From: Phil L <phil@test.com>
+From: Kath L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New comment from Kath L
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_comment_notification","postData":{"id":"[uuid]","refId":"262","author":"kath@test.com","content":"hello, universe!","type":"text","privacy":"public","createdAt":"[ISO date string]","inReplyTo":"74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com"}}
@@ -243,7 +243,7 @@ Hello, world
 
 Result: Message sent to host user (phil@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
@@ -262,7 +262,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Result: Message sent to follower (kath@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
@@ -292,7 +292,7 @@ $ invite --addfollower alice@test.com
 
 Result: The address is added as a follower of the host user. friendlymail replies with the following message:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"invite"}
@@ -318,7 +318,7 @@ Hi Alice and Kath
 
 Result: Message sent to host user (phil@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
@@ -337,7 +337,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Result: Message sent to follower (kath@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
@@ -356,7 +356,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Result: Message sent to follower (alice@test.com):
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: <alice@test.com>
 Message-Id: [message-id]

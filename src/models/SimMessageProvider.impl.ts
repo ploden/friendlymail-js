@@ -61,6 +61,11 @@ export class SimMessageProvider implements ISimMessageProvider {
         return this._hostAddress;
     }
 
+    /** Display name of the host user, as provided at construction. */
+    get hostDisplayName(): string | undefined {
+        return this._hostName;
+    }
+
     get sentMessages(): ReadonlyArray<SimpleMessageWithMessageId> {
         return [...this._sentMessages];
     }

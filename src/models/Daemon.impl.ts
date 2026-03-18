@@ -24,6 +24,7 @@ export class Daemon implements IDaemon {
     private _hostEmailAddress: EmailAddress;
     private _verbose: boolean;
     private _photoEmbedMode: PhotoEmbedMode;
+    private _hostDisplayNameProvider?: () => string | undefined;
     private _runCount: number = 0;
 
     /**
@@ -34,6 +35,7 @@ export class Daemon implements IDaemon {
      * @param socialNetwork Used to persist social network state across runs
      * @param verbose When true, logs detailed run-cycle information to stdout
      * @param photoEmbedMode Controls how photo attachments are embedded in HTML notifications
+     * @param hostDisplayNameProvider Optional callback returning the host's display name
      */
     constructor(
         hostEmailAddress: EmailAddress,
@@ -41,7 +43,8 @@ export class Daemon implements IDaemon {
         messageSender: IMessageSender,
         socialNetwork: ISocialNetwork,
         verbose: boolean = false,
-        photoEmbedMode: PhotoEmbedMode = 'cid'
+        photoEmbedMode: PhotoEmbedMode = 'cid',
+        hostDisplayNameProvider?: () => string | undefined
     ) {
         this._hostEmailAddress = hostEmailAddress;
         this._messageStore = new MessageStore();
@@ -49,7 +52,8 @@ export class Daemon implements IDaemon {
         this._messageSender = messageSender;
         this._socialNetwork = socialNetwork;
         this._photoEmbedMode = photoEmbedMode;
-        this._messageProcessor = new MessageProcessor(hostEmailAddress, [], photoEmbedMode);
+        this._hostDisplayNameProvider = hostDisplayNameProvider;
+        this._messageProcessor = new MessageProcessor(hostEmailAddress, [], photoEmbedMode, hostDisplayNameProvider?.());
         this._verbose = verbose;
     }
 
@@ -108,7 +112,8 @@ export class Daemon implements IDaemon {
         this._messageProcessor = new MessageProcessor(
             this._hostEmailAddress,
             [...this._messageStore.allMessages],
-            this._photoEmbedMode
+            this._photoEmbedMode,
+            this._hostDisplayNameProvider?.()
         );
 
         // Send each draft produced by the processor

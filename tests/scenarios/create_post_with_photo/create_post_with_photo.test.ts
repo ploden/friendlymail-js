@@ -13,7 +13,7 @@
 import { Daemon } from '../../../src/models/Daemon';
 import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../../src/models/EmailAddress';
-import { SimpleMessage } from '../../../src/models/SimpleMessage';
+import { ISimpleMessage, SimpleMessage } from '../../../src/models/SimpleMessage';
 import { SimpleMessageWithMessageId } from '../../../src/models/SimpleMessageWithMessageId';
 import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 import { ISocialNetwork } from '../../../src/models/SocialNetwork';
@@ -147,6 +147,24 @@ describe('Scenario: Create post with photo', () => {
             expect(notifications).toHaveLength(2);
         });
 
+        it('should send the host notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) =>
+                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
+        });
+
+        it('should send the follower notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) =>
+                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
+        });
+
         it('should set the X-friendlymail header to new_post_notification on the host notification', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
@@ -241,6 +259,15 @@ describe('Scenario: Create post with photo', () => {
             await step_createPhotoPost(POST_TEXT);
         });
 
+        it('should send the photo post notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) =>
+                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
+        });
+
         it('should include the post text in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
@@ -286,6 +313,15 @@ describe('Scenario: Create post with photo', () => {
             await step_createAccount();
             await step_inviteFollower();
             await step_createTextPost();
+        });
+
+        it('should send the text post notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) =>
+                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
         });
 
         it('should NOT include "[Photo attached]" in the host notification body', () => {

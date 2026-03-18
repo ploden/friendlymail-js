@@ -41,9 +41,10 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
             messageType?: FriendlymailMessageType | null;
             createdAt?: Date;
             updatedAt?: Date;
+            fromName?: string;
         } = {}
     ) {
-        super(from, to, subject, body, new Date(), undefined, options.html, options.photoAttachment);
+        super(from, to, subject, body, new Date(), undefined, options.html, options.photoAttachment, options.fromName);
         this._inReplyTo = options.inReplyTo;
         this._postData = options.postData;
         this._cc = options.cc ? [...options.cc] : [];
@@ -61,6 +62,11 @@ export class MessageDraft extends SimpleMessage implements IMessageDraft {
 
     override get from(): EmailAddress | null {
         return this._from;
+    }
+
+    /** Optional sender display name for the From header. */
+    override get fromName(): string | undefined {
+        return this._fromName;
     }
 
     override get to(): EmailAddress[] {

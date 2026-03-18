@@ -10,6 +10,7 @@ import { PhotoAttachment } from './PhotoAttachment';
  */
 export class SimpleMessage implements ISimpleMessage {
     protected _from: EmailAddress | null;
+    protected _fromName?: string;
     protected _to: EmailAddress[];
     protected _subject: string;
     protected _body: string;
@@ -27,7 +28,8 @@ export class SimpleMessage implements ISimpleMessage {
         date: Date = new Date(),
         xFriendlymail?: string,
         html?: string,
-        photoAttachment?: PhotoAttachment
+        photoAttachment?: PhotoAttachment,
+        fromName?: string
     ) {
         this._from = from;
         this._to = [...to];
@@ -37,10 +39,16 @@ export class SimpleMessage implements ISimpleMessage {
         this._date = date;
         this._xFriendlymail = xFriendlymail;
         this.photoAttachment = photoAttachment;
+        this._fromName = fromName;
     }
 
     get from(): EmailAddress | null {
         return this._from;
+    }
+
+    /** Optional sender display name for the From header. */
+    get fromName(): string | undefined {
+        return this._fromName;
     }
 
     get to(): EmailAddress[] {

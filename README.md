@@ -53,7 +53,7 @@ The welcome message is sent when friendlymail is configured with a host. The wel
 
 Here is an example Welcome Message:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Welcome to friendlymail!
 To: Phil L <phil@test.com>
 
@@ -97,7 +97,7 @@ $ help
 
 Here is an example message sent in reply to the above message containing the help command:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -136,7 +136,7 @@ $ adduser
 
 Here is an example message sent in reply to the above message containing the adduser command:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -164,7 +164,7 @@ $ adduser
 
 Here is an example message sent in reply to the above message containing the adduser command, where the sender does not match the host address:
 ```
-From: Kath L <kath@test.com>
+From: friendlymail <kath@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -187,7 +187,7 @@ $ adduser
 
 Here is an example message sent in reply to the above message containing the adduser command, where a user has already been created for this host:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -213,7 +213,7 @@ $ invite kath@test.com
 
 Here is an example message sent in reply to the above message containing the invite command:
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -226,7 +226,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 As a result of the invite command, a message is sent to the address kath@test.com. This message contains an invitation to follow the friendlymail user with host phil@test.com. Here is an example message containing the invitation:
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: Phil L wants you to follow them on friendlymail
 To: <kath@test.com>
 
@@ -244,7 +244,7 @@ After the message containing the follow command is received, the friendlymail us
 
 The invite command may only be used after a friendlymail user has been attached to the host. Here is an example message sent in reply to the invite command when a friendlymail user has not been attached to the host.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 
@@ -277,7 +277,7 @@ The response is determined by the settings of the followee. A friendlymail user 
 
 Here is an example message sent in reply to the above message containing the follow command. The followee has configured their account to automatically accept follow requests.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 
@@ -291,7 +291,7 @@ friendlymail, an open-source, email-based, alternative social network
 Here is an example message sent in reply to a message containing the follow command. In this case, the followee has configured their account to require approval to accept follow requests.
 
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 
@@ -318,7 +318,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Here is an example message sent in reply to the above message containing the follow --show command. In this case, Kath L is following Phil L, so friendlymail replies with a list of Phil L's followers.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 
@@ -332,7 +332,7 @@ friendlymail, an open-source, email-based, alternative social network
 
 Here is an example message sent in reply to the above message containing the follow --show command. In this case, Kath L is not following Phil L, so friendlymail replies with permission denied.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 
@@ -359,7 +359,7 @@ $ unfollow
 
 Here is an example message sent in reply to the above message containing the unfollow command. This reply will be sent regardless of whether the sender is currently following the host user.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 
@@ -412,7 +412,7 @@ hello, world
 
 Here is an example of a new post notification message which is sent to the followers of phil@test.com. Note that the contents of the Message-Id header are included in the Like and Comment links as a base 64 string. The X-friendlymail header contains metadata in the form of a json string encoded to a Quoted-Printable string. In this example, the json is shown; for an actual message, the json would be encoded to Quoted-Printable.
 ```
-From: Phil L <phil@test.com>
+From: Phil L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New post from Phil L
 To: Phil L <phil@test.com>
 X-friendlymail: ""
@@ -433,7 +433,7 @@ The new like notification message is sent by friendlymail to the host user. When
 
 Here is an example of a new like notification message. In this example, the friendlymail host is phil@test.com. The follower with address kath@test.com has liked a post by the host user.
 ```
-From: Phil L <phil@test.com>
+From: Kath L (via friendlymail) <phil@test.com>
 Subject: friendlymail: Kath L liked your post...
 To: Phil L <phil@test.com>
 
@@ -452,7 +452,7 @@ friendlymail, an open-source, email-based, alternative social network
 ### New Comment Notification
 The new comment notification message is sent by friendlymail to the followers of the host user. When a user creates a new comment on an existing post, the author of the original post is notified via the new comment notification message. Here is an example of a new comment notification message:
 ```
-From: Phil L <phil@test.com>
+From: Kath L (via friendlymail) <phil@test.com>
 Subject: friendlymail: New comment from Kath L
 To: Phil L <phil@test.com>
 

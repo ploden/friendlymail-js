@@ -8,3 +8,4 @@ simulator/received/*
 !simulator/received/.gitkeep
 gmail_config.txt
 **/.xcodeproj/project.xcworkspace/xcuserdata/*
+friendlymail-js.xcodeproj/project.xcworkspace/xcuserdata/

@@ -12,7 +12,7 @@ $ adduser
 ```
 Result: friendlymail replies with a permission denied error.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"adduser_response"}
@@ -36,7 +36,7 @@ $ invite kath@test.com
 ```
 Result: friendlymail replies with a fatal error requiring a user account.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"invite"}
@@ -60,7 +60,7 @@ $ invite --addfollower kath@test.com
 ```
 Result: friendlymail replies with a fatal error requiring a user account.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"invite"}
@@ -84,7 +84,7 @@ $ adduser
 ```
 Result: friendlymail replies with a fatal error that a user already exists.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"adduser_response"}
@@ -108,7 +108,7 @@ $ invite --addfollower dave@test.com
 ```
 Result: friendlymail replies with a permission denied error.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"invite"}
@@ -168,7 +168,7 @@ $ unfollow dave@test.com
 ```
 Result: friendlymail replies with a permission denied error.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"unfollow_response"}
@@ -192,7 +192,7 @@ $ follow dave@test.com
 ```
 Result: friendlymail replies with a permission denied error.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"follow_response"}
@@ -228,7 +228,7 @@ hello, world
 ```
 Result: friendlymail does does not create a post, and replies with a command not found error.
 ```
-From: Phil L <phil@test.com>
+From: friendlymail <phil@test.com>
 Subject: Fm
 To: Phil L <phil@test.com>
 

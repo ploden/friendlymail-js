@@ -9,6 +9,8 @@ import { EmailAddress } from './EmailAddress.impl';
  */
 export interface ISimpleMessage {
     readonly from: EmailAddress | null;
+    /** Optional sender display name for the From header (e.g. 'friendlymail' or 'Phil L (via friendlymail)'). */
+    readonly fromName?: string;
     readonly to: EmailAddress[];
     readonly subject: string;
     readonly body: string;

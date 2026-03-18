@@ -12,7 +12,7 @@ import * as path from 'path';
 import { Daemon } from '../../../src/models/Daemon';
 import { TestMessageProvider } from '../../../src/models/TestMessageProvider';
 import { EmailAddress } from '../../../src/models/EmailAddress';
-import { SimpleMessage } from '../../../src/models/SimpleMessage';
+import { ISimpleMessage, SimpleMessage } from '../../../src/models/SimpleMessage';
 import { SimpleMessageWithMessageId } from '../../../src/models/SimpleMessageWithMessageId';
 import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 import { ISocialNetwork } from '../../../src/models/SocialNetwork';
@@ -226,6 +226,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             expect(provider.sentMessages[1].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the help reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[1] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should set the X-friendlymail header to the help type', () => {
             expect(provider.sentMessages[1].xFriendlymail)
                 .toContain(FriendlymailMessageType.HELP);
@@ -260,6 +264,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the adduser reply from the host address', () => {
             expect(provider.sentMessages[2].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the adduser reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[2] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the adduser_response type', () => {
@@ -297,6 +305,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the invite reply from the host address', () => {
             expect(provider.sentMessages[3].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the invite reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[3] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
@@ -351,6 +363,22 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             );
             expect(notifications).toHaveLength(2);
             expect(notifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should send the host notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
+        });
+
+        it('should send the follower notification with fromName "Phil L (via friendlymail)"', () => {
+            const notification = provider.sentMessages.find(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on the host notification', () => {
@@ -437,6 +465,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             expect(provider.sentMessages[6].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the like notification with fromName "Kath L (via friendlymail)"', () => {
+            expect((provider.sentMessages[6] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
+        });
+
         it('should send the like notification with the correct subject', () => {
             expect(provider.sentMessages[6].subject).toContain('Kath L liked your post');
         });
@@ -500,6 +532,22 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             );
             expect(allNotifications).toHaveLength(4);
             expect(allNotifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should send the second host notification with fromName "Phil L (via friendlymail)"', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
+            );
+            expect((notifications[1] as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
+        });
+
+        it('should send the second follower notification with fromName "Phil L (via friendlymail)"', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
+            );
+            expect((notifications[1] as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on the second host notification', () => {
@@ -573,6 +621,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             expect(provider.sentMessages[10].from.toString()).toBe(HOST_EMAIL);
         });
 
+        it('should send the second invite reply with fromName "friendlymail"', () => {
+            expect((provider.sentMessages[10] as ISimpleMessage).fromName).toBe('friendlymail');
+        });
+
         it('should set the X-friendlymail header to the invite type', () => {
             expect(provider.sentMessages[10].xFriendlymail)
                 .toContain(FriendlymailMessageType.INVITE);
@@ -641,6 +693,14 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             );
             expect(notifications).toHaveLength(3);
             expect(notifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
+        });
+
+        it('should send all three notifications with fromName "Phil L (via friendlymail)"', () => {
+            const notifications = provider.sentMessages.filter(
+                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                    m.body.includes('Hi Alice and Kath')
+            );
+            expect(notifications.every((m) => (m as ISimpleMessage).fromName === 'Phil L (via friendlymail)')).toBe(true);
         });
 
         it('should set the X-friendlymail header to the new_post_notification type on all three notifications', () => {
@@ -723,7 +783,12 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         function formatMessage(message: SimpleMessageWithMessageId): string {
             const lines: string[] = [];
-            lines.push(`From: ${message.from.toString()}`);
+            const msg = message as ISimpleMessage;
+            if (msg.fromName) {
+                lines.push(`From: ${msg.fromName} <${message.from.toString()}>`);
+            } else {
+                lines.push(`From: ${message.from.toString()}`);
+            }
             lines.push(`To: ${message.to.map((a: EmailAddress) => a.toString()).join(', ')}`);
             lines.push(`Subject: ${message.subject}`);
             lines.push(`Date: ${message.date.toUTCString()}`);
@@ -818,6 +883,10 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the comment notification from the host address', () => {
             expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
+        });
+
+        it('should send the comment notification with fromName "Kath L (via friendlymail)"', () => {
+            expect((provider.sentMessages[7] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
         });
 
         it('should send the comment notification with the correct subject', () => {

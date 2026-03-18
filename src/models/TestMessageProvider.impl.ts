@@ -15,17 +15,24 @@ import * as path from 'path';
  */
 export class TestMessageProvider implements ITestMessageProvider {
     private _hostAddress: EmailAddress;
+    private _hostDisplayName?: string;
     private _messages: SimpleMessageWithMessageId[];
     private _sentMessages: SimpleMessageWithMessageId[];
 
-    constructor(hostAddress: EmailAddress) {
+    constructor(hostAddress: EmailAddress, hostDisplayName?: string) {
         this._hostAddress = hostAddress;
+        this._hostDisplayName = hostDisplayName;
         this._messages = [];
         this._sentMessages = [];
     }
 
     get hostAddress(): EmailAddress {
         return this._hostAddress;
+    }
+
+    /** Display name of the host user, if provided at construction. */
+    get hostDisplayName(): string | undefined {
+        return this._hostDisplayName;
     }
 
     get sentMessages(): ReadonlyArray<SimpleMessageWithMessageId> {
@@ -59,7 +66,10 @@ export class TestMessageProvider implements ITestMessageProvider {
             draft.body,
             new Date(),
             xFriendlymail,
-            draft.html
+            draft.html,
+            undefined,
+            undefined,
+            draft.fromName
         );
         this._sentMessages.push(message);
         this._messages.push(message);

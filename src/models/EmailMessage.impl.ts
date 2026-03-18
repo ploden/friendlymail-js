@@ -20,9 +20,10 @@ export class EmailMessage extends SimpleMessageWithMessageId implements IEmailMe
         xFriendlymail?: string,
         messageId?: string,
         inReplyTo?: string,
-        photoAttachment?: PhotoAttachment
+        photoAttachment?: PhotoAttachment,
+        fromName?: string
     ) {
-        super(from, to, subject, body, date, xFriendlymail, undefined, messageId, photoAttachment);
+        super(from, to, subject, body, date, xFriendlymail, undefined, messageId, photoAttachment, fromName);
         this._inReplyTo = inReplyTo;
     }
 
