@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>New post from {{ host_name }}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#ffffff;">
+<body style="margin:0;padding:0;background-color:#f3f4f6;">
 
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
-         style="background-color:#ffffff;">
+         style="background-color:#f3f4f6;">
     <tr>
       <td align="center" style="padding:32px 16px;">
 
-        <!-- Post container -->
+        <!-- Post card -->
         <table role="presentation" cellspacing="0" cellpadding="0" border="0"
-               style="width:100%;max-width:500px;">
+               style="width:100%;max-width:625px;background-color:#ffffff;">
 
           <!-- Author row -->
           <tr>
-            <td style="padding-bottom:10px;">
+            <td style="padding:20px 20px 10px 20px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td width="40" valign="top">
@@ -38,9 +38,9 @@
                   <td style="padding-left:10px;" valign="top">
                     <p style="margin:0 0 2px 0;">
                       <a href="mailto:{{ host_email }}"
-                         style="color:#f97316;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;">{{ host_name }}</a>
+                         style="color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;text-decoration:none;">{{ host_name }}</a>
                     </p>
-                    <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.4;">{{ host_email }}</p>
+                    <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.4;">{{ host_email_display }}</p>
                   </td>
                 </tr>
               </table>
@@ -49,14 +49,14 @@
 
           <!-- Post body -->
           <tr>
-            <td style="padding:0 0 6px 50px;">
-              <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;">{{ post_body }}</p>
+            <td style="padding:0 20px 6px 70px;">
+              <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;font-weight:400;line-height:1.6;">{{ post_body }}</p>
             </td>
           </tr>
 
           <!-- Post photo (present only for photo posts) -->
           <tr style="display:{{ post_photo_display }};">
-            <td style="padding:0 0 6px 50px;">
+            <td style="padding:0 20px 6px 70px;">
               <img src="{{ post_photo_src }}" alt="Photo"
                    style="display:block;max-width:100%;height:auto;border-radius:6px;">
             </td>
@@ -64,14 +64,14 @@
 
           <!-- Date row -->
           <tr>
-            <td style="padding:0 0 14px 50px;">
+            <td style="padding:0 20px 14px 70px;">
               <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">{{ created_at }}</p>
             </td>
           </tr>
 
           <!-- Action row -->
           <tr>
-            <td style="padding:0 0 24px 50px;">
+            <td style="padding:0 20px 20px 70px;">
               <a href="{{ like_href }}"
                  style="color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;text-decoration:none;">Like</a>
               <span style="color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;">&nbsp;&middot;&nbsp;</span>
@@ -80,14 +80,11 @@
             </td>
           </tr>
 
-          <!-- Divider -->
-          <tr>
-            <td style="border-top:1px solid #f3f4f6;padding-top:16px;">
-              <p style="margin:0;color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;">{{ signature }}</p>
-            </td>
-          </tr>
-
         </table>
+
+        <!-- Footer -->
+        <p style="margin:16px 0 0 0;text-align:center;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;">{{ signature }}</p>
+
       </td>
     </tr>
   </table>

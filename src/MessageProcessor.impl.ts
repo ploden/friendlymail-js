@@ -737,9 +737,15 @@ export class MessageProcessor implements IMessageProcessor {
         const profile_pic_img_display = profilePic ? 'block' : 'none';
         const profile_pic_initial_display = profilePic ? 'none' : 'table';
 
+        const atIndex = hostEmail.indexOf('@');
+        const host_email_display = atIndex >= 0
+            ? `${hostEmail.slice(0, atIndex)}<span>@</span>${hostEmail.slice(atIndex + 1)}`
+            : hostEmail;
+
         const templateVars = {
             host_name: hostName,
             host_email: hostEmail,
+            host_email_display,
             host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
             post_photo_line,
