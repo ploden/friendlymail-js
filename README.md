@@ -441,7 +441,7 @@ hello, world
 Here is an example of a new post notification message which is sent to the followers of phil@test.com. Note that the contents of the Message-Id header are included in the Like and Comment links as a base 64 string. The X-friendlymail header contains metadata in the form of a json string encoded to a Quoted-Printable string. In this example, the json is shown; for an actual message, the json would be encoded to Quoted-Printable.
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "hello, world"
 To: Phil L <phil@test.com>
 X-friendlymail: ""
 
@@ -462,7 +462,7 @@ The new like notification message is sent by friendlymail to the host user. When
 Here is an example of a new like notification message. In this example, the friendlymail host is phil@test.com. The follower with address kath@test.com has liked a post by the host user.
 ```
 From: Kath L (via friendlymail) <phil@test.com>
-Subject: friendlymail: Kath L liked your post...
+Subject: Kath L liked your post...
 To: Phil L <phil@test.com>
 
 Kath L --> liked your post.
@@ -481,7 +481,7 @@ friendlymail, an open-source, email-based, alternative social network
 The new comment notification message is sent by friendlymail to the followers of the host user. When a user creates a new comment on an existing post, the author of the original post is notified via the new comment notification message. Here is an example of a new comment notification message:
 ```
 From: Kath L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New comment from Kath L
+Subject: New comment: "hello, universe!"
 To: Phil L <phil@test.com>
 
 Kath L --> commented on your post:

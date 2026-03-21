@@ -193,7 +193,7 @@ export class SimMessageProvider implements ISimMessageProvider {
             const { name, email: userEmail } = TEST_USERS[i];
             result = result
                 .replace(new RegExp(`\\[non-host-name-${n}\\]`, 'g'), name)
-                .replace(new RegExp(`\\[non-host-email-${n}\\]`, 'g'), `<${userEmail}>`)
+                .replace(new RegExp(`\\[non-host-email-${n}\\]`, 'g'), userEmail)
                 .replace(new RegExp(`\\[non-host-${n}\\]`, 'g'), `${name} <${userEmail}>`);
         }
         return result;

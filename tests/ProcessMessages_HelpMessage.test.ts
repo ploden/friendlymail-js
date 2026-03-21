@@ -1,5 +1,7 @@
 import { MessageProcessor } from '../src/MessageProcessor';
 import { EmailAddress } from '../src/models/EmailAddress';
+import { SimpleMessageWithMessageId } from '../src/models/SimpleMessageWithMessageId';
+import { FriendlymailMessageType } from '../src/models/FriendlymailMessageType';
 import { VERSION, SIGNATURE } from '../src/constants';
 
 describe('MessageProcessor Help Message', () => {
@@ -76,5 +78,24 @@ describe('MessageProcessor Help Message', () => {
     // Test that help command requires body "$ help" to be processed
     it('should not create help message draft when body does not contain "$ help"', () => {
         // TODO: Implement test
+    });
+
+    // Test that a help message draft is created when the body starts with "$ help"
+    // followed by a newline and trailing content (e.g. an email client signature),
+    // matching the behaviour fixed for real-world messages where the client appends
+    // a signature after the command.
+    it('should create a help message draft when body starts with "$ help" followed by trailing content', () => {
+        const hostAddress = new EmailAddress('phil@test.com');
+        const senderAddress = new EmailAddress('phil@test.com');
+        const message = new SimpleMessageWithMessageId(
+            senderAddress,
+            [hostAddress],
+            'Fm',
+            '$ help\n\nPhil'
+        );
+        const processor = new MessageProcessor(hostAddress, [message]);
+        const drafts = processor.getMessageDrafts();
+        const helpDraft = drafts.find(d => d.messageType === FriendlymailMessageType.HELP);
+        expect(helpDraft).toBeDefined();
     });
 });

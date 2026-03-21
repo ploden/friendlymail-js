@@ -99,7 +99,8 @@ export class Daemon implements IDaemon {
         log(`getMessages() returned ${newMessages.length} message(s)`);
         if (this._verbose) {
             for (const m of newMessages) {
-                console.log(`  [daemon run=${this._runCount}] message  id=${m.messageId}  from=${m.from}  subject="${m.subject}"  xFriendlymail=${m.xFriendlymail ?? '(none)'}`);
+                const bodyPreview = m.body ? m.body.slice(0, 120).replace(/\n/g, '\\n') : '(empty)';
+                console.log(`  [daemon run=${this._runCount}] message  id=${m.messageId}  from=${m.from}  subject="${m.subject}"  xFriendlymail=${m.xFriendlymail ?? '(none)'}  body="${bodyPreview}"`);
             }
         }
 

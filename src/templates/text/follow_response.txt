@@ -1,0 +1,4 @@
+$ follow
+follow: You are now following {{ host_email }}.
+
+{{ signature }}

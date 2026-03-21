@@ -1,0 +1,6 @@
+From: [host]
+Subject: Fm
+To: [host]
+Message-ID: [message-id]
+
+Hello, [non-host-name-1]

@@ -11,7 +11,7 @@ import { encodeQuotedPrintable, decodeQuotedPrintable } from './utils/quotedPrin
 import { PhotoEmbedMode } from './models/PhotoEmbedMode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { VERSION, SIGNATURE } from './constants';
+import { VERSION, SIGNATURE, BRAND_COLOR } from './constants';
 
 export class MessageProcessor implements IMessageProcessor {
     private _hostEmailAddress: EmailAddress;
@@ -253,7 +253,7 @@ export class MessageProcessor implements IMessageProcessor {
             return;
         }
 
-        if (body === '$ help') {
+        if (body === '$ help' || body.startsWith('$ help\n')) {
             if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.HELP, message.from, message.messageId)) {
                 this.createHelpMessageDraft(message);
             }
@@ -303,8 +303,36 @@ export class MessageProcessor implements IMessageProcessor {
             // invite without --addfollower: requires a host user account
             if (fromHost) {
                 const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
-                if (!hostAccount && !this._hasInviteFatalResponseForHost()) {
-                    this._createInviteFatalDraft(message);
+                if (!hostAccount) {
+                    if (!this._hasInviteFatalResponseForHost()) {
+                        this._createInviteFatalDraft(message);
+                    }
+                } else {
+                    const match = message.body.replace(/\u2014/g, '--').match(/\$\s*invite\s+(\S+)/);
+                    const inviteeEmail = match ? match[1].trim().replace(/^<|>$/g, '') : null;
+                    if (inviteeEmail) {
+                        if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress, message.messageId)) {
+                            this._createInviteResponseDraft(message, inviteeEmail);
+                        }
+                        const inviteeAddress = EmailAddress.fromString(inviteeEmail);
+                        if (inviteeAddress && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, inviteeAddress, message.messageId)) {
+                            this._createInviteMessageDraft(message, inviteeEmail, hostAccount);
+                        }
+                    }
+                }
+            }
+        } else if (body === '$ follow' || body.startsWith('$ follow\n')) {
+            // Plain $ follow (no args): invitee accepts invite by following the host
+            if (!fromHost) {
+                const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+                if (hostAccount) {
+                    this._applyFollowState(message);
+                    if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.FOLLOW_RESPONSE, message.from, message.messageId)) {
+                        this._createFollowResponseDraft(message);
+                    }
+                    if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.NEW_FOLLOWER_NOTIFICATION, this._hostEmailAddress, message.messageId)) {
+                        this._createNewFollowerNotificationDraft(message);
+                    }
                 }
             }
         } else if (body.startsWith('$ follow ') && !body.startsWith('$ follow --show')) {
@@ -578,6 +606,110 @@ export class MessageProcessor implements IMessageProcessor {
     }
 
     /**
+     * Create a confirmation reply to the host for a successful invite command.
+     */
+    private _createInviteResponseDraft(message: SimpleMessageWithMessageId, inviteeEmail: string): void {
+        const body = this._loadTemplate('text', 'invite_response.txt', {
+            invitee_email: inviteeEmail,
+            signature: SIGNATURE,
+        });
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.INVITE, fromName: 'friendlymail' }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create the invitation message sent to the invitee as a result of an invite command.
+     * Includes an HTML part that previews the host's most recent post (if any).
+     */
+    private _createInviteMessageDraft(message: SimpleMessageWithMessageId, inviteeEmail: string, hostAccount: User): void {
+        const hostName = this._hostDisplayName ?? hostAccount.name;
+        const hostEmail = this._hostEmailAddress.toString();
+        const inviteeAddress = EmailAddress.fromString(inviteeEmail)!;
+        const subject = `${hostName} wants you to follow them on friendlymail`;
+        const body = this._loadTemplate('text', 'invite_message.txt', {
+            host_name: hostName,
+            host_email: hostEmail,
+            signature: SIGNATURE,
+        });
+
+        // Latest post preview for HTML
+        const posts = this.getCreatePostMessages();
+        const latestPost = posts.length > 0 ? posts[posts.length - 1] : null;
+
+        // Profile pic vars (same pattern as createPostNotifications)
+        const profilePic = hostAccount.profilePic;
+        const profile_pic_src = profilePic
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${profilePic.contentType};base64,${profilePic.data.toString('base64')}`
+                : 'cid:profile_pic')
+            : '';
+        const profile_pic_img_display = profilePic ? 'block' : 'none';
+        const profile_pic_initial_display = profilePic ? 'none' : 'table';
+
+        const atIndex = hostEmail.indexOf('@');
+        const host_email_display = atIndex >= 0
+            ? `${hostEmail.slice(0, atIndex)}<span>@</span>${hostEmail.slice(atIndex + 1)}`
+            : hostEmail;
+
+        const post_section_display = latestPost ? 'table-row' : 'none';
+        const post_body = latestPost ? latestPost.body.trim() : '';
+        const post_photo_display = latestPost?.photoAttachment ? 'table-row' : 'none';
+        const post_photo_src = latestPost?.photoAttachment
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${latestPost.photoAttachment.contentType};base64,${latestPost.photoAttachment.data.toString('base64')}`
+                : 'cid:post_photo')
+            : '';
+        let created_at = '';
+        if (latestPost) {
+            const d = latestPost.date;
+            created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        }
+        const follow_href = `mailto:${hostEmail}?subject=Fm&body=%24%20follow`;
+
+        const html = this._loadTemplate('html', 'invite_message.html', {
+            host_name: hostName,
+            host_email: hostEmail,
+            host_email_display,
+            host_initial: hostName.charAt(0).toUpperCase(),
+            profile_pic_src,
+            profile_pic_img_display,
+            profile_pic_initial_display,
+            post_section_display,
+            post_body,
+            post_photo_display,
+            post_photo_src,
+            created_at,
+            follow_href,
+            brand_color: BRAND_COLOR,
+            signature: SIGNATURE,
+        });
+
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [inviteeAddress],
+            subject,
+            body,
+            {
+                html,
+                inReplyTo: message.messageId,
+                isHtml: false,
+                priority: 'normal',
+                messageType: FriendlymailMessageType.INVITE,
+                fromName: `${hostName} (via friendlymail)`,
+                profilePicAttachment: profilePic,
+                photoAttachment: latestPost?.photoAttachment,
+            }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
      * Create a permission denied reply for a follow <email> command from a non-host sender.
      */
     private _createFollowPermissionDeniedDraft(message: SimpleMessageWithMessageId): void {
@@ -609,6 +741,53 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             body,
             { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.UNFOLLOW_RESPONSE, fromName: 'friendlymail' }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Add the sender of a plain $ follow message to the host's follower list.
+     * Always called (even when a reply has already been sent) so the social network
+     * stays current across Daemon run cycles.
+     */
+    private _applyFollowState(message: SimpleMessageWithMessageId): void {
+        const followerEmail = message.from.toString();
+        this.socialNetworks.get(this._hostEmailAddress.toString())?.addFollowerEmail(followerEmail);
+    }
+
+    /**
+     * Create a follow-accepted reply for a plain $ follow command from a non-host sender.
+     */
+    private _createFollowResponseDraft(message: SimpleMessageWithMessageId): void {
+        const body = this._loadTemplate('text', 'follow_response.txt', {
+            host_email: this._hostEmailAddress.toString(),
+            signature: SIGNATURE,
+        });
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [message.from],
+            'Fm',
+            body,
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.FOLLOW_RESPONSE, fromName: 'friendlymail' }
+        );
+        this._drafts.push(draft);
+    }
+
+    /**
+     * Create a new follower notification draft for the host when a non-host sender follows.
+     */
+    private _createNewFollowerNotificationDraft(message: SimpleMessageWithMessageId): void {
+        const followerName = this._displayName(message.from);
+        const body = this._loadTemplate('text', 'new_follower_notification.txt', {
+            follower_name: followerName,
+            signature: SIGNATURE,
+        });
+        const draft = new MessageDraft(
+            this._hostEmailAddress,
+            [this._hostEmailAddress],
+            `friendlymail: ${followerName} is now following you`,
+            body,
+            { inReplyTo: message.messageId, isHtml: false, priority: 'normal', messageType: FriendlymailMessageType.NEW_FOLLOWER_NOTIFICATION, fromName: 'friendlymail' }
         );
         this._drafts.push(draft);
     }
@@ -759,6 +938,7 @@ export class MessageProcessor implements IMessageProcessor {
             like_href: likeHref,
             comment_href: commentHref,
             created_at,
+            brand_color: BRAND_COLOR,
             signature: SIGNATURE,
         };
 

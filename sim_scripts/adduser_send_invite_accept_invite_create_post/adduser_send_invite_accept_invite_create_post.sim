@@ -6,11 +6,14 @@ start
 # Create a user account
 load sim_messages/create_command_create_account.txt
 
+# Create a post
+load sim_messages/create_post.txt
+
 # Invite a follower
 load sim_messages/invite_follower.txt
 
 # Invitee accepts invite
 load sim_messages/accept_invite.txt
 
-# Create a post
-load sim_messages/create_post.txt
+# Create another post
+load sim_messages/create_post_hi.txt

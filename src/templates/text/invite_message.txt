@@ -1,0 +1,5 @@
+{{ host_name }} has invited you to follow them on friendlymail. Follow to receive their posts and photos:
+
+Follow {{ host_name }}: mailto:{{ host_email }}?subject=Fm&body=%24%20follow
+
+{{ signature }}

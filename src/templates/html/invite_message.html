@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New post from {{ host_name }}</title>
+  <title>{{ host_name }} wants you to follow them on friendlymail</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f3f4f6;">
 
@@ -12,13 +12,25 @@
     <tr>
       <td align="center" style="padding:32px 16px;">
 
-        <!-- Post card -->
+        <!-- Invite card -->
         <table role="presentation" cellspacing="0" cellpadding="0" border="0"
                style="width:100%;max-width:625px;background-color:#ffffff;">
 
+          <!-- Intro row -->
+          <tr>
+            <td style="padding:20px 20px 16px 20px;border-bottom:1px solid #f3f4f6;">
+              <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;line-height:1.4;">{{ host_name }} has invited you to follow them on friendlymail.</p>
+              <p style="margin:6px 0 0 0;color:#6b7280;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.4;">Follow to receive their posts and photos.</p>
+              <p style="margin:10px 0 0 0;">
+                <a href="{{ follow_href }}"
+                   style="color:{{ brand_color }};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;text-decoration:none;">Follow {{ host_name }}</a>
+              </p>
+            </td>
+          </tr>
+
           <!-- Author row -->
           <tr>
-            <td style="padding:20px 20px 10px 20px;">
+            <td style="padding:16px 20px 10px 20px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td width="40" valign="top">
@@ -47,14 +59,14 @@
             </td>
           </tr>
 
-          <!-- Post body -->
-          <tr>
+          <!-- Post body (conditionally shown) -->
+          <tr style="display:{{ post_section_display }};">
             <td style="padding:0 20px 6px 70px;">
               <p style="margin:0;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;font-weight:400;line-height:1.6;">{{ post_body }}</p>
             </td>
           </tr>
 
-          <!-- Post photo (present only for photo posts) -->
+          <!-- Post photo (conditionally shown) -->
           <tr style="display:{{ post_photo_display }};">
             <td style="padding:0 20px 6px 70px;">
               <img src="{{ post_photo_src }}" alt="Photo"
@@ -62,21 +74,10 @@
             </td>
           </tr>
 
-          <!-- Date row -->
-          <tr>
-            <td style="padding:0 20px 14px 70px;">
-              <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">{{ created_at }}</p>
-            </td>
-          </tr>
-
-          <!-- Action row -->
-          <tr>
+          <!-- Date row (conditionally shown) -->
+          <tr style="display:{{ post_section_display }};">
             <td style="padding:0 20px 20px 70px;">
-              <a href="{{ like_href }}"
-                 style="color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;text-decoration:none;">Like</a>
-              <span style="color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;">&nbsp;&middot;&nbsp;</span>
-              <a href="{{ comment_href }}"
-                 style="color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;text-decoration:none;">Reply</a>
+              <p style="margin:0;color:#9ca3af;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">{{ created_at }}</p>
             </td>
           </tr>
 

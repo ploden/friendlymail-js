@@ -1,0 +1,4 @@
+$ invite {{ invitee_email }}
+invite: Invitation sent to {{ invitee_email }}
+
+{{ signature }}
