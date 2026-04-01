@@ -23,3 +23,7 @@ Thunderbird settings:
 run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs.
 
 npm run daemon -- --config gmail_config.txt
+
+npx tsx run-live-sim.ts --test-config icloud_config.txt
+
+

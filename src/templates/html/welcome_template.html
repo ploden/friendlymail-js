@@ -43,7 +43,7 @@
 
               <!-- ASCII art logo — 62 chars wide; scales down on narrow viewports -->
               <div style="overflow-x:auto;margin:0 0 18px 0;">
-                <pre style="color:#39d353;font-family:'Courier New',Courier,monospace;font-size:11px;line-height:1.45;margin:0;white-space:pre;">   __      _                _ _                       _ _
+                <pre style="color:#39d353;font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;line-height:1.45;margin:0;white-space:pre;">   __      _                _ _                       _ _
   / _|    (_)              | | |                     (_) |
  | |_ _ __ _  ___ _ __   __| | |_   _ _ __ ___   __ _ _| |
  |  _| '__| |/ _ \ '_ \ / _` | | | | | '_ ` _ \ / _` | | |
@@ -59,17 +59,32 @@
               </p>
 
               <!-- Output text -->
-              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;line-height:1.7;margin:0 0 18px 0;">
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;line-height:1.7;margin:0 0 4px 0;">
                 Reply to this message with &ldquo;$ help&rdquo; for more information.
+              </p>
+              <p style="color:#c9d1d9;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;line-height:1.7;margin:0 0 18px 0;">
+                Type &ldquo;$ adduser&rdquo; to create an account and start using friendlymail.
               </p>
 
               <!-- $ help button -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 32px 0;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;">
                 <tr>
                   <td style="border-radius:5px;background-color:#39d353;">
                     <a href="mailto:{{ host_email }}?subject=Fm&amp;body=%24%20help"
                        style="display:inline-block;padding:11px 26px;color:#0d1117;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;text-decoration:none;white-space:nowrap;">
                       $ help
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- $ adduser button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 32px 0;">
+                <tr>
+                  <td style="border-radius:5px;background-color:#39d353;">
+                    <a href="mailto:{{ host_email }}?subject=Fm&amp;body=%24%20adduser"
+                       style="display:inline-block;padding:11px 26px;color:#0d1117;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:bold;text-decoration:none;white-space:nowrap;">
+                      $ adduser
                     </a>
                   </td>
                 </tr>

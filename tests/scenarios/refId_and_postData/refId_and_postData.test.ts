@@ -16,6 +16,7 @@ import { Post } from '../../../src/models/Post';
 import { Comment } from '../../../src/models/Comment';
 import { User } from '../../../src/models/User';
 import { decodeQuotedPrintable } from '../../../src/utils/quotedPrintable';
+import { FriendlymailMessageType } from '../../../src/models/FriendlymailMessageType';
 
 const HOST_EMAIL = 'phil@test.com';
 const FOLLOWER_EMAIL = 'kath@test.com';
@@ -24,7 +25,6 @@ const SECOND_POST_BODY = 'Hello again, world';
 const COMMENT_BODY = 'hello, universe!';
 const FIRST_POST_MESSAGE_ID = '74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com';
 const FIRST_POST_REF_ID = `${String(new Date().getFullYear()).slice(-2)}1`;
-const POST_NOTIFICATION_SUBJECT = 'friendlymail: New post from Phil L';
 
 function makeSocialNetwork(): jest.Mocked<ISocialNetwork> {
     return {
@@ -145,7 +145,7 @@ describe('refId and postData in notification messages', () => {
     function findPostNotification(toEmail: string): SimpleMessageWithMessageId {
         return provider.sentMessages.find(
             (m: SimpleMessage) =>
-                m.subject === POST_NOTIFICATION_SUBJECT &&
+                m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                 m.to.some((a: EmailAddress) => a.toString() === toEmail)
         ) as SimpleMessageWithMessageId;
     }
@@ -153,7 +153,7 @@ describe('refId and postData in notification messages', () => {
     function findAllPostNotifications(toEmail: string): SimpleMessageWithMessageId[] {
         return provider.sentMessages.filter(
             (m: SimpleMessage) =>
-                m.subject === POST_NOTIFICATION_SUBJECT &&
+                m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                 m.to.some((a: EmailAddress) => a.toString() === toEmail)
         ) as SimpleMessageWithMessageId[];
     }
@@ -161,7 +161,7 @@ describe('refId and postData in notification messages', () => {
     function findCommentNotification(): SimpleMessageWithMessageId {
         return provider.sentMessages.find(
             (m: SimpleMessage) =>
-                m.subject.includes('New comment from') &&
+                m.xFriendlymail?.includes(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION) &&
                 m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
         ) as SimpleMessageWithMessageId;
     }

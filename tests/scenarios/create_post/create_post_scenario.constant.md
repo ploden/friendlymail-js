@@ -129,7 +129,7 @@ Hello, world
 Result: Message sent to host user (phil@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hello, world"
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
@@ -147,7 +147,7 @@ friendlymail, an open-source, email-based, alternative social network
 Result: Message sent to follower (kath@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hello, world"
 To: Kath L <kath@test.com>
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"261","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
 
@@ -176,7 +176,7 @@ To: Phil L <phil@test.com>
 Result: The user is notified via a New Like notification message.
 ```
 From: Kath L (via friendlymail) <phil@test.com>
-Subject: friendlymail: Kath L liked your post...
+Subject: Kath L liked your post...
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_like_notification"}
 
@@ -206,7 +206,7 @@ hello, universe!
 Result: The user is notified via a New Comment notification message:
 ```
 From: Kath L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New comment from Kath L
+Subject: New comment: "hello, universe!"
 To: Phil L <phil@test.com>
 X-friendlymail: {"messageType":"new_comment_notification","postData":{"id":"[uuid]","refId":"262","author":"kath@test.com","content":"hello, universe!","type":"text","privacy":"public","createdAt":"[ISO date string]","inReplyTo":"74206DB7-D586-4F7D-A203-5C5E1DAE7112@gmail.com"}}
 
@@ -244,7 +244,7 @@ Hello, world
 Result: Message sent to host user (phil@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hello, world"
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"263","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -263,7 +263,7 @@ friendlymail, an open-source, email-based, alternative social network
 Result: Message sent to follower (kath@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hello, world"
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"263","author":"phil@test.com","content":"Hello, world","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -319,7 +319,7 @@ Hi Alice and Kath
 Result: Message sent to host user (phil@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hi Alice and Kath"
 To: Phil L <phil@test.com>
 Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -338,7 +338,7 @@ friendlymail, an open-source, email-based, alternative social network
 Result: Message sent to follower (kath@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hi Alice and Kath"
 To: Kath L <kath@test.com>
 Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}
@@ -357,7 +357,7 @@ friendlymail, an open-source, email-based, alternative social network
 Result: Message sent to follower (alice@test.com):
 ```
 From: Phil L (via friendlymail) <phil@test.com>
-Subject: friendlymail: New post from Phil L
+Subject: New post: "Hi Alice and Kath"
 To: <alice@test.com>
 Message-Id: [message-id]
 X-friendlymail: {"messageType":"new_post_notification","postData":{"id":"[uuid]","refId":"264","author":"phil@test.com","content":"Hi Alice and Kath","type":"text","privacy":"public","createdAt":"[ISO date string]"}}

@@ -11,7 +11,7 @@ import { encodeQuotedPrintable, decodeQuotedPrintable } from './utils/quotedPrin
 import { PhotoEmbedMode } from './models/PhotoEmbedMode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { VERSION, SIGNATURE, BRAND_COLOR } from './constants';
+import { VERSION, SIGNATURE, BRAND_COLOR, SUBJECT_PREVIEW_LENGTH } from './constants';
 
 export class MessageProcessor implements IMessageProcessor {
     private _hostEmailAddress: EmailAddress;
@@ -388,7 +388,7 @@ export class MessageProcessor implements IMessageProcessor {
             const nameLine = message.body.split('\n').slice(1).find(l => l.trim() && !l.trim().startsWith('$'));
             const defaultName = (this._hostDisplayName && fromEmail.equals(this._hostEmailAddress))
                 ? this._hostDisplayName
-                : this._displayName(fromEmail);
+                : (message.fromName ?? this._displayName(fromEmail));
             username = nameLine ? nameLine.trim() : defaultName;
         }
 
@@ -938,6 +938,13 @@ export class MessageProcessor implements IMessageProcessor {
             like_href: likeHref,
             comment_href: commentHref,
             created_at,
+            likes_row: '',
+            comment_section_display: 'none',
+            sender_name: '',
+            sender_initial: '',
+            comment_body: '',
+            comment_created_at: '',
+            comment_like_href: '',
             brand_color: BRAND_COLOR,
             signature: SIGNATURE,
         };
@@ -945,7 +952,10 @@ export class MessageProcessor implements IMessageProcessor {
         const notifBody = this._loadTemplate('text', 'post_notification.txt', templateVars);
         const notifHtml = this._loadTemplate('html', 'post_notification_microblog.html', templateVars);
 
-        const subject = `friendlymail: New post from ${hostName}`;
+        const preview = postBody.length > SUBJECT_PREVIEW_LENGTH
+            ? postBody.slice(0, SUBJECT_PREVIEW_LENGTH) + '...'
+            : postBody;
+        const subject = `New post: "${preview}"`;
         const recipients: EmailAddress[] = [this._hostEmailAddress];
 
         for (const followerEmail of followerEmails) {
@@ -999,7 +1009,7 @@ export class MessageProcessor implements IMessageProcessor {
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [this._hostEmailAddress],
-            `friendlymail: ${senderName} liked your post...`,
+            `${senderName} liked your post...`,
             body,
             {
                 inReplyTo: likeMessage.messageId,
@@ -1095,27 +1105,57 @@ export class MessageProcessor implements IMessageProcessor {
             signature: SIGNATURE,
         });
 
-        const html = this._loadTemplate('html', 'comment_notification.html', {
+        const hostAccount = this.getAccountByEmail(this._hostEmailAddress.toString());
+        const profilePic = hostAccount?.profilePic;
+        const profile_pic_src = profilePic
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${profilePic.contentType};base64,${profilePic.data.toString('base64')}`
+                : 'cid:profile_pic')
+            : '';
+        const profile_pic_img_display = profilePic ? 'block' : 'none';
+        const profile_pic_initial_display = profilePic ? 'none' : 'table';
+
+        const atIndex = hostEmail.indexOf('@');
+        const host_email_display = atIndex >= 0
+            ? `${hostEmail.slice(0, atIndex)}<span>@</span>${hostEmail.slice(atIndex + 1)}`
+            : hostEmail;
+
+        const post_photo_display = originalPost.photoAttachment ? 'table-row' : 'none';
+        const post_photo_src = originalPost.photoAttachment
+            ? (this._photoEmbedMode === 'base64'
+                ? `data:${originalPost.photoAttachment.contentType};base64,${originalPost.photoAttachment.data.toString('base64')}`
+                : 'cid:post_photo')
+            : '';
+
+        const html = this._loadTemplate('html', 'post_notification_microblog.html', {
             host_name: hostName,
             host_email: hostEmail,
+            host_email_display,
             host_initial: hostName.charAt(0).toUpperCase(),
             post_body: postBody,
-            post_created_at,
-            post_like_href: postLikeHref,
+            post_photo_display,
+            post_photo_src,
+            profile_pic_src,
+            profile_pic_img_display,
+            profile_pic_initial_display,
+            created_at: post_created_at,
+            like_href: postLikeHref,
+            comment_href: commentHref,
+            likes_row,
+            comment_section_display: 'table-row',
             sender_name: senderName,
             sender_initial: senderName.charAt(0).toUpperCase(),
             comment_body: commentBody,
             comment_created_at,
-            like_href: likeHref,
-            comment_href: commentHref,
-            likes_row,
+            comment_like_href: likeHref,
+            brand_color: BRAND_COLOR,
             signature: SIGNATURE,
         });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
             [this._hostEmailAddress],
-            `friendlymail: New comment from ${senderName}`,
+            `New comment: "${commentBody.length > SUBJECT_PREVIEW_LENGTH ? commentBody.slice(0, SUBJECT_PREVIEW_LENGTH) + '...' : commentBody}"`,
             body,
             {
                 html,
@@ -1124,7 +1164,8 @@ export class MessageProcessor implements IMessageProcessor {
                 isHtml: false,
                 priority: 'normal',
                 messageType: FriendlymailMessageType.NEW_COMMENT_NOTIFICATION,
-                fromName: `${senderName} (via friendlymail)`
+                fromName: `${senderName} (via friendlymail)`,
+                profilePicAttachment: profilePic,
             }
         );
 

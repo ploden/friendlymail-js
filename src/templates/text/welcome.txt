@@ -8,7 +8,9 @@
                                 |___/
 friendlymail {{ version }}
 Reply to this message with "$ help" for more information.
+Type "$ adduser" to create an account and start using friendlymail.
 
 help: mailto:{{ host_email }}?subject=Fm&body=%24%20help
+adduser: mailto:{{ host_email }}?subject=Fm&body=%24%20adduser
 
 {{ signature }}
