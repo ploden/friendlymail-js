@@ -4,7 +4,9 @@
     "test:watch": "jest --watch",
     "process": "tsx run-process-messages.ts",
     "daemon": "tsx run-daemon.ts",
-    "daemon:local": "tsx run-daemon.ts --host-email phil@localhost --smtp-host localhost --smtp-port 587 --imap-host localhost --imap-port 143 --imap-user phil@localhost --imap-pass phil123"
+    "daemon:local": "tsx run-daemon.ts --host-email phil@localhost --smtp-host localhost --smtp-port 587 --imap-host localhost --imap-port 143 --imap-user phil@localhost --imap-pass phil123",
+    "purge": "tsx purge-friendlymail.ts",
+    "live-sim": "tsx run-live-sim.ts"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

@@ -68,6 +68,25 @@ interface Args {
 const BOOLEAN_OPTIONS = new Set(['smtp-secure', 'imap-secure', 'allow-self-signed', 'verbose']);
 
 /**
+ * Expand $VAR or ${VAR} references in a config value using process.env.
+ * Throws if a referenced variable is not set.
+ */
+function expandEnvVars(value: string): string {
+    return value.replace(
+        /\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
+        (_match, braced: string | undefined, bare: string | undefined) => {
+            const name = braced ?? bare!;
+            const resolved = process.env[name];
+            if (resolved === undefined) {
+                console.error(`Config error: environment variable $${name} is not set`);
+                process.exit(1);
+            }
+            return resolved;
+        }
+    );
+}
+
+/**
  * Parse a key=value config file and return a synthetic argv array.
  * Boolean options with value "true" become --flag entries.
  * Boolean options with value "false" are omitted.
@@ -90,7 +109,7 @@ function loadConfigFile(filePath: string): string[] {
 
         const eqIndex = line.indexOf('=');
         const key   = (eqIndex === -1 ? line : line.slice(0, eqIndex)).trim();
-        const value = (eqIndex === -1 ? ''  : line.slice(eqIndex + 1)).trim();
+        const value = expandEnvVars((eqIndex === -1 ? '' : line.slice(eqIndex + 1)).trim());
 
         if (BOOLEAN_OPTIONS.has(key)) {
             if (value.toLowerCase() !== 'false') syntheticArgv.push(`--${key}`);

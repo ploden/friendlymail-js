@@ -343,7 +343,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the host user', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification).toBeDefined();
@@ -351,7 +351,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the follower', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification).toBeDefined();
@@ -359,7 +359,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send both notifications from the host address', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION)
             );
             expect(notifications).toHaveLength(2);
             expect(notifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
@@ -367,7 +367,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the host notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -375,7 +375,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the follower notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -383,7 +383,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should set the X-friendlymail header to the new_post_notification type on the host notification', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.xFriendlymail)
@@ -392,7 +392,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should set the X-friendlymail header to the new_post_notification type on the follower notification', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.xFriendlymail)
@@ -401,7 +401,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the post content in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain('Hello, world');
@@ -409,7 +409,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the post content in the follower notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.body).toContain('Hello, world');
@@ -417,7 +417,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the signature in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body)
@@ -426,7 +426,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the like link with the correct ref id in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain(FIRST_POST_REF_ID);
@@ -434,7 +434,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the like link with the correct ref id in the follower notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.body).toContain(FIRST_POST_REF_ID);
@@ -512,7 +512,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a second new post notification to the host user', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notifications).toHaveLength(2);
@@ -520,7 +520,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a second new post notification to the follower', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notifications).toHaveLength(2);
@@ -528,7 +528,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send both second notifications from the host address', () => {
             const allNotifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION)
             );
             expect(allNotifications).toHaveLength(4);
             expect(allNotifications.every((m: SimpleMessageWithMessageId) => m.from.toString() === HOST_EMAIL)).toBe(true);
@@ -536,7 +536,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the second host notification with fromName "Phil L (via friendlymail)"', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect((notifications[1] as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -544,7 +544,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send the second follower notification with fromName "Phil L (via friendlymail)"', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect((notifications[1] as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -552,7 +552,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should set the X-friendlymail header to the new_post_notification type on the second host notification', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notifications[1].xFriendlymail)
@@ -561,7 +561,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should set the X-friendlymail header to the new_post_notification type on the second follower notification', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notifications[1].xFriendlymail)
@@ -570,7 +570,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the post content in the second host notification body', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notifications[1].body).toContain('Hello, world');
@@ -578,7 +578,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the post content in the second follower notification body', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notifications[1].body).toContain('Hello, world');
@@ -586,7 +586,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the signature in the second host notification body', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                      m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notifications[1].body)
@@ -662,7 +662,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the host user', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL) &&
                     m.body.includes('Hi Alice and Kath')
             );
@@ -671,7 +671,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the first follower (kath)', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL) &&
                     m.body.includes('Hi Alice and Kath')
             );
@@ -680,7 +680,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send a new post notification to the second follower (alice)', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === SECOND_FOLLOWER_EMAIL)
             );
             expect(notification).toBeDefined();
@@ -688,7 +688,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send all three notifications from the host address', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.body.includes('Hi Alice and Kath')
             );
             expect(notifications).toHaveLength(3);
@@ -697,7 +697,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should send all three notifications with fromName "Phil L (via friendlymail)"', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.body.includes('Hi Alice and Kath')
             );
             expect(notifications.every((m) => (m as ISimpleMessage).fromName === 'Phil L (via friendlymail)')).toBe(true);
@@ -705,7 +705,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should set the X-friendlymail header to the new_post_notification type on all three notifications', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.body.includes('Hi Alice and Kath')
             );
             expect(notifications.every((m: SimpleMessageWithMessageId) =>
@@ -716,7 +716,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the post content in all three notification bodies', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.body.includes('Hi Alice and Kath')
             );
             expect(notifications).toHaveLength(3);
@@ -724,7 +724,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the ref id in the host notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL) &&
                     m.body.includes('Hi Alice and Kath')
             );
@@ -733,7 +733,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the ref id in the first follower notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL) &&
                     m.body.includes('Hi Alice and Kath')
             );
@@ -742,7 +742,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the ref id in the second follower notification body', () => {
             const notification = provider.sentMessages.find(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === SECOND_FOLLOWER_EMAIL)
             );
             expect(notification!.body).toContain(THIRD_POST_REF_ID);
@@ -750,7 +750,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
         it('should include the signature in all three notification bodies', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L' &&
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.body.includes('Hi Alice and Kath')
             );
             expect(notifications.every((m: SimpleMessageWithMessageId) =>
@@ -890,7 +890,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         });
 
         it('should send the comment notification with the correct subject', () => {
-            expect(provider.sentMessages[7].subject).toContain('New comment from Kath L');
+            expect(provider.sentMessages[7].subject).toContain('New comment:');
         });
 
         it('should set the X-friendlymail header to the new_comment_notification type', () => {

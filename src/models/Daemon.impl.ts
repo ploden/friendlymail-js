@@ -25,6 +25,7 @@ export class Daemon implements IDaemon {
     private _verbose: boolean;
     private _photoEmbedMode: PhotoEmbedMode;
     private _hostDisplayNameProvider?: () => string | undefined;
+    private _sendDelayMs: number;
     private _runCount: number = 0;
 
     /**
@@ -36,6 +37,7 @@ export class Daemon implements IDaemon {
      * @param verbose When true, logs detailed run-cycle information to stdout
      * @param photoEmbedMode Controls how photo attachments are embedded in HTML notifications
      * @param hostDisplayNameProvider Optional callback returning the host's display name
+     * @param sendDelayMs Milliseconds to wait between sending each draft (default: 0)
      */
     constructor(
         hostEmailAddress: EmailAddress,
@@ -44,7 +46,8 @@ export class Daemon implements IDaemon {
         socialNetwork: ISocialNetwork,
         verbose: boolean = false,
         photoEmbedMode: PhotoEmbedMode = 'cid',
-        hostDisplayNameProvider?: () => string | undefined
+        hostDisplayNameProvider?: () => string | undefined,
+        sendDelayMs: number = 0
     ) {
         this._hostEmailAddress = hostEmailAddress;
         this._messageStore = new MessageStore();
@@ -53,6 +56,7 @@ export class Daemon implements IDaemon {
         this._socialNetwork = socialNetwork;
         this._photoEmbedMode = photoEmbedMode;
         this._hostDisplayNameProvider = hostDisplayNameProvider;
+        this._sendDelayMs = sendDelayMs;
         this._messageProcessor = new MessageProcessor(hostEmailAddress, [], photoEmbedMode, hostDisplayNameProvider?.());
         this._verbose = verbose;
     }
@@ -126,7 +130,11 @@ export class Daemon implements IDaemon {
             }
         }
 
-        for (const draft of drafts) {
+        for (let i = 0; i < drafts.length; i++) {
+            if (i > 0 && this._sendDelayMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, this._sendDelayMs));
+            }
+            const draft = drafts[i];
             log(`sending draft  to=${draft.to.map(a => a.toString()).join(',')}  subject="${draft.subject}"`);
             await this._messageSender.sendDraft(draft);
             this._messageProcessor.removeDraft(draft);

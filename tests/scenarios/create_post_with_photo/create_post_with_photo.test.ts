@@ -125,7 +125,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send a new post notification to the host user', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification).toBeDefined();
@@ -134,7 +134,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send a new post notification to the follower', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification).toBeDefined();
@@ -142,7 +142,7 @@ describe('Scenario: Create post with photo', () => {
 
         it('should send exactly two post notifications', () => {
             const notifications = provider.sentMessages.filter(
-                (m: SimpleMessage) => m.subject === 'friendlymail: New post from Phil L'
+                (m: SimpleMessage) => m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION)
             );
             expect(notifications).toHaveLength(2);
         });
@@ -150,7 +150,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send the host notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -159,7 +159,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send the follower notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -168,7 +168,7 @@ describe('Scenario: Create post with photo', () => {
         it('should set the X-friendlymail header to new_post_notification on the host notification', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
@@ -177,7 +177,7 @@ describe('Scenario: Create post with photo', () => {
         it('should set the X-friendlymail header to new_post_notification on the follower notification', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain(FriendlymailMessageType.NEW_POST_NOTIFICATION);
@@ -186,7 +186,7 @@ describe('Scenario: Create post with photo', () => {
         it('should record post type as "image" in the X-friendlymail postData on the host notification', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain('"type":"image"');
@@ -195,7 +195,7 @@ describe('Scenario: Create post with photo', () => {
         it('should record post type as "image" in the X-friendlymail postData on the follower notification', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain('"type":"image"');
@@ -204,7 +204,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "[Photo attached]" in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain('[Photo attached]');
@@ -213,7 +213,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "[Photo attached]" in the follower notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.body).toContain('[Photo attached]');
@@ -222,7 +222,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "cid:post_photo" in the host notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.html).toContain('cid:post_photo');
@@ -231,7 +231,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "cid:post_photo" in the follower notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.html).toContain('cid:post_photo');
@@ -240,7 +240,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include the signature in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain('friendlymail, an open-source, email-based, alternative social network');
@@ -262,7 +262,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send the photo post notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -271,7 +271,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include the post text in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain(POST_TEXT);
@@ -280,7 +280,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "[Photo attached]" in the host notification body alongside the text', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).toContain('[Photo attached]');
@@ -289,7 +289,7 @@ describe('Scenario: Create post with photo', () => {
         it('should include "cid:post_photo" in the host notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.html).toContain('cid:post_photo');
@@ -298,7 +298,7 @@ describe('Scenario: Create post with photo', () => {
         it('should record post type as "image" in the X-friendlymail postData', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain('"type":"image"');
@@ -318,7 +318,7 @@ describe('Scenario: Create post with photo', () => {
         it('should send the text post notification with fromName "Phil L (via friendlymail)"', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect((notification as ISimpleMessage).fromName).toBe('Phil L (via friendlymail)');
@@ -327,7 +327,7 @@ describe('Scenario: Create post with photo', () => {
         it('should NOT include "[Photo attached]" in the host notification body', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.body).not.toContain('[Photo attached]');
@@ -336,7 +336,7 @@ describe('Scenario: Create post with photo', () => {
         it('should hide the photo row with display:none in the host notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.html).toContain('display:none');
@@ -345,7 +345,7 @@ describe('Scenario: Create post with photo', () => {
         it('should record post type as "text" in the X-friendlymail postData', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === HOST_EMAIL)
             );
             expect(notification!.xFriendlymail).toContain('"type":"text"');
@@ -354,7 +354,7 @@ describe('Scenario: Create post with photo', () => {
         it('should hide the photo row with display:none in the follower notification HTML', () => {
             const notification = provider.sentMessages.find(
                 (m: SimpleMessage) =>
-                    m.subject === 'friendlymail: New post from Phil L' &&
+                    m.xFriendlymail?.includes(FriendlymailMessageType.NEW_POST_NOTIFICATION) &&
                     m.to.some((a: EmailAddress) => a.toString() === FOLLOWER_EMAIL)
             );
             expect(notification!.html).toContain('display:none');
