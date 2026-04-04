@@ -32,6 +32,13 @@ export interface ImapConfig {
     allowSelfSigned?: boolean;
     /** Only fetch messages on or after this date. When omitted, all messages are fetched. */
     sinceDate?: Date;
+    /**
+     * When set, getMessages() also fetches from this folder (e.g. '[Gmail]/All Mail')
+     * so messages archived by a Gmail filter are still processed by the daemon.
+     * sendDraft() will also IMAP-APPEND any draft addressed to the IMAP user directly
+     * to INBOX, ensuring it is visible even if a Gmail filter would otherwise archive it.
+     */
+    archiveFolder?: string;
 }
 
 /**

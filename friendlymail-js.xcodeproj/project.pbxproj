@@ -48,12 +48,18 @@
 			path = sim_scripts;
 			sourceTree = "<group>";
 		};
+		8D8FE6382F81445B0097741C /* .claude */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = .claude;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXGroup section */
 		8D55AAD02F5B81B70070C8E2 = {
 			isa = PBXGroup;
 			children = (
+				8D8FE6382F81445B0097741C /* .claude */,
 				8D8FE5192F6AE27C0097741C /* gmail_config.txt */,
 				8D8F56DF2F5B82160097741C /* frequent_prompts.txt */,
 				8D8F56E02F5B82160097741C /* jest.config.js */,
