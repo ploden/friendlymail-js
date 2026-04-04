@@ -29,6 +29,8 @@
  *   --config <path>           Path to a key=value config file (CLI args override file)
  *   --interval <seconds>      Poll interval in seconds (default: 10)
  *   --since <YYYY-MM-DD>      Only fetch IMAP messages on or after this date
+ *   --archive-folder <folder> Also fetch from this IMAP folder (e.g. '[Gmail]/All Mail')
+ *                             for Gmail users who auto-archive Fm/fm messages
  *   --allow-self-signed       Skip TLS certificate verification (for local dev)
  *   --verbose                 Log each fetched/sent message and cycle details
  *
@@ -60,6 +62,7 @@ interface Args {
     imapPass: string;
     intervalSec: number;
     sinceDate: Date | undefined;
+    archiveFolder: string | undefined;
     allowSelfSigned: boolean;
     verbose: boolean;
 }
@@ -149,6 +152,7 @@ function parseArgs(): Args {
     let imapPass = '';
     let intervalSec = 10;
     let sinceDate: Date | undefined;
+    let archiveFolder: string | undefined;
     let allowSelfSigned = false;
     let verbose = false;
 
@@ -170,6 +174,7 @@ function parseArgs(): Args {
             case '--imap-pass':    imapPass   = next; i++; break;
             case '--interval':          intervalSec    = parseInt(next, 10); i++; break;
             case '--since':             sinceDate      = new Date(next); i++; break;
+            case '--archive-folder':    archiveFolder  = next; i++; break;
             case '--allow-self-signed': allowSelfSigned = true; break;
             case '--verbose':           verbose = true; break;
             default:
@@ -199,6 +204,7 @@ function parseArgs(): Args {
         imapPass,
         intervalSec,
         sinceDate,
+        archiveFolder,
         allowSelfSigned,
         verbose,
     };
@@ -223,6 +229,7 @@ async function main(): Promise<void> {
             auth: { user: args.imapUser, pass: args.imapPass },
             allowSelfSigned: args.allowSelfSigned,
             sinceDate: args.sinceDate,
+            archiveFolder: args.archiveFolder,
         },
         args.verbose
     );

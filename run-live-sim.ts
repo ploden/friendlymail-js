@@ -46,6 +46,7 @@
  *   smtp-user=you@gmail.com
  *   smtp-pass=$GMAIL_PASS
  *   since=2026-03-23             # optional — default: today; limits IMAP fetch
+ *   archive-folder=[Gmail]/All Mail  # optional — also fetch from this folder
  *   allow-self-signed=false      # optional
  *   non-host-email-1=alice@real.com   # optional — override fake test user email
  *   non-host-name-1=Alice Real        # optional — override fake test user name
@@ -118,6 +119,7 @@ interface Config {
     smtpUser: string;
     smtpPass: string;
     sinceDate: Date;
+    archiveFolder: string | undefined;
     allowSelfSigned: boolean;
 }
 
@@ -238,6 +240,7 @@ function parseArgs(): {
     let imapHost = '', imapPort = 993, imapSecure = false, imapUser = '', imapPass = '';
     let smtpHost = '', smtpPort = 465, smtpSecure = false, smtpUser = '', smtpPass = '';
     let sinceStr = '';
+    let archiveFolder: string | undefined;
     let allowSelfSigned = false;
     let verbose = false;
     let delayMs = 10000;
@@ -262,6 +265,7 @@ function parseArgs(): {
             case '--smtp-user':         smtpUser        = next; i++; break;
             case '--smtp-pass':         smtpPass        = next; i++; break;
             case '--since':             sinceStr        = next; i++; break;
+            case '--archive-folder':    archiveFolder   = next; i++; break;
             case '--allow-self-signed': allowSelfSigned = true; break;
             case '--verbose':           verbose         = true; break;
             case '--delay':             delayMs         = parseInt(next, 10); i++; break;
@@ -369,6 +373,7 @@ function parseArgs(): {
             smtpUser: smtpUser || hostEmail,
             smtpPass,
             sinceDate,
+            archiveFolder,
             allowSelfSigned,
         },
         nonHostConfig,
@@ -747,6 +752,7 @@ async function main(): Promise<void> {
             auth: { user: config.imapUser, pass: config.imapPass },
             allowSelfSigned: config.allowSelfSigned,
             sinceDate: config.sinceDate,
+            archiveFolder: config.archiveFolder,
         },
         verbose
     );

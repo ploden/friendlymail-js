@@ -176,6 +176,14 @@ function isFriendlymailSubject(subject: string): boolean {
         || subject.startsWith('Fm Comment');
 }
 
+/**
+ * Returns true if the path is a Gmail "All Mail" virtual folder.
+ * Gmail does not honour EXPUNGE on All Mail; messages must be moved to Trash first.
+ */
+function isAllMailPath(path: string): boolean {
+    return path === '[Gmail]/All Mail' || path === '[Google Mail]/All Mail';
+}
+
 // ── IMAP helpers ──────────────────────────────────────────────────────────────
 
 function makeClient(config: Config): ImapFlow {
@@ -196,6 +204,7 @@ async function purgeMailbox(
     path: string,
     dryRun: boolean,
     verbose: boolean,
+    trashPath?: string,
 ): Promise<number> {
     let lock;
     try {
@@ -278,6 +287,10 @@ async function purgeMailbox(
         }
         if (allUids.length === 0) return 0;
 
+        // Gmail does not honour EXPUNGE on [Gmail]/All Mail directly.
+        // Move to Trash first; the subsequent Trash pass will permanently delete.
+        const useMove = !!trashPath && isAllMailPath(path);
+
         if (verbose || dryRun) {
             // Fetch envelopes for reporting.
             for await (const msg of client.fetch(
@@ -285,14 +298,18 @@ async function purgeMailbox(
                 { envelope: true },
                 { uid: true }
             )) {
-                const action = dryRun ? '[dry-run]' : '[delete]';
+                const action = dryRun ? '[dry-run]' : (useMove ? '[move-to-trash]' : '[delete]');
                 console.log(`  ${action} uid=${msg.uid}  subject="${msg.envelope?.subject ?? ''}"  date=${msg.envelope?.date?.toISOString().slice(0, 10) ?? '?'}`);
             }
         }
 
         if (!dryRun) {
-            // messageDelete moves to Trash (Gmail) or sets \Deleted + expunges (standard IMAP).
-            await client.messageDelete(allUids.join(','), { uid: true });
+            if (useMove) {
+                await client.messageMove(allUids.join(','), trashPath!, { uid: true });
+            } else {
+                // messageDelete moves to Trash (Gmail) or sets \Deleted + expunges (standard IMAP).
+                await client.messageDelete(allUids.join(','), { uid: true });
+            }
         }
 
         deleteCount = allUids.length;
@@ -319,6 +336,10 @@ async function main(): Promise<void> {
     const mailboxes = await client.list();
     console.log(`Found ${mailboxes.length} mailbox(es).\n`);
 
+    // Locate the Trash folder (needed for the Gmail All Mail workaround).
+    const trashMailbox = mailboxes.find(m => m.flags?.has('\\Trash'));
+    const trashPath = trashMailbox?.path;
+
     let totalDeleted = 0;
     const processedPaths = new Set<string>();
 
@@ -327,7 +348,7 @@ async function main(): Promise<void> {
         if (mailbox.flags?.has('\\Noselect')) continue;
 
         process.stdout.write(`${mailbox.path} … `);
-        const count = await purgeMailbox(client, mailbox.path, dryRun, verbose);
+        const count = await purgeMailbox(client, mailbox.path, dryRun, verbose, trashPath);
         processedPaths.add(mailbox.path);
 
         if (count > 0) {
@@ -344,7 +365,7 @@ async function main(): Promise<void> {
     for (const archivePath of gmailArchivePaths) {
         if (processedPaths.has(archivePath)) continue;
         process.stdout.write(`${archivePath} … `);
-        const count = await purgeMailbox(client, archivePath, dryRun, verbose);
+        const count = await purgeMailbox(client, archivePath, dryRun, verbose, trashPath);
         if (count > 0) {
             console.log(`${dryRun ? 'found' : 'deleted'} ${count} message(s)`);
             totalDeleted += count;

@@ -221,6 +221,21 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
             // Ignore — mailbox already exists on most runs.
         }
         await client.append('Sent', rawMessage, ['\\Seen']);
+
+        // If an archive folder is configured (e.g. Gmail auto-archives Fm messages),
+        // also append directly to INBOX for any draft addressed to the IMAP user,
+        // so the host sees the response even if a filter would otherwise archive it.
+        if (this._imapConfig.archiveFolder) {
+            const hostAddr = EmailAddress.fromString(this._imapConfig.auth.user);
+            const isToHost = hostAddr && draft.to.some(a => a.equals(hostAddr));
+            if (isToHost) {
+                await client.append('INBOX', rawMessage, ['\\Seen']);
+                if (this._verbose) {
+                    console.log(`[EmailMailProvider] appended response to INBOX (archive mode)`);
+                }
+            }
+        }
+
         await client.logout();
     }
 
@@ -299,6 +314,40 @@ export class EmailMailProvider extends MailProvider implements IEmailMailProvide
         }
         if (this._verbose) {
             console.log(`[EmailMailProvider] Sent fetch complete  count=${messages.length - sentCountBefore}`);
+        }
+
+        // — Archive folder: fetch if configured (e.g. '[Gmail]/All Mail') —
+        if (this._imapConfig.archiveFolder) {
+            const archiveCountBefore = messages.length;
+            try {
+                const archiveLock = await client.getMailboxLock(this._imapConfig.archiveFolder);
+                try {
+                    const searchCriteria = this._imapConfig.sinceDate ? { since: this._imapConfig.sinceDate } : { all: true as const };
+                    const result = await client.search(searchCriteria, { uid: true });
+                    const uids: number[] = result === false ? [] : result;
+
+                    if (uids.length > 0) {
+                        const uidSet = uids.join(',');
+                        for await (const msg of client.fetch(uidSet, { source: true, uid: true }, { uid: true })) {
+                            if (!msg.source) continue;
+                            const parsed = await parseImapMessage(msg.source, msg.uid);
+                            if (parsed) {
+                                messages.push(parsed);
+                                if (this._verbose) {
+                                    console.log(`[EmailMailProvider] Archive  uid=${msg.uid}  id=${parsed.messageId}  from=${parsed.from}  subject="${parsed.subject}"  xFriendlymail=${parsed.xFriendlymail ?? '(none)'}`);
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    archiveLock.release();
+                }
+            } catch {
+                // Archive folder doesn't exist or can't be opened — silently skip.
+            }
+            if (this._verbose) {
+                console.log(`[EmailMailProvider] Archive fetch complete  count=${messages.length - archiveCountBefore}`);
+            }
         }
 
         await client.logout();
