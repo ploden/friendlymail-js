@@ -21,9 +21,10 @@ export class SimpleMessageWithMessageId extends SimpleMessage implements ISimple
         html?: string,
         messageId: string = crypto.randomUUID(),
         photoAttachment?: PhotoAttachment,
-        fromName?: string
+        fromName?: string,
+        xSimStep?: string
     ) {
-        super(from, to, subject, body, date, xFriendlymail, html, photoAttachment, fromName);
+        super(from, to, subject, body, date, xFriendlymail, html, photoAttachment, fromName, xSimStep);
         this._messageId = messageId;
     }
 

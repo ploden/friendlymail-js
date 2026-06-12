@@ -35,10 +35,15 @@ export interface ImapConfig {
     /**
      * When set, getMessages() also fetches from this folder (e.g. '[Gmail]/All Mail')
      * so messages archived by a Gmail filter are still processed by the daemon.
-     * sendDraft() will also IMAP-APPEND any draft addressed to the IMAP user directly
-     * to INBOX, ensuring it is visible even if a Gmail filter would otherwise archive it.
      */
     archiveFolder?: string;
+    /**
+     * When true, sendDraft() searches archiveFolder for the sent message by its
+     * X-friendlymail header and copies it server-side to INBOX via IMAP UID COPY,
+     * so the host sees the response even if a Gmail filter would otherwise archive it.
+     * Requires archiveFolder to also be set.
+     */
+    archiveRule?: boolean;
 }
 
 /**

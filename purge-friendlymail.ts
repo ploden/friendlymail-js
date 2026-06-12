@@ -36,6 +36,7 @@
 
 import * as fs from 'fs';
 import { ImapFlow } from 'imapflow';
+import { FRIENDLYMAIL_EPOCH } from './src/constants';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -220,7 +221,7 @@ async function purgeMailbox(
         // Pass 1 — messages with an X-friendlymail header.
         const headerUids: number[] = await (async () => {
             const result = await client.search(
-                { header: { 'x-friendlymail': '' } },
+                { header: { 'x-friendlymail': '' }, since: FRIENDLYMAIL_EPOCH },
                 { uid: true }
             );
             return result === false ? [] : result;
@@ -230,7 +231,7 @@ async function purgeMailbox(
         // We fetch envelopes to verify the subject exactly, since IMAP SEARCH
         // SUBJECT matches any message whose subject *contains* the search term.
         const subjectUids: number[] = [];
-        const candidateResult = await client.search({ subject: 'Fm' }, { uid: true });
+        const candidateResult = await client.search({ subject: 'Fm', since: FRIENDLYMAIL_EPOCH }, { uid: true });
         const candidateUids: number[] = candidateResult === false ? [] : candidateResult;
 
         if (candidateUids.length > 0) {
@@ -247,7 +248,7 @@ async function purgeMailbox(
 
         // Pass 3 — messages whose subject contains "friendlymail" (welcome,
         // invite-to-follow, etc.) confirmed by the presence of X-friendlymail header.
-        const friendlymailSubjectResult = await client.search({ subject: 'friendlymail' }, { uid: true });
+        const friendlymailSubjectResult = await client.search({ subject: 'friendlymail', since: FRIENDLYMAIL_EPOCH }, { uid: true });
         const friendlymailCandidates: number[] = friendlymailSubjectResult === false ? [] : friendlymailSubjectResult;
 
         if (friendlymailCandidates.length > 0) {
@@ -264,7 +265,7 @@ async function purgeMailbox(
 
         // Pass 4 — messages whose sender name contains "friendlymail", confirmed
         // by the presence of the X-friendlymail header.
-        const friendlymailFromResult = await client.search({ from: 'friendlymail' }, { uid: true });
+        const friendlymailFromResult = await client.search({ from: 'friendlymail', since: FRIENDLYMAIL_EPOCH }, { uid: true });
         const friendlymailFromCandidates: number[] = friendlymailFromResult === false ? [] : friendlymailFromResult;
 
         if (friendlymailFromCandidates.length > 0) {
