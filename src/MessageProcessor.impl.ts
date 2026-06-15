@@ -788,7 +788,7 @@ export class MessageProcessor implements IMessageProcessor {
      * Create a new follower notification draft for the host when a non-host sender follows.
      */
     private _createNewFollowerNotificationDraft(message: SimpleMessageWithMessageId): void {
-        const followerName = this._displayName(message.from);
+        const followerName = message.fromName ?? this._displayName(message.from);
         const body = this._loadTemplate('text', 'new_follower_notification.txt', {
             follower_name: followerName,
             signature: SIGNATURE,

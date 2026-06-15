@@ -191,6 +191,7 @@ function parseArgs(): {
     role: string;
     localMode: boolean;
     dataDir: string;
+    fmHostEmail: string | undefined;
 } {
     const rawArgv = process.argv.slice(2);
 
@@ -253,6 +254,7 @@ function parseArgs(): {
     let simSendDelayMs = 0;
     let localMode = false;
     let dataDir = './sim_data';
+    let fmHostEmail: string | undefined;
     const nonHostOverrides = new Map<number, { email?: string; name?: string }>();
 
     for (let i = 0; i < argv.length; i++) {
@@ -280,6 +282,7 @@ function parseArgs(): {
             case '--sim-send-delay':    simSendDelayMs  = parseInt(next, 10) * 1000; i++; break;
             case '--local':             localMode       = true; break;
             case '--data-dir':          dataDir         = next; i++; break;
+            case '--fm-host':           fmHostEmail     = next; i++; break;
             default:
                 if (arg.startsWith('--')) {
                     const emailMatch    = arg.match(/^--non-host-email-(\d+)$/);
@@ -364,6 +367,7 @@ function parseArgs(): {
         role: roleArg ?? 'host',
         localMode,
         dataDir: path.resolve(process.cwd(), dataDir),
+        fmHostEmail,
     };
 }
 
@@ -374,12 +378,18 @@ function applyPlaceholders(
     hostEmail: string,
     hostName: string,
     nonHostOverrides: Map<number, { email?: string; name?: string }>,
+    fmHostEmail?: string,
 ): string {
-    const hostFull = `${hostName} <${hostEmail}>`;
+    // [host] always refers to the friendlymail service host, not necessarily
+    // the current instance's own email. fmHostEmail overrides when set (used by
+    // non-host instances so their messages are correctly addressed to the service).
+    const effectiveHostEmail = fmHostEmail ?? hostEmail;
+    const effectiveHostName  = fmHostEmail ? effectiveHostEmail.split('@')[0] : hostName;
+    const hostFull = `${effectiveHostName} <${effectiveHostEmail}>`;
     let result = content
         .replace(/\[host\]/g,       hostFull)
-        .replace(/\[host-name\]/g,  hostName)
-        .replace(/\[host-email\]/g, `<${hostEmail}>`);
+        .replace(/\[host-name\]/g,  effectiveHostName)
+        .replace(/\[host-email\]/g, `<${effectiveHostEmail}>`);
     for (let i = 0; i < TEST_USERS.length; i++) {
         const n = i + 1;
         const base = TEST_USERS[i];
@@ -409,9 +419,10 @@ function parseSimMessageFile(
     hostEmail: string,
     hostName: string,
     nonHostOverrides: Map<number, { email?: string; name?: string }>,
+    fmHostEmail?: string,
 ): ParsedSimMessage {
     const raw = fs.readFileSync(filePath, 'utf8');
-    const content = applyPlaceholders(raw, hostEmail, hostName, nonHostOverrides);
+    const content = applyPlaceholders(raw, hostEmail, hostName, nonHostOverrides, fmHostEmail);
     const lines = content.split('\n');
 
     let from = '', to = '', subject = '';
@@ -670,6 +681,9 @@ function buildSimMessage(
         .filter((a): a is EmailAddress => a !== null);
     if (toAddrs.length === 0) throw new Error(`Invalid To address: "${msg.to}"`);
 
+    const fromNameMatch = msg.from.match(/^(.+?)\s*<[^>]+>$/);
+    const fromName = fromNameMatch ? fromNameMatch[1].replace(/^"|"$/g, '').trim() : undefined;
+
     return new SimpleMessageWithMessageId(
         fromAddr,
         toAddrs,
@@ -680,7 +694,7 @@ function buildSimMessage(
         undefined,
         `<${crypto.randomUUID()}@local-sim>`,
         undefined,
-        undefined,
+        fromName,
         String(stepNum)
     );
 }
@@ -715,7 +729,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    const { config, simFile, verbose, delayMs, sendDelayMs, simSendDelayMs, nonHostOverrides, role, localMode, dataDir } = parseArgs();
+    const { config, simFile, verbose, delayMs, sendDelayMs, simSendDelayMs, nonHostOverrides, role, localMode, dataDir, fmHostEmail } = parseArgs();
 
     if (!fs.existsSync(simFile)) {
         console.error(`Sim file not found: ${simFile}`);
@@ -743,25 +757,39 @@ async function main(): Promise<void> {
     let peerPresenceFiles: string[] = [];
 
     if (localMode) {
-        // Only the host clears the data dir so peer presence files survive across instance startups.
-        if (role === 'host' && fs.existsSync(dataDir)) {
-            fs.rmSync(dataDir, { recursive: true, force: true });
+        const PEER_WAIT_MS = 30_000;
+        const allRoles = extractSimRoles(simFile);
+        const peerRoles = allRoles.filter(r => r !== role);
+        peerPresenceFiles = peerRoles.map(r => presencePath(dataDir, r));
+
+        if (role === 'host') {
+            // Host clears the data dir first, then creates its provider and writes its
+            // presence file so non-host instances know it is safe to create their own dirs.
+            if (fs.existsSync(dataDir)) {
+                fs.rmSync(dataDir, { recursive: true, force: true });
+            }
+        } else {
+            // Non-host instances wait for the host's presence file before creating
+            // their LocalSimMailProvider so the host's rmSync cannot race with mkdirSync.
+            const hostPresence = presencePath(dataDir, 'host');
+            const waitDeadline = Date.now() + PEER_WAIT_MS;
+            while (!fs.existsSync(hostPresence) && Date.now() < waitDeadline) {
+                await sleep(200);
+            }
+            if (!fs.existsSync(hostPresence)) {
+                console.error('  timed out waiting for host instance to start');
+                process.exit(1);
+            }
         }
 
         localProvider = new LocalSimMailProvider(config.hostEmail, config.hostName, dataDir);
 
         // Write a presence file so other instances know this role is running.
+        // Left on disk after exit — the host clears the entire dataDir on the next run.
         const ownPresenceFile = presencePath(dataDir, role);
         fs.writeFileSync(ownPresenceFile, String(process.pid));
-        process.on('exit', () => { try { fs.unlinkSync(ownPresenceFile); } catch { /* ignore */ } });
-
-        // Discover all roles declared in the sim file and wait for peer instances to start.
-        const allRoles = extractSimRoles(simFile);
-        const peerRoles = allRoles.filter(r => r !== role);
-        peerPresenceFiles = peerRoles.map(r => presencePath(dataDir, r));
 
         if (peerRoles.length > 0) {
-            const PEER_WAIT_MS = 30_000;
             const peerDeadline = Date.now() + PEER_WAIT_MS;
             console.log(`  waiting for peer instance(s) to start: ${peerRoles.join(', ')}`);
             while (Date.now() < peerDeadline) {
@@ -896,8 +924,10 @@ async function main(): Promise<void> {
         }
         if (skippingRole !== null) continue;
 
-        stepNum++;
-        console.log(`[step ${stepNum}] ${trimmed}`);
+        // Coordination-only commands do not consume a step number.
+        const isCoordCmd = trimmed.startsWith('wait-for-inbound') || trimmed.startsWith('wait-for-message');
+        if (!isCoordCmd) stepNum++;
+        console.log(`[step ${isCoordCmd ? '-' : stepNum}] ${trimmed}`);
 
         if (trimmed === 'q') break;
 
@@ -919,7 +949,7 @@ async function main(): Promise<void> {
 
             let parsedMsg: ParsedSimMessage;
             try {
-                parsedMsg = parseSimMessageFile(filePath, config.hostEmail, config.hostName, nonHostOverrides);
+                parsedMsg = parseSimMessageFile(filePath, config.hostEmail, config.hostName, nonHostOverrides, fmHostEmail);
             } catch (err) {
                 console.error(`  error parsing message file: ${(err as Error).message}`);
                 continue;
@@ -931,6 +961,13 @@ async function main(): Promise<void> {
                 }
                 const simMsg = buildSimMessage(parsedMsg, stepNum);
                 localProvider!.writeToOwnInbox(simMsg);
+                // Also deliver to each recipient's inbox so peer wait-for-inbound can detect it.
+                for (const recipient of simMsg.to) {
+                    const recipientEmail = recipient.toString();
+                    if (recipientEmail !== config.hostEmail) {
+                        localProvider!.writeToInbox(simMsg, recipientEmail);
+                    }
+                }
                 console.log(`  loaded to inbox: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
             } else {
                 if (parsedMsg.attachmentPath) {
@@ -979,6 +1016,19 @@ async function main(): Promise<void> {
                 continue;
             }
             await waitForInbound(parseInt(stepMatch[1], 10));
+
+        } else if (trimmed.startsWith('wait-for-message')) {
+            if (!localMode || !localProvider) {
+                console.error(`  error: wait-for-message is only supported in --local mode`);
+                continue;
+            }
+            const rest = trimmed.slice('wait-for-message'.length).trim();
+            const typeMatch = rest.match(/(?:^|\s)type=(\S+)/);
+            if (!typeMatch) {
+                console.error(`  error: wait-for-message requires type=<messageType> (e.g. wait-for-message type=invite)`);
+                continue;
+            }
+            await localProvider.waitForMessage(typeMatch[1]);
 
         } else {
             console.error(`  unknown command: ${trimmed}`);

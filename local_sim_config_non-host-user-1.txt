@@ -1,0 +1,6 @@
+# friendlymail local live sim config — alice@test.com (non-host-user-1)
+host-email=alice@test.com
+host-name=Alice Johnson
+data-dir=./sim_data
+# The friendlymail service host — used to resolve [host] placeholders in sim messages
+fm-host=ploden.postcards@gmail.com

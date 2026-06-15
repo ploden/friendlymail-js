@@ -5,7 +5,7 @@ import { EmailAddress } from './EmailAddress.impl';
 import { SimpleMessageWithMessageId } from './SimpleMessageWithMessageId.impl';
 import { MessageDraft } from './MessageDraft.impl';
 import { ILocalSimMailProvider } from './LocalSimMailProvider.interface';
-import { encodeQuotedPrintable } from '../utils/quotedPrintable';
+import { encodeQuotedPrintable, decodeQuotedPrintable } from '../utils/quotedPrintable';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -96,6 +96,9 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
     async getMessages(): Promise<SimpleMessageWithMessageId[]> {
         const messages: SimpleMessageWithMessageId[] = [];
 
+        // Recreate inbox if it was deleted by a peer host clearing the dataDir.
+        fs.mkdirSync(this._inboxDir, { recursive: true });
+
         const files = fs.readdirSync(this._inboxDir)
             .filter(f => f.endsWith('.txt'))
             .sort();
@@ -124,8 +127,9 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
      */
     private _writeMessage(dir: string, index: number, msg: SimpleMessageWithMessageId): void {
         const base = String(index).padStart(4, '0');
+        const fromStr = msg.fromName ? `${msg.fromName} <${msg.from.toString()}>` : msg.from.toString();
         const lines: string[] = [
-            `From: ${msg.from.toString()}`,
+            `From: ${fromStr}`,
             `To: ${msg.to.map(a => a.toString()).join(', ')}`,
             `Subject: ${msg.subject}`,
             `Date: ${msg.date.toUTCString()}`,
@@ -147,6 +151,7 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
     private _parseMessageFile(content: string, source: string): SimpleMessageWithMessageId | null {
         const lines = content.split('\n');
         let from: EmailAddress | null = null;
+        let fromDisplayName: string | undefined;
         let to: EmailAddress[] = [];
         let subject = '';
         let dateStr = '';
@@ -162,6 +167,11 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
             switch (header.toLowerCase()) {
                 case 'from':
                     from = EmailAddress.fromDisplayString(value);
+                    // Extract display name if present: "Alice Johnson <alice@test.com>" → "Alice Johnson"
+                    const nameMatch = value.match(/^(.+?)\s*<[^>]+>$/);
+                    if (nameMatch) {
+                        fromDisplayName = nameMatch[1].replace(/^"|"$/g, '').trim();
+                    }
                     break;
                 case 'to':
                     to = value.split(',')
@@ -225,7 +235,7 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
         if (!messageId) messageId = crypto.randomUUID();
 
         return new SimpleMessageWithMessageId(
-            from, to, subject, body, date, xFriendlymail, undefined, messageId, undefined, undefined, xSimStep
+            from, to, subject, body, date, xFriendlymail, undefined, messageId, undefined, fromDisplayName, xSimStep
         );
     }
 
@@ -250,6 +260,17 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
     }
 
     /**
+     * Write a message to the inbox of any participant by email address.
+     * Used to cross-deliver outbound messages from a non-host instance
+     * to a peer host's inbox for wait-for-inbound coordination.
+     */
+    writeToInbox(msg: SimpleMessageWithMessageId, email: string): void {
+        const inbox = path.join(this._dataDir, email, 'Inbox');
+        fs.mkdirSync(inbox, { recursive: true });
+        this._writeMessage(inbox, this._nextIndex(inbox), msg);
+    }
+
+    /**
      * Poll Inbox/ every 2 seconds for up to 5 minutes for a message with
      * X-Sim-Step matching stepFilter. Files are left in place.
      * Exits the process if the timeout expires.
@@ -259,6 +280,8 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
         const TIMEOUT_MS = 5 * 60_000;
         const deadline = Date.now() + TIMEOUT_MS;
         const desc = `step=${stepFilter}`;
+
+        fs.mkdirSync(this._inboxDir, { recursive: true });
 
         // Snapshot existing files so we only match messages that arrive after this point.
         const existingFiles = new Set(
@@ -276,6 +299,7 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
                 process.exit(1);
             }
 
+            fs.mkdirSync(this._inboxDir, { recursive: true });
             const files = fs.readdirSync(this._inboxDir)
                 .filter(f => f.endsWith('.txt'))
                 .sort();
@@ -294,6 +318,54 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
         }
 
         console.error(`  wait-for-inbound: timed out after ${TIMEOUT_MS / 1000}s waiting for ${desc}`);
+        process.exit(1);
+    }
+
+    /**
+     * Poll Inbox/ every 2 seconds for a new message with the given messageType
+     * in X-friendlymail. Only messages that arrive AFTER this call is made are
+     * matched (existing files are snapshotted and excluded).
+     */
+    async waitForMessage(messageType: string): Promise<void> {
+        const POLL_MS = 2_000;
+        const TIMEOUT_MS = 5 * 60_000;
+        const deadline = Date.now() + TIMEOUT_MS;
+
+        console.log(`  waiting for message: type=${messageType}`);
+
+        // Poll all inbox files (no snapshot exclusion) — the dataDir is cleared at
+        // the start of each sim run so any matching message belongs to this run.
+        const seenFiles = new Set<string>();
+
+        while (Date.now() < deadline) {
+            fs.mkdirSync(this._inboxDir, { recursive: true });
+            const files = fs.readdirSync(this._inboxDir)
+                .filter(f => f.endsWith('.txt'))
+                .sort();
+
+            for (const file of files) {
+                if (seenFiles.has(file)) continue;
+                seenFiles.add(file);
+                const txtPath = path.join(this._inboxDir, file);
+                const content = fs.readFileSync(txtPath, 'utf8');
+                const parsed = this._parseMessageFile(content, txtPath);
+                if (parsed?.xFriendlymail) {
+                    try {
+                        const meta = JSON.parse(decodeQuotedPrintable(parsed.xFriendlymail));
+                        if (meta.messageType === messageType) {
+                            console.log(`  wait-for-message: matched  type=${messageType}  from="${parsed.from}"  subject="${parsed.subject}"`);
+                            return;
+                        }
+                    } catch {
+                        // unparseable xFriendlymail — skip
+                    }
+                }
+            }
+
+            await sleep(POLL_MS);
+        }
+
+        console.error(`  wait-for-message: timed out after ${TIMEOUT_MS / 1000}s waiting for type=${messageType}`);
         process.exit(1);
     }
 }

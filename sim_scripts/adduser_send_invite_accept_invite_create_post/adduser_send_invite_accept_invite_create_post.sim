@@ -4,26 +4,34 @@
 #   --role host          (the inviting account)
 #   --role non-host-user-1  (the account that accepts the invite)
 
-# ── Steps shared by all roles ─────────────────────────────────────────────────
+# ── Step 1: Run the daemon — sends the welcome message ────────────────────────
 
-# Run the daemon — sends the welcome message
 start
 
-# Step 1: Create a user account
-load sim_messages/create_command_create_account.txt
+# ── Step 2: Each role creates their own user account ─────────────────────────
 
-# Step 2: Invite a follower
+if-role host
+load sim_messages/create_command_create_account.txt
+end-role
+
+if-role non-host-user-1
+load sim_messages/create_command_create_account_non_host_1.txt
+end-role
+
+# ── Step 3 (host): Invite a follower ─────────────────────────────────────────
+
 if-role host
 load sim_messages/invite_follower.txt
 end-role
 
-# Step 3:  ── non-host-user-1: accept the invite ────────────────────────────────────────
+# ── Step 3 (non-host-user-1): Wait for invite, then accept ───────────────────
 
 if-role non-host-user-1
+wait-for-message type=invite
 load sim_messages/accept_invite.txt
 end-role
 
-# Step 4: ── host: wait for the $ follow email then create a post ─────────────────────
+# ── Step 4 (host): Wait for $ follow, then create a post ─────────────────────
 
 if-role host
 wait-for-inbound step=3

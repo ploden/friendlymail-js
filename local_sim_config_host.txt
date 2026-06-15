@@ -1,0 +1,4 @@
+# friendlymail local live sim config — ploden.postcards@gmail.com
+host-email=ploden.postcards@gmail.com
+host-name=Phil Loden
+data-dir=./sim_data
