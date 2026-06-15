@@ -26,4 +26,15 @@ npm run daemon -- --config gmail_config.txt
 
 npx tsx run-live-sim.ts --test-config icloud_config.txt
 
+Local Live Sim
 
+npx tsx run-local-live-sim.ts --host-config host.config sim_scripts/adduser_send_invite_accept_invite_create_post/adduser_send_invite_accept_invite_create_post.sim
+
+npx tsx run-local-live-sim.ts --host-config local_sim_config_host.txt --role host --data-dir ./local_sim_output sim_scripts/adduser_send_invite_accept_invite_create_post/adduser_send_invite_accept_invite_create_post.sim
+npx tsx run-local-live-sim.ts --host-config local_sim_config.txt --data-dir ./my_output <sim-file>
+
+npx tsx run-live-sim.ts --host-config <file> <sim-file> --local [--data-dir ./my_data]
+
+/ralph-loop "@jason clear previous sim output. run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  
+  

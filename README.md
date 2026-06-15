@@ -548,6 +548,7 @@ The Daemon uses the main friendlymail data types to send and receive friendlymai
 
 # Simulator
 
+## Interactive Simulator
 friendlymail also includes a simulator for processing simulated messages and showing the resulting output.
 
 ```
@@ -561,3 +562,11 @@ After starting the simulator with an empty MessageStore, a Welcome Message shoul
 ```
 
 This will send the first available draft, which will move the message from Drafts to Sent. Drafts should then be empty, and Sent should contain one message.
+
+## Live Simulator
+
+## Local Simulator
+
+## Sim Scripts
+
+run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs.

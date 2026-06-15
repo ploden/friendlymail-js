@@ -1,0 +1,3 @@
+- [Live Sim Infrastructure Issues (2026-04-04)](project_live_sim_issues.md) — Gmail self-send suppression + invite blocking caused sim to fail beyond step 1
+- [Open Product Issues](project_open_issues.md) — Running tracker for JASON-001 through JASON-004
+- [FriendlyMail Credential Setup](project_credentials.md) — $GMAIL_PASS and $ICLOUD_PASS must be set; not available in agent shell sessions

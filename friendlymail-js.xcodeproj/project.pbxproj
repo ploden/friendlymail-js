@@ -23,6 +23,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8D8A23B82FDD8AE400233934 /* local_sim_output */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = local_sim_output;
+			sourceTree = "<group>";
+		};
 		8D8F795D2F5B82160097741C /* sim_messages */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = sim_messages;
@@ -71,6 +76,7 @@
 				8D8F79532F5B82160097741C /* README_for_sdet_agent.md */,
 				8D8F79542F5B82160097741C /* README_for_sdev_agent.md */,
 				8D8F79552F5B82160097741C /* run-daemon.ts */,
+				8D8A23B82FDD8AE400233934 /* local_sim_output */,
 				8D8F79562F5B82160097741C /* run-process-messages.ts */,
 				8D8F795D2F5B82160097741C /* sim_messages */,
 				8D8FE5152F6ADE7A0097741C /* sim_scripts */,

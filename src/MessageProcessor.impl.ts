@@ -294,8 +294,14 @@ export class MessageProcessor implements IMessageProcessor {
                 } else {
                     // Always populate followers map (needed for post notification recipients)
                     const followerEmail = this._applyInviteFollowerState(message);
-                    if (followerEmail && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress, message.messageId)) {
-                        this._createInviteDraft(message, followerEmail);
+                    if (followerEmail) {
+                        if (!this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, this._hostEmailAddress, message.messageId)) {
+                            this._createInviteDraft(message, followerEmail);
+                        }
+                        const followerAddress = EmailAddress.fromString(followerEmail);
+                        if (followerAddress && !this._hasResponseOfTypeToRecipient(FriendlymailMessageType.INVITE, followerAddress, message.messageId)) {
+                            this._createInviteMessageDraft(message, followerEmail, hostAccount);
+                        }
                     }
                 }
             }
@@ -518,6 +524,10 @@ export class MessageProcessor implements IMessageProcessor {
             follower_email: followerEmail,
             signature: SIGNATURE,
         });
+        const html = this._loadTemplate('html', 'invite_addfollower_response.html', {
+            follower_email: followerEmail,
+            signature: SIGNATURE,
+        });
 
         const draft = new MessageDraft(
             this._hostEmailAddress,
@@ -525,6 +535,7 @@ export class MessageProcessor implements IMessageProcessor {
             'Fm',
             body,
             {
+                html,
                 inReplyTo: message.messageId,
                 isHtml: false,
                 priority: 'normal',

@@ -100,6 +100,18 @@ describe('Scenario: friendlymail is run for the first time', () => {
             expect(msg.body).toContain('friendlymail, an open-source, email-based, alternative social network');
         });
 
+        it('should send a welcome message body containing the help mailto link', async () => {
+            await runDaemon();
+            const msg = daemon.messageStore.allMessages[0];
+            expect(msg.body).toContain(`help: mailto:${HOST_EMAIL}`);
+        });
+
+        it('should not include an adduser mailto link in the welcome body (spec: only help link)', async () => {
+            await runDaemon();
+            const msg = daemon.messageStore.allMessages[0];
+            expect(msg.body).not.toContain('adduser: mailto:');
+        });
+
         it('should have no remaining drafts after the welcome message is sent', async () => {
             await runDaemon();
             expect(daemon.messageProcessor.getMessageDrafts()).toHaveLength(0);
