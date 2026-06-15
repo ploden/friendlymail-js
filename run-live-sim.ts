@@ -68,10 +68,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { ImapFlow } from 'imapflow';
 import * as nodemailer from 'nodemailer';
 import { Daemon } from './src/models/Daemon';
 import { EmailMailProvider } from './src/models/EmailMailProvider';
+import { LocalSimMailProvider } from './src/models/LocalSimMailProvider';
 import { EmailAddress } from './src/models/EmailAddress.impl';
 import { ISocialNetwork } from './src/models/SocialNetwork.interface';
 import { User } from './src/models/User.impl';
@@ -126,7 +128,7 @@ interface Config {
 // ── Config loading ─────────────────────────────────────────────────────────────
 
 const BOOLEAN_OPTIONS = new Set([
-    'imap-secure', 'smtp-secure', 'allow-self-signed', 'verbose',
+    'imap-secure', 'smtp-secure', 'allow-self-signed', 'verbose', 'local',
 ]);
 
 /**
@@ -187,6 +189,8 @@ function parseArgs(): {
     simSendDelayMs: number;
     nonHostOverrides: Map<number, { email?: string; name?: string }>;
     role: string;
+    localMode: boolean;
+    dataDir: string;
 } {
     const rawArgv = process.argv.slice(2);
 
@@ -208,7 +212,11 @@ function parseArgs(): {
             const eqPos = arg.indexOf('=');
             cliFlags.push(arg.slice(0, eqPos), arg.slice(eqPos + 1));
         } else if (arg.startsWith('--')) {
-            cliFlags.push(arg);
+            if (BOOLEAN_OPTIONS.has(arg.slice(2))) {
+                cliFlags.push(arg);
+            } else {
+                cliFlags.push(arg, rawArgv[++i]);
+            }
         } else {
             simFilePath = arg;
         }
@@ -243,6 +251,8 @@ function parseArgs(): {
     let delayMs = 10000;
     let sendDelayMs = 0;
     let simSendDelayMs = 0;
+    let localMode = false;
+    let dataDir = './sim_data';
     const nonHostOverrides = new Map<number, { email?: string; name?: string }>();
 
     for (let i = 0; i < argv.length; i++) {
@@ -268,6 +278,8 @@ function parseArgs(): {
             case '--delay':             delayMs         = parseInt(next, 10); i++; break;
             case '--send-delay':        sendDelayMs     = parseInt(next, 10) * 1000; i++; break;
             case '--sim-send-delay':    simSendDelayMs  = parseInt(next, 10) * 1000; i++; break;
+            case '--local':             localMode       = true; break;
+            case '--data-dir':          dataDir         = next; i++; break;
             default:
                 if (arg.startsWith('--')) {
                     const emailMatch    = arg.match(/^--non-host-email-(\d+)$/);
@@ -297,8 +309,10 @@ function parseArgs(): {
 
     const missing: string[] = [];
     if (!hostEmail) missing.push('host-email');
-    if (!imapHost)  missing.push('imap-host');
-    if (!smtpHost)  missing.push('smtp-host');
+    if (!localMode) {
+        if (!imapHost) missing.push('imap-host');
+        if (!smtpHost) missing.push('smtp-host');
+    }
     if (missing.length > 0) {
         console.error(`Missing required host config options: ${missing.join(', ')}`);
         process.exit(1);
@@ -348,6 +362,8 @@ function parseArgs(): {
         simSendDelayMs,
         nonHostOverrides,
         role: roleArg ?? 'host',
+        localMode,
+        dataDir: path.resolve(process.cwd(), dataDir),
     };
 }
 
@@ -640,6 +656,48 @@ async function runTestConfig(filePath: string): Promise<void> {
     process.exit(anyFailed ? 1 : 0);
 }
 
+// ── Local-mode helpers ────────────────────────────────────────────────────────
+
+/** Build a SimpleMessageWithMessageId from a ParsedSimMessage and a step number. */
+function buildSimMessage(
+    msg: ParsedSimMessage,
+    stepNum: number,
+): SimpleMessageWithMessageId {
+    const fromAddr = EmailAddress.fromDisplayString(msg.from);
+    if (!fromAddr) throw new Error(`Invalid From address: "${msg.from}"`);
+    const toAddrs = msg.to.split(',')
+        .map(e => EmailAddress.fromDisplayString(e.trim()))
+        .filter((a): a is EmailAddress => a !== null);
+    if (toAddrs.length === 0) throw new Error(`Invalid To address: "${msg.to}"`);
+
+    return new SimpleMessageWithMessageId(
+        fromAddr,
+        toAddrs,
+        msg.subject,
+        msg.body,
+        new Date(),
+        undefined,
+        undefined,
+        `<${crypto.randomUUID()}@local-sim>`,
+        undefined,
+        undefined,
+        String(stepNum)
+    );
+}
+
+function extractSimRoles(simFile: string): string[] {
+    const roles = new Set<string>(['host']);
+    for (const line of fs.readFileSync(simFile, 'utf8').split('\n')) {
+        const m = line.trim().match(/^if-role\s+(.+)$/);
+        if (m) roles.add(m[1].trim());
+    }
+    return [...roles];
+}
+
+function presencePath(dataDir: string, role: string): string {
+    return path.join(dataDir, `.sim-present-${role}`);
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -657,7 +715,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    const { config, simFile, verbose, delayMs, sendDelayMs, simSendDelayMs, nonHostOverrides, role } = parseArgs();
+    const { config, simFile, verbose, delayMs, sendDelayMs, simSendDelayMs, nonHostOverrides, role, localMode, dataDir } = parseArgs();
 
     if (!fs.existsSync(simFile)) {
         console.error(`Sim file not found: ${simFile}`);
@@ -666,31 +724,78 @@ async function main(): Promise<void> {
 
     console.log(`friendlymail live sim`);
     console.log(`  host:      ${config.hostEmail}`);
-    console.log(`  IMAP:      ${config.imapHost}:${config.imapPort}`);
-    console.log(`  SMTP:      ${config.smtpHost}:${config.smtpPort}`);
-    console.log(`  since:     ${config.sinceDate.toISOString().slice(0, 10)}`);
+    if (localMode) {
+        console.log(`  local:     ${dataDir}`);
+    } else {
+        console.log(`  IMAP:      ${config.imapHost}:${config.imapPort}`);
+        console.log(`  SMTP:      ${config.smtpHost}:${config.smtpPort}`);
+        console.log(`  since:     ${config.sinceDate.toISOString().slice(0, 10)}`);
+    }
     console.log(`  sim:       ${simFile}`);
     console.log(`  role:      ${role}`);
     console.log('');
 
     const hostAddress = EmailAddress.fromString(config.hostEmail)!;
-    const provider = new EmailMailProvider(
-        {
-            host: config.smtpHost, port: config.smtpPort,
-            secure: config.smtpSecure,
-            auth: { user: config.smtpUser, pass: config.smtpPass },
-            allowSelfSigned: config.allowSelfSigned,
-        },
-        {
-            host: config.imapHost, port: config.imapPort,
-            secure: config.imapSecure,
-            auth: { user: config.imapUser, pass: config.imapPass },
-            allowSelfSigned: config.allowSelfSigned,
-            sinceDate: config.sinceDate,
-            archiveFolder: config.archiveFolder,
-        },
-        verbose
-    );
+
+    // ── Provider setup ─────────────────────────────────────────────────────────
+
+    let localProvider: LocalSimMailProvider | null = null;
+    let peerPresenceFiles: string[] = [];
+
+    if (localMode) {
+        // Only the host clears the data dir so peer presence files survive across instance startups.
+        if (role === 'host' && fs.existsSync(dataDir)) {
+            fs.rmSync(dataDir, { recursive: true, force: true });
+        }
+
+        localProvider = new LocalSimMailProvider(config.hostEmail, config.hostName, dataDir);
+
+        // Write a presence file so other instances know this role is running.
+        const ownPresenceFile = presencePath(dataDir, role);
+        fs.writeFileSync(ownPresenceFile, String(process.pid));
+        process.on('exit', () => { try { fs.unlinkSync(ownPresenceFile); } catch { /* ignore */ } });
+
+        // Discover all roles declared in the sim file and wait for peer instances to start.
+        const allRoles = extractSimRoles(simFile);
+        const peerRoles = allRoles.filter(r => r !== role);
+        peerPresenceFiles = peerRoles.map(r => presencePath(dataDir, r));
+
+        if (peerRoles.length > 0) {
+            const PEER_WAIT_MS = 30_000;
+            const peerDeadline = Date.now() + PEER_WAIT_MS;
+            console.log(`  waiting for peer instance(s) to start: ${peerRoles.join(', ')}`);
+            while (Date.now() < peerDeadline) {
+                if (peerPresenceFiles.every(p => fs.existsSync(p))) break;
+                await sleep(500);
+            }
+            const missingPeers = peerRoles.filter(r => !fs.existsSync(presencePath(dataDir, r)));
+            if (missingPeers.length > 0) {
+                console.error(`  timed out waiting for peer instance(s) to start: ${missingPeers.join(', ')}`);
+                process.exit(1);
+            }
+            console.log(`  all peer instances ready\n`);
+        }
+    }
+
+    const provider = localMode
+        ? localProvider!
+        : new EmailMailProvider(
+            {
+                host: config.smtpHost, port: config.smtpPort,
+                secure: config.smtpSecure,
+                auth: { user: config.smtpUser, pass: config.smtpPass },
+                allowSelfSigned: config.allowSelfSigned,
+            },
+            {
+                host: config.imapHost, port: config.imapPort,
+                secure: config.imapSecure,
+                auth: { user: config.imapUser, pass: config.imapPass },
+                allowSelfSigned: config.allowSelfSigned,
+                sinceDate: config.sinceDate,
+                archiveFolder: config.archiveFolder,
+            },
+            verbose
+        );
 
     let _user: User | null = null;
     const socialNetwork: ISocialNetwork = {
@@ -709,14 +814,16 @@ async function main(): Promise<void> {
     const WAIT_FOR_INBOUND_TIMEOUT_MS = 5 * 60_000;
 
     /**
-     * Poll IMAP until a message matching the given step filter arrives, or until
-     * the timeout expires. `sinceDate` is set to the moment this function is
-     * called so only mail that arrives after the command is encountered is
-     * considered.
+     * Wait for an inbound message matching stepFilter.
+     * In local mode, delegates to LocalSimMailProvider.waitForInbound() (filesystem polling).
+     * In email mode, polls IMAP using a temporary provider scoped to now.
      */
-    async function waitForInbound(
-        stepFilter: number,
-    ): Promise<void> {
+    async function waitForInbound(stepFilter: number): Promise<void> {
+        if (localMode) {
+            await localProvider!.waitForInbound(stepFilter, peerPresenceFiles);
+            return;
+        }
+
         const sinceDate = new Date();
         const deadline  = sinceDate.getTime() + WAIT_FOR_INBOUND_TIMEOUT_MS;
         const desc = `step=${stepFilter}`;
@@ -818,17 +925,25 @@ async function main(): Promise<void> {
                 continue;
             }
 
-            if (parsedMsg.attachmentPath) {
-                console.log(`  sending with attachment: ${parsedMsg.attachmentPath}`);
+            if (localMode) {
+                if (parsedMsg.attachmentPath) {
+                    console.log(`  warning: attachments not supported in local mode — skipping attachment`);
+                }
+                const simMsg = buildSimMessage(parsedMsg, stepNum);
+                localProvider!.writeToOwnInbox(simMsg);
+                console.log(`  loaded to inbox: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
+            } else {
+                if (parsedMsg.attachmentPath) {
+                    console.log(`  sending with attachment: ${parsedMsg.attachmentPath}`);
+                }
+                const rawBase = buildRfc2822(parsedMsg, filePath);
+                const simStepHeader = Buffer.from(`X-Sim-Step: ${stepNum}\r\n`);
+                const raw = Buffer.concat([simStepHeader, rawBase]);
+                await sendViaHostSmtp(raw, config);
+                console.log(`  sent via host SMTP: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
+                if (simSendDelayMs > 0) await sleep(simSendDelayMs);
             }
 
-            const rawBase = buildRfc2822(parsedMsg, filePath);
-            const simStepHeader = Buffer.from(`X-Sim-Step: ${stepNum}\r\n`);
-            const raw = Buffer.concat([simStepHeader, rawBase]);
-            await sendViaHostSmtp(raw, config);
-            console.log(`  sent via host SMTP: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
-
-            if (simSendDelayMs > 0) await sleep(simSendDelayMs);
             await daemon.run();
             started = true;
             if (delayMs > 0) await sleep(delayMs);
@@ -841,11 +956,17 @@ async function main(): Promise<void> {
                 continue;
             }
 
-            const raw = buildRfc2822(parsedMsg, null);
-            await sendViaHostSmtp(raw, config);
-            console.log(`  sent via host SMTP: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
+            if (localMode) {
+                const simMsg = buildSimMessage(parsedMsg, stepNum);
+                localProvider!.writeToOwnInbox(simMsg);
+                console.log(`  loaded to inbox: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
+            } else {
+                const raw = buildRfc2822(parsedMsg, null);
+                await sendViaHostSmtp(raw, config);
+                console.log(`  sent via host SMTP: from="${parsedMsg.from}"  subject="${parsedMsg.subject}"`);
+                if (simSendDelayMs > 0) await sleep(simSendDelayMs);
+            }
 
-            if (simSendDelayMs > 0) await sleep(simSendDelayMs);
             await daemon.run();
             started = true;
             if (delayMs > 0) await sleep(delayMs);
