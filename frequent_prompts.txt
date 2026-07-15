@@ -26,4 +26,32 @@ npm run daemon -- --config gmail_config.txt
 
 npx tsx run-live-sim.ts --test-config icloud_config.txt
 
+npx tsx purge-friendlymail.ts gmail_config.txt
+
+@jason Do the following:
+- Run the gmail purge script.
+- Run the icloud purge script.
+- Run the live sim with adduser_send_invite_accept_invite_create_post.sim with the gmail and icloud accounts and with verbose logging enabled. Save the output to a log file.
+- Analyze the log file for errors or missed requirements.
+- If there is a missed requirement, have Case analyze it. If the problem is a result of a bug, have Tars write a test for the bug, and then have Case implement a fix.
+- Document your analysis and instructions to the rest of the team in a .md file. 
+
+npx tsx run-live-sim.ts --host-config gmail_config.txt --non-host-config icloud_config.txt sim_scripts/adduser_send_invite_create_post/adduser_send_invite_create_post.sim
+
+npx tsx run-live-sim.ts --host-config gmail_config.txt --role host sim.sim
+
+npx tsx run-live-sim.ts --host-config icloud_config.txt --role non-host-user-1 sim.sim
+
+1e2d9502e311b51cd06c4c755bed22984565a882712964ba
+
+http://127.0.0.1:18789/chat
+
+claw: openclaw models auth login --provider anthropic
+
+Local Live Sim
+
+npx tsx run-local-live-sim.ts --host-config host.config sim_scripts/adduser_send_invite_accept_invite_create_post/adduser_send_invite_accept_invite_create_post.sim
+
+npx tsx run-local-live-sim.ts --host-config local_sim_config_host.txt --role host --data-dir ./local_sim_output sim_scripts/adduser_send_invite_accept_invite_create_post/adduser_send_invite_accept_invite_create_post.sim
+npx tsx run-local-live-sim.ts --host-config local_sim_config.txt --data-dir ./my_output <sim-file>
 
