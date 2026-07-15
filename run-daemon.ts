@@ -47,6 +47,7 @@ import { EmailMailProvider } from './src/models/EmailMailProvider';
 import { EmailAddress } from './src/models/EmailAddress.impl';
 import { ISocialNetwork } from './src/models/SocialNetwork.interface';
 import { User } from './src/models/User.impl';
+import { FRIENDLYMAIL_EPOCH } from './src/constants';
 
 interface Args {
     hostEmail: string;
@@ -61,14 +62,15 @@ interface Args {
     imapUser: string;
     imapPass: string;
     intervalSec: number;
-    sinceDate: Date | undefined;
+    sinceDate: Date;
     archiveFolder: string | undefined;
+    archiveRule: boolean;
     allowSelfSigned: boolean;
     verbose: boolean;
 }
 
 /** Option names that act as boolean flags (no value argument on the CLI). */
-const BOOLEAN_OPTIONS = new Set(['smtp-secure', 'imap-secure', 'allow-self-signed', 'verbose']);
+const BOOLEAN_OPTIONS = new Set(['smtp-secure', 'imap-secure', 'archive-rule', 'allow-self-signed', 'verbose']);
 
 /**
  * Expand $VAR or ${VAR} references in a config value using process.env.
@@ -151,8 +153,9 @@ function parseArgs(): Args {
     let imapUser: string | undefined;
     let imapPass = '';
     let intervalSec = 10;
-    let sinceDate: Date | undefined;
+    let sinceDate: Date = FRIENDLYMAIL_EPOCH;
     let archiveFolder: string | undefined;
+    let archiveRule = false;
     let allowSelfSigned = false;
     let verbose = false;
 
@@ -173,8 +176,9 @@ function parseArgs(): Args {
             case '--imap-user':    imapUser   = next; i++; break;
             case '--imap-pass':    imapPass   = next; i++; break;
             case '--interval':          intervalSec    = parseInt(next, 10); i++; break;
-            case '--since':             sinceDate      = new Date(next); i++; break;
+            case '--since':             sinceDate      = new Date(Math.max(new Date(next).getTime(), FRIENDLYMAIL_EPOCH.getTime())); i++; break;
             case '--archive-folder':    archiveFolder  = next; i++; break;
+            case '--archive-rule':      archiveRule = true; break;
             case '--allow-self-signed': allowSelfSigned = true; break;
             case '--verbose':           verbose = true; break;
             default:
@@ -205,6 +209,7 @@ function parseArgs(): Args {
         intervalSec,
         sinceDate,
         archiveFolder,
+        archiveRule,
         allowSelfSigned,
         verbose,
     };
@@ -230,6 +235,7 @@ async function main(): Promise<void> {
             allowSelfSigned: args.allowSelfSigned,
             sinceDate: args.sinceDate,
             archiveFolder: args.archiveFolder,
+            archiveRule: args.archiveRule,
         },
         args.verbose
     );

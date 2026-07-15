@@ -34,7 +34,7 @@ npx tsx purge-friendlymail.ts gmail_config.txt
 - Run the live sim with adduser_send_invite_accept_invite_create_post.sim with the gmail and icloud accounts and with verbose logging enabled. Save the output to a log file.
 - Analyze the log file for errors or missed requirements.
 - If there is a missed requirement, have Case analyze it. If the problem is a result of a bug, have Tars write a test for the bug, and then have Case implement a fix.
-- Document your analysis and instructions to the rest of the team in a .md file. 
+- Document your analysis and instructions to the rest of the team in a .md file.
 
 npx tsx run-live-sim.ts --host-config gmail_config.txt --non-host-config icloud_config.txt sim_scripts/adduser_send_invite_create_post/adduser_send_invite_create_post.sim
 
@@ -55,3 +55,14 @@ npx tsx run-local-live-sim.ts --host-config host.config sim_scripts/adduser_send
 npx tsx run-local-live-sim.ts --host-config local_sim_config_host.txt --role host --data-dir ./local_sim_output sim_scripts/adduser_send_invite_accept_invite_create_post/adduser_send_invite_accept_invite_create_post.sim
 npx tsx run-local-live-sim.ts --host-config local_sim_config.txt --data-dir ./my_output <sim-file>
 
+npx tsx run-live-sim.ts --host-config <file> <sim-file> --local [--data-dir ./my_data]
+
+/ralph-loop "@jason clear previous sim output. run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  /ralph-loop:ralph-loop "@jason clear previous sim output. run the adduser_send_invite_accept_invite_create_post.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the
+  failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  /ralph-loop:ralph-loop "@jason clear previous sim output. run the adduser_send_invite_create_post_with_photo.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the
+  failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+
+  /ralph-loop:ralph-loop "@jason run the adduser_set_profile_pic.sim sim file. save the output to a directory with the same name as the sim script under sim_output. if a directory with that name already exists, delete it. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  
+npx tsx sim-to-mbox.ts (imports from sim_data)

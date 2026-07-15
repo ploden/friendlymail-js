@@ -1,5 +1,6 @@
 import { EmailAddress } from './EmailAddress.impl';
 import { ISimpleMessage } from './SimpleMessage.interface';
+import { PhotoAttachment } from './PhotoAttachment';
 
 /**
  * Interface for a received message that carries a unique message identifier.
@@ -11,4 +12,6 @@ export interface ISimpleMessageWithMessageId extends ISimpleMessage {
     readonly messageId: string;
     /** The sender of this message. Always present on a received message. */
     readonly from: EmailAddress;
+    /** Optional profile picture attachment carried by this message. */
+    readonly profilePicAttachment?: PhotoAttachment;
 }

@@ -17,6 +17,7 @@ export class SimpleMessage implements ISimpleMessage {
     protected _html?: string;
     protected _date: Date;
     protected _xFriendlymail?: string;
+    protected _xSimStep?: string;
     /** Optional photo attachment carried by this message. */
     readonly photoAttachment?: PhotoAttachment;
 
@@ -29,7 +30,8 @@ export class SimpleMessage implements ISimpleMessage {
         xFriendlymail?: string,
         html?: string,
         photoAttachment?: PhotoAttachment,
-        fromName?: string
+        fromName?: string,
+        xSimStep?: string
     ) {
         this._from = from;
         this._to = [...to];
@@ -40,6 +42,7 @@ export class SimpleMessage implements ISimpleMessage {
         this._xFriendlymail = xFriendlymail;
         this.photoAttachment = photoAttachment;
         this._fromName = fromName;
+        this._xSimStep = xSimStep;
     }
 
     get from(): EmailAddress | null {
@@ -74,5 +77,10 @@ export class SimpleMessage implements ISimpleMessage {
 
     get xFriendlymail(): string | undefined {
         return this._xFriendlymail;
+    }
+
+    /** Value of the X-Sim-Step header, if present. Set by the live sim on outbound messages. */
+    get xSimStep(): string | undefined {
+        return this._xSimStep;
     }
 }

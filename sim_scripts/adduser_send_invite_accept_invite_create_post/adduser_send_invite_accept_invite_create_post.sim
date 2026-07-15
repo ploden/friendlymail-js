@@ -1,19 +1,39 @@
-# Basic friendlymail flow: welcome, create account, invite follower, follower accepts invite, create post
+# Multi-participant flow: host creates account, invites follower, follower accepts, host creates post
+#
+# Run two instances of run-live-sim.ts in parallel:
+#   --role host          (the inviting account)
+#   --role non-host-user-1  (the account that accepts the invite)
 
-# Run the daemon — sends the welcome message
+# ── Step 1: Run the daemon — sends the welcome message ────────────────────────
+
 start
 
-# Create a user account
+# ── Step 2: Each role creates their own user account ─────────────────────────
+
+if-role host
 load sim_messages/create_command_create_account.txt
+end-role
 
-# Create a post
-load sim_messages/create_post.txt
+if-role non-host-user-1
+load sim_messages/create_command_create_account_non_host_1.txt
+end-role
 
-# Invite a follower
+# ── Step 3 (host): Invite a follower ─────────────────────────────────────────
+
+if-role host
 load sim_messages/invite_follower.txt
+end-role
 
-# Invitee accepts invite
+# ── Step 3 (non-host-user-1): Wait for invite, then accept ───────────────────
+
+if-role non-host-user-1
+wait-for-message type=invite
 load sim_messages/accept_invite.txt
+end-role
 
-# Create another post
+# ── Step 4 (host): Wait for $ follow, then create a post ─────────────────────
+
+if-role host
+wait-for-inbound step=3
 load sim_messages/create_post_hi.txt
+end-role
