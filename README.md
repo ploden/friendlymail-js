@@ -565,8 +565,38 @@ This will send the first available draft, which will move the message from Draft
 
 ## Live Simulator
 
+`run-live-sim.ts` runs a `.sim` script against real email accounts (one instance
+per participant, each with its own `--host-config`):
+
+```
+npx tsx run-live-sim.ts --host-config <file> <sim-file> [options]
+```
+
+See the header comment of `run-live-sim.ts` for the full flag and host-config
+reference, and `## Purge` below for clearing account state first.
+
 ## Local Simulator
+
+Add `--local` to run entirely on disk — no IMAP/SMTP. Mailboxes are written to
+`--data-dir` as `<data-dir>/<email>/{Inbox,Sent}/NNNN.txt|html`:
+
+```
+npx tsx run-live-sim.ts --local --host-config local_sim_config_host.txt \
+  --role host --data-dir sim_output/<name> <sim-file>
+```
+
+Multi-participant sims run one instance per role (`host` plus each `non-host-user-N`
+named in an `if-role` line), all sharing one `--data-dir`; start `host` first.
+
+For Claude Code, the `run-live-sim` skill automates resolving a sim by name,
+output-dir setup, and multi-role launches — see
+`.claude/skills/run-live-sim/SKILL.md`.
 
 ## Sim Scripts
 
-run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs.
+Sim scripts live at `sim_scripts/<name>/<name>.sim`. List them with
+`find sim_scripts -name '*.sim'`. Example workflow: run the
+`adduser_send_invite_create_post.sim` sim file, then analyze the output for bugs.
+
+## Purge
+npx tsx purge-friendlymail.ts <config-file> [--dry-run] [--verbose]

@@ -1,4 +1,4 @@
 $ usermod --profile-pic
-usermod: Profile pic has been changed.
+usermod: Profile pic set to {{ filename }}.
 
 {{ signature }}

@@ -36,5 +36,11 @@ npx tsx run-local-live-sim.ts --host-config local_sim_config.txt --data-dir ./my
 npx tsx run-live-sim.ts --host-config <file> <sim-file> --local [--data-dir ./my_data]
 
 /ralph-loop "@jason clear previous sim output. run the adduser_send_invite_create_post.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  /ralph-loop:ralph-loop "@jason clear previous sim output. run the adduser_send_invite_accept_invite_create_post.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the
+  failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+  /ralph-loop:ralph-loop "@jason clear previous sim output. run the adduser_send_invite_create_post_with_photo.sim sim file. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the
+  failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
+
+  /ralph-loop:ralph-loop "@jason run the adduser_set_profile_pic.sim sim file. save the output to a directory with the same name as the sim script under sim_output. if a directory with that name already exists, delete it. analyze the output for any bugs or missing requirements. If any are found, have Tars write a test for the failure. Then have Case implement a fix." --max-iterations 20 --completion-promise "DONE"
   
-  
+npx tsx sim-to-mbox.ts (imports from sim_data)

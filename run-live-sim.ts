@@ -79,6 +79,7 @@ import { ISocialNetwork } from './src/models/SocialNetwork.interface';
 import { User } from './src/models/User.impl';
 import { FRIENDLYMAIL_EPOCH } from './src/constants';
 import { SimpleMessageWithMessageId } from './src/models/SimpleMessageWithMessageId.impl';
+import { PhotoAttachment } from './src/models/PhotoAttachment';
 
 // ── Test users — same list as SimMessageProvider ──────────────────────────────
 
@@ -673,6 +674,7 @@ async function runTestConfig(filePath: string): Promise<void> {
 function buildSimMessage(
     msg: ParsedSimMessage,
     stepNum: number,
+    photoAttachment?: PhotoAttachment,
 ): SimpleMessageWithMessageId {
     const fromAddr = EmailAddress.fromDisplayString(msg.from);
     if (!fromAddr) throw new Error(`Invalid From address: "${msg.from}"`);
@@ -693,7 +695,7 @@ function buildSimMessage(
         undefined,
         undefined,
         `<${crypto.randomUUID()}@local-sim>`,
-        undefined,
+        photoAttachment,
         fromName,
         String(stepNum)
     );
@@ -956,11 +958,27 @@ async function main(): Promise<void> {
             }
 
             if (localMode) {
+                let photoAttachment: PhotoAttachment | undefined;
                 if (parsedMsg.attachmentPath) {
-                    console.log(`  warning: attachments not supported in local mode — skipping attachment`);
+                    const sourceDir = path.dirname(filePath);
+                    const fullPath = path.resolve(sourceDir, parsedMsg.attachmentPath);
+                    const ext = path.extname(parsedMsg.attachmentPath).toLowerCase();
+                    const contentTypeMap: Record<string, string> = {
+                        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                        '.png': 'image/png',  '.gif':  'image/gif',
+                    };
+                    const contentType = contentTypeMap[ext];
+                    if (!contentType) {
+                        throw new Error(`Unsupported attachment type '${ext}' in ${parsedMsg.attachmentPath}`);
+                    }
+                    photoAttachment = {
+                        data: fs.readFileSync(fullPath),
+                        contentType,
+                        filename: path.basename(parsedMsg.attachmentPath),
+                    };
                 }
-                const simMsg = buildSimMessage(parsedMsg, stepNum);
-                localProvider!.writeToOwnInbox(simMsg);
+                const simMsg = buildSimMessage(parsedMsg, stepNum, photoAttachment);
+                localProvider!.queueInboundMessage(simMsg);
                 // Also deliver to each recipient's inbox so peer wait-for-inbound can detect it.
                 for (const recipient of simMsg.to) {
                     const recipientEmail = recipient.toString();

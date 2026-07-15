@@ -17,6 +17,13 @@ export interface ILocalSimMailProvider extends IMessageSender, IMessageReceiver 
     writeToOwnInbox(msg: SimpleMessageWithMessageId): void;
 
     /**
+     * Write a message to own Inbox for disk-based coordination AND queue the
+     * in-memory object for return on the next getMessages() call, preserving
+     * fields (e.g. photoAttachment) that cannot round-trip through the text format.
+     */
+    queueInboundMessage(msg: SimpleMessageWithMessageId): void;
+
+    /**
      * Write a message to the inbox of any participant identified by email.
      * Used in local mode to deliver outbound messages from a non-host instance
      * directly to the host's inbox so that wait-for-inbound can detect them.

@@ -22,6 +22,8 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
     private _inboxDir: string;
     /** Sent messages pending return on the next getMessages() call. */
     private _pendingSent: SimpleMessageWithMessageId[] = [];
+    /** In-memory inbound messages queued by queueInboundMessage(), returned with photoAttachment intact. */
+    private _pendingInbound: SimpleMessageWithMessageId[] = [];
     /** Next file index for writing to Sent/. Initialized from existing files on construction. */
     private _sentIndex: number;
     /** Tracks inbox filenames already returned by getMessages() to avoid reprocessing. */
@@ -70,7 +72,11 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
             date,
             xFriendlymail,
             draft.html,
-            messageId
+            messageId,
+            draft.photoAttachment,
+            draft.fromName,
+            undefined,
+            draft.profilePicAttachment
         );
 
         // Write to Sent/ so full history is available across daemon restarts.
@@ -115,7 +121,8 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
             }
         }
 
-        const pending = this._pendingSent;
+        const pending = [...this._pendingInbound, ...this._pendingSent];
+        this._pendingInbound = [];
         this._pendingSent = [];
         return [...messages, ...pending];
     }
@@ -124,6 +131,8 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
      * Write a message file to a directory with 4-digit zero-padded index.
      * The .txt file contains RFC 822-style headers + plain text body.
      * The .html file is written only when html is present.
+     * The .eml file is a standalone MIME message (multipart/alternative when
+     * html is present, otherwise text/plain) importable by mail clients.
      */
     private _writeMessage(dir: string, index: number, msg: SimpleMessageWithMessageId): void {
         const base = String(index).padStart(4, '0');
@@ -137,11 +146,47 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
         ];
         if (msg.xFriendlymail !== undefined) lines.push(`X-friendlymail: ${msg.xFriendlymail}`);
         if (msg.xSimStep !== undefined) lines.push(`X-Sim-Step: ${msg.xSimStep}`);
+        const headerLines = [...lines];
         lines.push('', msg.body);
         fs.writeFileSync(path.join(dir, `${base}.txt`), lines.join('\n'));
         if (msg.html) {
             fs.writeFileSync(path.join(dir, `${base}.html`), msg.html);
         }
+        fs.writeFileSync(path.join(dir, `${base}.eml`), this._buildEml(headerLines, msg));
+    }
+
+    /**
+     * Build a standalone RFC 822 / MIME message string for the .eml file.
+     * Uses CRLF line endings. When html is present the body is a
+     * multipart/alternative with text/plain and text/html parts; otherwise a
+     * single text/plain body.
+     */
+    private _buildEml(headerLines: string[], msg: SimpleMessageWithMessageId): string {
+        const out: string[] = [...headerLines, 'MIME-Version: 1.0'];
+
+        if (msg.html) {
+            const boundary = `_boundary_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
+            out.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+            out.push('');
+            out.push(`--${boundary}`);
+            out.push('Content-Type: text/plain; charset=UTF-8');
+            out.push('');
+            out.push(msg.body);
+            out.push('');
+            out.push(`--${boundary}`);
+            out.push('Content-Type: text/html; charset=UTF-8');
+            out.push('');
+            out.push(msg.html);
+            out.push('');
+            out.push(`--${boundary}--`);
+        } else {
+            out.push('Content-Type: text/plain; charset=UTF-8');
+            out.push('');
+            out.push(msg.body);
+        }
+
+        out.push('');
+        return out.join('\r\n');
     }
 
     /**
@@ -257,6 +302,20 @@ export class LocalSimMailProvider implements ILocalSimMailProvider {
      */
     writeToOwnInbox(msg: SimpleMessageWithMessageId): void {
         this._writeMessage(this._inboxDir, this._nextIndex(this._inboxDir), msg);
+    }
+
+    /**
+     * Write a message to own Inbox for disk-based coordination AND queue the
+     * in-memory object for return on the next getMessages() call. This preserves
+     * fields (e.g. photoAttachment) that cannot be serialised to the text format.
+     */
+    queueInboundMessage(msg: SimpleMessageWithMessageId): void {
+        const idx = this._nextIndex(this._inboxDir);
+        this._writeMessage(this._inboxDir, idx, msg);
+        // Mark the file as already seen so getMessages() returns the in-memory
+        // object (with photoAttachment intact) instead of re-parsing from disk.
+        this._seenInboxFiles.add(`${String(idx).padStart(4, '0')}.txt`);
+        this._pendingInbound.push(msg);
     }
 
     /**

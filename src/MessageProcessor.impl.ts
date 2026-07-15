@@ -679,7 +679,7 @@ export class MessageProcessor implements IMessageProcessor {
         let created_at = '';
         if (latestPost) {
             const d = latestPost.date;
-            created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+            created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
         }
         const follow_href = `mailto:${hostEmail}?subject=Fm&body=%24%20follow`;
 
@@ -826,6 +826,7 @@ export class MessageProcessor implements IMessageProcessor {
             : '';
 
         const body = this._loadTemplate('text', 'usermod_profile_pic_response.txt', {
+            filename: profilePic?.filename ?? '',
             signature: SIGNATURE,
         });
         const html = this._loadTemplate('html', 'usermod_profile_pic_response.html', {
@@ -908,7 +909,7 @@ export class MessageProcessor implements IMessageProcessor {
         const commentHref = `mailto:${hostEmail}?subject=Fm%20Comment%20💬:${refId}`;
 
         const d = postMessage.date;
-        const created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        const created_at = `${d.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} at ${d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
 
         const post_photo_line = postMessage.photoAttachment ? '\n[Photo attached]' : '';
         const post_photo_display = postMessage.photoAttachment ? 'table-row' : 'none';
@@ -919,13 +920,15 @@ export class MessageProcessor implements IMessageProcessor {
             : '';
 
         const profilePic = hostAccount?.profilePic;
+        const hostInitial = hostName.charAt(0).toUpperCase();
         const profile_pic_src = profilePic
             ? (this._photoEmbedMode === 'base64'
                 ? `data:${profilePic.contentType};base64,${profilePic.data.toString('base64')}`
                 : 'cid:profile_pic')
             : '';
-        const profile_pic_img_display = profilePic ? 'block' : 'none';
-        const profile_pic_initial_display = profilePic ? 'none' : 'table';
+        const host_avatar = profilePic
+            ? `<img src="${profile_pic_src}" alt="Profile pic" style="display:block;width:40px;height:40px;border-radius:50%;object-fit:cover;">`
+            : `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="width:40px;height:40px;border-radius:50%;background-color:${BRAND_COLOR};text-align:center;vertical-align:middle;"><span style="display:block;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:17px;font-weight:600;line-height:40px;">${hostInitial}</span></td></tr></table>`;
 
         const atIndex = hostEmail.indexOf('@');
         const host_email_display = atIndex >= 0
@@ -936,14 +939,11 @@ export class MessageProcessor implements IMessageProcessor {
             host_name: hostName,
             host_email: hostEmail,
             host_email_display,
-            host_initial: hostName.charAt(0).toUpperCase(),
+            host_avatar,
             post_body: postBody,
             post_photo_line,
             post_photo_display,
             post_photo_src,
-            profile_pic_src,
-            profile_pic_img_display,
-            profile_pic_initial_display,
             like_link: likeLink,
             comment_link: commentLink,
             like_href: likeHref,
@@ -1079,9 +1079,9 @@ export class MessageProcessor implements IMessageProcessor {
         const postLikeHref = `mailto:${hostEmail}?subject=Fm%20Like%20❤️:${postRefId}&body=❤️`;
 
         const pd = originalPost.date;
-        const post_created_at = `${pd.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${pd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        const post_created_at = `${pd.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} at ${pd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
         const cd = commentMessage.date;
-        const comment_created_at = `${cd.toLocaleString('en-US', { month: 'short', day: 'numeric' })} at ${cd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        const comment_created_at = `${cd.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} at ${cd.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
 
         // Build likes row for post
         const likeMessages = this._receivedMessages.filter(msg =>

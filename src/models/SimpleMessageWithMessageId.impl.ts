@@ -10,6 +10,8 @@ import { PhotoAttachment } from './PhotoAttachment';
  */
 export class SimpleMessageWithMessageId extends SimpleMessage implements ISimpleMessageWithMessageId {
     private _messageId: string;
+    /** Optional profile picture attachment carried by this message. */
+    readonly profilePicAttachment?: PhotoAttachment;
 
     constructor(
         from: EmailAddress,
@@ -22,10 +24,12 @@ export class SimpleMessageWithMessageId extends SimpleMessage implements ISimple
         messageId: string = crypto.randomUUID(),
         photoAttachment?: PhotoAttachment,
         fromName?: string,
-        xSimStep?: string
+        xSimStep?: string,
+        profilePicAttachment?: PhotoAttachment
     ) {
         super(from, to, subject, body, date, xFriendlymail, html, photoAttachment, fromName, xSimStep);
         this._messageId = messageId;
+        this.profilePicAttachment = profilePicAttachment;
     }
 
     /** Unique identifier for this message. Generated automatically if not supplied. */
