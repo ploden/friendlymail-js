@@ -130,7 +130,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
     async function step4_inviteFollower(): Promise<void> {
         await provider.loadMessage(inviteAddfollowerCommand());
-        await runDaemon(1);
+        await runDaemon(2); // invite reply to host + invite message to the added follower
     }
 
     async function step5_createPost(): Promise<void> {
@@ -155,7 +155,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
 
     async function step9_inviteSecondFollower(): Promise<void> {
         await provider.loadMessage(inviteSecondAddfollowerCommand());
-        await runDaemon(1);
+        await runDaemon(2); // invite reply to host + invite message to the added follower
     }
 
     async function step10_createThirdPost(): Promise<void> {
@@ -295,8 +295,8 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step4_inviteFollower();
         });
 
-        it('should send exactly four messages total', () => {
-            expect(provider.sentMessages).toHaveLength(4);
+        it('should send exactly five messages total', () => {
+            expect(provider.sentMessages).toHaveLength(5);
         });
 
         it('should send the invite reply to the host', () => {
@@ -337,8 +337,8 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step5_createPost();
         });
 
-        it('should send exactly six messages total', () => {
-            expect(provider.sentMessages).toHaveLength(6);
+        it('should send exactly seven messages total', () => {
+            expect(provider.sentMessages).toHaveLength(7);
         });
 
         it('should send a new post notification to the host user', () => {
@@ -453,41 +453,41 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step6_likePost();
         });
 
-        it('should send exactly seven messages total', () => {
-            expect(provider.sentMessages).toHaveLength(7);
+        it('should send exactly eight messages total', () => {
+            expect(provider.sentMessages).toHaveLength(8);
         });
 
         it('should send the like notification to the host user', () => {
-            expect(provider.sentMessages[6].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[7].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the like notification from the host address', () => {
-            expect(provider.sentMessages[6].from.toString()).toBe(HOST_EMAIL);
+            expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
         });
 
         it('should send the like notification with fromName "Kath L (via friendlymail)"', () => {
-            expect((provider.sentMessages[6] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
+            expect((provider.sentMessages[7] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
         });
 
         it('should send the like notification with the correct subject', () => {
-            expect(provider.sentMessages[6].subject).toContain('Kath L liked your post');
+            expect(provider.sentMessages[7].subject).toContain('Kath L liked your post');
         });
 
         it('should set the X-friendlymail header to the new_like_notification type', () => {
-            expect(provider.sentMessages[6].xFriendlymail)
+            expect(provider.sentMessages[7].xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_LIKE_NOTIFICATION);
         });
 
         it('should include the original post content in the like notification body', () => {
-            expect(provider.sentMessages[6].body).toContain('Hello, world');
+            expect(provider.sentMessages[7].body).toContain('Hello, world');
         });
 
         it('should include the like emoji in the like notification body', () => {
-            expect(provider.sentMessages[6].body).toContain('❤️');
+            expect(provider.sentMessages[7].body).toContain('❤️');
         });
 
         it('should include the signature in the like notification body', () => {
-            expect(provider.sentMessages[6].body)
+            expect(provider.sentMessages[7].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
     });
@@ -506,8 +506,8 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step8_createPostAgain();
         });
 
-        it('should send exactly ten messages total', () => {
-            expect(provider.sentMessages).toHaveLength(10);
+        it('should send exactly eleven messages total', () => {
+            expect(provider.sentMessages).toHaveLength(11);
         });
 
         it('should send a second new post notification to the host user', () => {
@@ -609,33 +609,33 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step9_inviteSecondFollower();
         });
 
-        it('should send exactly eleven messages total', () => {
-            expect(provider.sentMessages).toHaveLength(11);
+        it('should send exactly thirteen messages total', () => {
+            expect(provider.sentMessages).toHaveLength(13);
         });
 
         it('should send the invite reply to the host', () => {
-            expect(provider.sentMessages[10].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[11].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the invite reply from the host address', () => {
-            expect(provider.sentMessages[10].from.toString()).toBe(HOST_EMAIL);
+            expect(provider.sentMessages[11].from.toString()).toBe(HOST_EMAIL);
         });
 
         it('should send the second invite reply with fromName "friendlymail"', () => {
-            expect((provider.sentMessages[10] as ISimpleMessage).fromName).toBe('friendlymail');
+            expect((provider.sentMessages[11] as ISimpleMessage).fromName).toBe('friendlymail');
         });
 
         it('should set the X-friendlymail header to the invite type', () => {
-            expect(provider.sentMessages[10].xFriendlymail)
+            expect(provider.sentMessages[11].xFriendlymail)
                 .toContain(FriendlymailMessageType.INVITE);
         });
 
         it('should confirm the second follower was added in the reply body', () => {
-            expect(provider.sentMessages[10].body).toContain(`${SECOND_FOLLOWER_EMAIL} is now following you`);
+            expect(provider.sentMessages[11].body).toContain(`${SECOND_FOLLOWER_EMAIL} is now following you`);
         });
 
         it('should include the signature in the invite reply body', () => {
-            expect(provider.sentMessages[10].body)
+            expect(provider.sentMessages[11].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
     });
@@ -656,8 +656,8 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step10_createThirdPost();
         });
 
-        it('should send exactly fourteen messages total', () => {
-            expect(provider.sentMessages).toHaveLength(14);
+        it('should send exactly sixteen messages total', () => {
+            expect(provider.sentMessages).toHaveLength(16);
         });
 
         it('should send a new post notification to the host user', () => {
@@ -810,7 +810,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         await localRun(1);
         // Step 4
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${FOLLOWER_EMAIL}`));
-        await localRun(1);
+        await localRun(2); // invite reply to host + invite message to the added follower
         // Step 5
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hello, world', undefined, undefined, undefined, FIRST_POST_MESSAGE_ID));
         await localRun(2);
@@ -833,7 +833,7 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
         await localRun(2);
         // Step 9
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', `$ invite --addfollower ${SECOND_FOLLOWER_EMAIL}`));
-        await localRun(1);
+        await localRun(2); // invite reply to host + invite message to the added follower
         // Step 10
         await receive(new SimpleMessageWithMessageId(localHost, [localHost], 'Fm', 'Hi Alice and Kath'));
         await localRun(3);
@@ -873,50 +873,50 @@ describe('Scenario: A friendlymail account is created and a post is made', () =>
             await step7_commentOnPost();
         });
 
-        it('should send exactly eight messages total', () => {
-            expect(provider.sentMessages).toHaveLength(8);
+        it('should send exactly nine messages total', () => {
+            expect(provider.sentMessages).toHaveLength(9);
         });
 
         it('should send the comment notification to the host user', () => {
-            expect(provider.sentMessages[7].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
+            expect(provider.sentMessages[8].to.map((a: EmailAddress) => a.toString())).toContain(HOST_EMAIL);
         });
 
         it('should send the comment notification from the host address', () => {
-            expect(provider.sentMessages[7].from.toString()).toBe(HOST_EMAIL);
+            expect(provider.sentMessages[8].from.toString()).toBe(HOST_EMAIL);
         });
 
         it('should send the comment notification with fromName "Kath L (via friendlymail)"', () => {
-            expect((provider.sentMessages[7] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
+            expect((provider.sentMessages[8] as ISimpleMessage).fromName).toBe('Kath L (via friendlymail)');
         });
 
         it('should send the comment notification with the correct subject', () => {
-            expect(provider.sentMessages[7].subject).toContain('New comment:');
+            expect(provider.sentMessages[8].subject).toContain('New comment:');
         });
 
         it('should set the X-friendlymail header to the new_comment_notification type', () => {
-            expect(provider.sentMessages[7].xFriendlymail)
+            expect(provider.sentMessages[8].xFriendlymail)
                 .toContain(FriendlymailMessageType.NEW_COMMENT_NOTIFICATION);
         });
 
         it('should include the comment text in the notification body', () => {
-            expect(provider.sentMessages[7].body).toContain('hello, universe!');
+            expect(provider.sentMessages[8].body).toContain('hello, universe!');
         });
 
         it('should include the original post content in the comment thread', () => {
-            expect(provider.sentMessages[7].body).toContain('Hello, world');
+            expect(provider.sentMessages[8].body).toContain('Hello, world');
         });
 
         it('should include the signature in the comment notification body', () => {
-            expect(provider.sentMessages[7].body)
+            expect(provider.sentMessages[8].body)
                 .toContain('friendlymail, an open-source, email-based, alternative social network');
         });
 
         it('should include the like link with the comment ref id in the comment notification body', () => {
-            expect(provider.sentMessages[7].body).toContain(COMMENT_REF_ID);
+            expect(provider.sentMessages[8].body).toContain(COMMENT_REF_ID);
         });
 
         it('should include the comment link with the original post ref id in the comment notification body', () => {
-            expect(provider.sentMessages[7].body).toContain(FIRST_POST_REF_ID);
+            expect(provider.sentMessages[8].body).toContain(FIRST_POST_REF_ID);
         });
     });
 });

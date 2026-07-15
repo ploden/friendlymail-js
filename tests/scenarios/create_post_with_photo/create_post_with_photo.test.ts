@@ -99,7 +99,7 @@ describe('Scenario: Create post with photo', () => {
 
     async function step_inviteFollower(): Promise<void> {
         await provider.loadMessage(inviteAddfollowerCommand());
-        await runDaemon(1);
+        await runDaemon(2); // invite reply to host + invite message to the added follower
     }
 
     async function step_createPhotoPost(body = ''): Promise<void> {

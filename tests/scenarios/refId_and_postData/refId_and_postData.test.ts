@@ -98,7 +98,7 @@ describe('refId and postData in notification messages', () => {
                 `$ invite --addfollower ${FOLLOWER_EMAIL}`
             )
         );
-        await runDaemon(1);
+        await runDaemon(2); // invite reply to host + invite message to the added follower
     }
 
     async function step5_createFirstPost(): Promise<void> {
